@@ -1,0 +1,59 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "ai-org",
+	"main": "worker.ts",
+	"compatibility_date": "2026-08-05",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".open-next/assets",
+		// Skew Protection 有効時は Worker が先に実行され、デプロイ前後の JS と Server Action を揃える
+		"run_worker_first": true
+	},
+	"images": {
+		"binding": "IMAGES"
+	},
+	"services": [
+		{
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "ai-org"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "ai-org",
+			"database_id": "34b349f2-ca97-4ecc-9540-c04e7c9e2696",
+			"migrations_dir": "migrations"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "ai-org-media"
+		}
+	],
+	// @automation id: x-due-cron — 詳細は worker.ts の scheduled
+	"triggers": {
+		"crons": [
+			"* * * * *"
+		]
+	},
+	"vars": {
+		"POLICY_AUD": "c127cc1ab80df9c6eeb874bc0240638f1d77612df8b7377acfc73f4c67970c7a",
+		"TEAM_DOMAIN": "https://studiofoods.cloudflareaccess.com",
+		"CF_WORKER_NAME": "ai-org",
+		"CF_ACCOUNT_ID": "2416397d79e09c5f8f8afd5b2ed379db"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true
+}

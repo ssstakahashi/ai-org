@@ -1,0 +1,5 @@
+-- 従業員・カテゴリ・タグの表示色
+
+ALTER TABLE employees ADD COLUMN color TEXT NOT NULL DEFAULT '';
+ALTER TABLE categories ADD COLUMN color TEXT NOT NULL DEFAULT '';
+ALTER TABLE tags ADD COLUMN color TEXT NOT NULL DEFAULT '';

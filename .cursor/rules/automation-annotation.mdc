@@ -1,0 +1,52 @@
+---
+description: @automation 注釈の書き方（自動化の正本）
+globs: worker.ts,wrangler.jsonc,src/lib/publish-x-posts.ts,src/lib/automations.ts,src/app/actions.ts,src/components/RunDuePostsButton.tsx,src/components/XPostScheduleTable.tsx
+alwaysApply: false
+---
+
+# @automation 規約
+
+自動化・手動トリガーの**正本はコード上の `@automation` ブロック**。一覧ページは `src/lib/automations.ts` の `AUTOMATIONS` が描画する。
+
+## 書式（JSDoc / ブロックコメント）
+
+実装のエントリポイント直上に置く。キーは1行1つ。`id` は必須でリポ内一意。
+
+```ts
+/**
+ * @automation
+ * id: x-due-cron
+ * name: X 予約投稿（期限到来分）
+ * runner: program
+ * status: active
+ * trigger: Cloudflare Cron（毎分: * * * * *）
+ * summary: 予約時刻を過ぎた x_posts を投稿する
+ * location: worker.ts → publishDueXPosts
+ * href: /x-schedule
+ */
+```
+
+## フィールド
+
+| キー | 必須 | 値 |
+|---|---|---|
+| `id` | yes | kebab-case、既存と衝突させない |
+| `name` | yes | 一覧に出す名称 |
+| `runner` | yes | `program` / `cursor` / `manual` |
+| `status` | yes | `active` / `none` / `manual` |
+| `trigger` | yes | 何が起動するか |
+| `summary` | yes | 1〜2文 |
+| `location` | yes | ファイル／関数の所在 |
+| `href` | no | 関連画面パス |
+
+## runner の決め方
+
+- `program` … Cron / Worker `scheduled` / スクリプトなどコードが勝手に動く
+- `cursor` … Cursor Automations（Cloud Agent）。リポ外設定ならカタログ専用エントリ可
+- `manual` … UI ボタン等、人が押したときだけ
+
+## やってはいけないこと
+
+- `@automation` なしで自動実行だけ追加する
+- `scheduled_at` など業務フィールドを自動化と誤認して注釈する
+- 同じ `id` を複数箇所に付ける（トリガー入口に1つだけ）

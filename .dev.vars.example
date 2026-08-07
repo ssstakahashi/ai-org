@@ -1,0 +1,12 @@
+# ローカル用。必要ならシークレットを追加
+# EXAMPLE_SECRET=value
+
+# X API（投稿用・値はコンソールから取得）
+# X_API_KEY=
+# X_API_SECRET=
+# X_ACCESS_TOKEN=
+# X_ACCESS_TOKEN_SECRET=
+# X_BEARER_TOKEN=
+
+# agri 等からの自動化 push 受信
+# AUTOMATION_INGEST_SECRET=

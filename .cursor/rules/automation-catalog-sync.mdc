@@ -1,0 +1,29 @@
+---
+description: コードから自動化を抽出し automations.ts を差分更新する手順
+alwaysApply: true
+---
+
+# 自動化カタログ同期
+
+ユーザーが「自動化を抽出」「カタログ更新」「@automation を同期」などと言ったら、次を実行する。新しい Cron / 自動実行 / 手動投稿トリガーを追加した直後も、必要なら同じ手順を提案する。
+
+## 手順
+
+1. リポ内を検索する
+   - コメント: `@automation`
+   - 設定: `wrangler.jsonc` の `triggers.crons`
+   - コード: `scheduled(`、Cron、webhook 受信、定時ジョブ
+2. 各 `@automation` を `AutomationEntry` に写す（キーはそのまま）。自アプリは `source: ai-org`
+3. `@automation` が無いが明らかに自動実行のものは、先に注釈を付けてからカタログへ入れる（規約は `automation-annotation` ルール）
+4. `src/lib/automations.ts` の `AUTOMATIONS` を **id で突合して差分更新**
+   - 既存 id → フィールド更新
+   - 新規 id → 追記
+   - コードから消えた id → 削除するか、ユーザーに確認
+5. 外部アプリ（agri 等）は push で `remote_automations` に入る。静的配列へ手書きしない
+6. Cursor Automations（Dashboard）はリポに無い。コードに根拠が無ければ `runner: cursor` の「未設定」行を維持し、推測で増やさない
+7. **変更してよいのは** 注釈コメントと `automations.ts`（必要ならこのルール）。UI/CSS/デザインは触らない
+
+## 完了時
+
+- 追加・更新・削除した `id` を短く報告する
+- `/automations` で一覧が意図どおりか一言触れる
