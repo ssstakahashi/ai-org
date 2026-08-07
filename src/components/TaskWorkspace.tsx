@@ -92,6 +92,11 @@ export function TaskWorkspace({ employees, categories, tags, tasks }: Props) {
 		router.refresh();
 	}, [closeDetailDialog, router]);
 
+	const handleDeleteSuccess = useCallback(() => {
+		closeDetailDialog();
+		router.refresh();
+	}, [closeDetailDialog, router]);
+
 	return (
 		<>
 			<section className="panel">
@@ -156,6 +161,7 @@ export function TaskWorkspace({ employees, categories, tags, tasks }: Props) {
 							task={detailing}
 							onEdit={openEditFromDetail}
 							onCompleteSuccess={handleCompleteSuccess}
+							onDeleteSuccess={handleDeleteSuccess}
 						/>
 					) : null}
 				</div>

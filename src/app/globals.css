@@ -1449,6 +1449,10 @@ button.ghost {
 	border-top: 1px solid var(--line);
 }
 
+.task-detail-actions .task-detail-delete {
+	margin-left: auto;
+}
+
 .task-dialog-docked {
 	width: min(48rem, calc(100% - 2rem));
 }

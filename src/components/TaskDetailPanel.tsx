@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateTaskStatus } from "@/app/actions";
+import { deleteTask, updateTaskStatus } from "@/app/actions";
 import { tintStyle } from "@/lib/colors";
 import { mediaUrl } from "@/lib/media-upload";
 import { formatPeriodLabel } from "@/lib/task-views";
@@ -11,9 +11,10 @@ type Props = {
 	task: TaskWithEmployee;
 	onEdit: () => void;
 	onCompleteSuccess: () => void;
+	onDeleteSuccess: () => void;
 };
 
-export function TaskDetailPanel({ task, onEdit, onCompleteSuccess }: Props) {
+export function TaskDetailPanel({ task, onEdit, onCompleteSuccess, onDeleteSuccess }: Props) {
 	const [pending, startTransition] = useTransition();
 	const [error, setError] = useState<string | null>(null);
 	const periodLabel = formatPeriodLabel(task);
@@ -31,6 +32,22 @@ export function TaskDetailPanel({ task, onEdit, onCompleteSuccess }: Props) {
 				onCompleteSuccess();
 			} catch (err) {
 				setError(err instanceof Error ? err.message : "完了の保存に失敗しました");
+			}
+		});
+	}
+
+	function handleDelete() {
+		if (pending) return;
+		if (!window.confirm(`「${task.title}」を削除しますか？`)) return;
+		setError(null);
+		startTransition(async () => {
+			try {
+				const formData = new FormData();
+				formData.set("id", task.id);
+				await deleteTask(formData);
+				onDeleteSuccess();
+			} catch (err) {
+				setError(err instanceof Error ? err.message : "削除に失敗しました");
 			}
 		});
 	}
@@ -84,6 +101,14 @@ export function TaskDetailPanel({ task, onEdit, onCompleteSuccess }: Props) {
 				)}
 				<button type="button" disabled={pending} onClick={onEdit}>
 					編集
+				</button>
+				<button
+					type="button"
+					className="ghost danger task-detail-delete"
+					disabled={pending}
+					onClick={handleDelete}
+				>
+					{pending ? "処理中…" : "削除"}
 				</button>
 			</div>
 		</div>
