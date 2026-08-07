@@ -7,6 +7,8 @@
 	--line: #cfd8d2;
 	--accent: #1f6b4a;
 	--accent-soft: #d7ebe1;
+	--calendar-sunday-bg: #fff0f3;
+	--calendar-saturday-bg: #eef6ff;
 	--danger: #8b3a2f;
 	--muted: #5b6a62;
 	--status-draft: #8a9a90;
@@ -1337,6 +1339,15 @@ button.ghost {
 	color: var(--muted);
 	font-weight: 600;
 	padding: 0.25rem 0;
+	border-radius: 6px;
+}
+
+.calendar-weekday:nth-child(1) {
+	background: var(--calendar-sunday-bg);
+}
+
+.calendar-weekday:nth-child(7) {
+	background: var(--calendar-saturday-bg);
 }
 
 .calendar-cell {
@@ -1363,6 +1374,22 @@ button.ghost {
 	background: color-mix(in srgb, var(--accent-soft) 55%, white);
 }
 
+.calendar-grid .calendar-cell:nth-child(7n + 1):not(.empty) {
+	background: var(--calendar-sunday-bg);
+}
+
+.calendar-grid .calendar-cell:nth-child(7n):not(.empty) {
+	background: var(--calendar-saturday-bg);
+}
+
+.calendar-grid .calendar-cell:nth-child(7n + 1).clickable:hover:not(.empty) {
+	background: color-mix(in srgb, var(--accent-soft) 45%, var(--calendar-sunday-bg));
+}
+
+.calendar-grid .calendar-cell:nth-child(7n).clickable:hover:not(.empty) {
+	background: color-mix(in srgb, var(--accent-soft) 45%, var(--calendar-saturday-bg));
+}
+
 .calendar-cell.empty {
 	background: transparent;
 	border-color: transparent;
@@ -1372,6 +1399,14 @@ button.ghost {
 .calendar-cell.today {
 	border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
 	background: color-mix(in srgb, var(--accent-soft) 40%, white);
+}
+
+.calendar-grid .calendar-cell:nth-child(7n + 1).today:not(.empty) {
+	background: color-mix(in srgb, var(--accent-soft) 40%, var(--calendar-sunday-bg));
+}
+
+.calendar-grid .calendar-cell:nth-child(7n).today:not(.empty) {
+	background: color-mix(in srgb, var(--accent-soft) 40%, var(--calendar-saturday-bg));
 }
 
 .board-hint {
@@ -1449,8 +1484,41 @@ button.ghost {
 	border-top: 1px solid var(--line);
 }
 
+.task-detail-actions button {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	border-radius: 8px;
+}
+
+.task-detail-btn-icon {
+	flex: 0 0 auto;
+}
+
+.task-detail-done-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.task-detail-actions .task-detail-btn-complete.primary {
+	border-radius: 8px;
+}
+
 .task-detail-actions .task-detail-delete {
 	margin-left: auto;
+	background: var(--danger);
+	border-color: var(--danger);
+	color: #fff;
+}
+
+.task-detail-actions .task-detail-delete:hover:not(:disabled) {
+	filter: brightness(1.06);
+}
+
+.task-detail-actions .task-detail-delete:disabled {
+	opacity: 0.72;
+	cursor: not-allowed;
 }
 
 .task-dialog-docked {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { StatusIcon } from "@/components/StatusIcon";
 import { deleteTask, updateTaskStatus } from "@/app/actions";
 import { tintStyle } from "@/lib/colors";
 import { mediaUrl } from "@/lib/media-upload";
@@ -93,24 +94,62 @@ export function TaskDetailPanel({ task, onEdit, onCompleteSuccess, onDeleteSucce
 			{error ? <p className="form-error">{error}</p> : null}
 			<div className="task-actions task-detail-actions">
 				{!isDone ? (
-					<button type="button" className="primary" disabled={pending} onClick={handleComplete}>
-						{pending ? "保存中…" : "完了にする"}
+					<button
+						type="button"
+						className="primary task-detail-btn task-detail-btn-complete"
+						disabled={pending}
+						onClick={handleComplete}
+					>
+						<StatusIcon status="done" className="task-detail-btn-icon" />
+						<span>{pending ? "保存中…" : "完了にする"}</span>
 					</button>
 				) : (
-					<span className="badge status-done">完了</span>
+					<span className="badge status-done task-detail-done-badge">
+						<StatusIcon status="done" className="task-detail-btn-icon" />
+						完了
+					</span>
 				)}
-				<button type="button" disabled={pending} onClick={onEdit}>
-					編集
+				<button
+					type="button"
+					className="task-detail-btn task-detail-btn-edit"
+					disabled={pending}
+					onClick={onEdit}
+				>
+					<StatusIcon status="draft" className="task-detail-btn-icon" />
+					<span>編集</span>
 				</button>
 				<button
 					type="button"
-					className="ghost danger task-detail-delete"
+					className="danger task-detail-btn task-detail-delete"
 					disabled={pending}
 					onClick={handleDelete}
 				>
-					{pending ? "処理中…" : "削除"}
+					<DeleteIcon />
+					<span>{pending ? "処理中…" : "削除"}</span>
 				</button>
 			</div>
 		</div>
+	);
+}
+
+function DeleteIcon() {
+	return (
+		<svg
+			className="task-detail-btn-icon"
+			width={14}
+			height={14}
+			viewBox="0 0 16 16"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth={1.75}
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden
+		>
+			<path d="M3.5 4.5h9" />
+			<path d="M6.2 4.5V3.2a.7.7 0 0 1 .7-.7h2.2a.7.7 0 0 1 .7.7v1.3" />
+			<path d="M5.2 4.5v8.3a1 1 0 0 0 1 1h3.6a1 1 0 0 0 1-1V4.5" />
+			<path d="M6.8 7v4.8M9.2 7v4.8" />
+		</svg>
 	);
 }
