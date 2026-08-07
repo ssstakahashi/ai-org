@@ -18,7 +18,7 @@ import {
 	type TaskWithEmployee,
 } from "@/lib/types";
 
-const CREATE_STATUSES: TaskStatus[] = ["approved", "scheduled", "done"];
+const CREATE_STATUSES: TaskStatus[] = ["draft", "approved", "scheduled", "done"];
 const EDIT_STATUSES: TaskStatus[] = ["draft", "approved", "scheduled", "done", "failed"];
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -46,7 +46,7 @@ export function TaskForm({
 	defaultCategoryId = "",
 	defaultStartAt = "",
 	defaultEndAt = "",
-	defaultStatus = "approved",
+	defaultStatus = "draft",
 	onSuccess,
 }: Props) {
 	const isEdit = Boolean(task);

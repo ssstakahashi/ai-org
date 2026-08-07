@@ -21,6 +21,8 @@ import {
 	taskCoversDate,
 	taskOverlapsMonth,
 	taskPeriod,
+	showsInUnscheduledList,
+	showsOnScheduleBoard,
 	toDateKey,
 } from "@/lib/task-views";
 import { getZonedParts } from "@/lib/timezone";
@@ -54,12 +56,12 @@ export function TaskBoard({ tasks, onDayClick, onTaskClick }: Props) {
 	const [month, setMonth] = useState(() => startOfMonth(new Date()));
 
 	const unscheduled = useMemo(
-		() => tasks.filter((task) => !taskPeriod(task)),
+		() => tasks.filter(showsInUnscheduledList),
 		[tasks],
 	);
 
 	const monthTasks = useMemo(
-		() => tasks.filter((task) => taskOverlapsMonth(task, month)),
+		() => tasks.filter((task) => showsOnScheduleBoard(task) && taskOverlapsMonth(task, month)),
 		[tasks, month],
 	);
 
@@ -243,7 +245,7 @@ function CalendarView({
 			</div>
 			{unscheduled.length > 0 ? (
 				<div className="unscheduled-block">
-					<h3>期間なし（{unscheduled.length}）</h3>
+					<h3>日付未定（{unscheduled.length}）</h3>
 					<ul className="unscheduled-list">
 						{unscheduled.map((task) => (
 							<li key={task.id}>
@@ -424,7 +426,7 @@ function GanttView({
 			)}
 			{unscheduled.length > 0 ? (
 				<div className="unscheduled-block">
-					<h3>期間なし（{unscheduled.length}）</h3>
+					<h3>日付未定（{unscheduled.length}）</h3>
 					<ul className="unscheduled-list">
 						{unscheduled.map((task) => (
 							<li key={task.id}>

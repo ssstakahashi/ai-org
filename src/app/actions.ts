@@ -355,7 +355,7 @@ export async function createTask(formData: FormData) {
 	const categoryIdRaw = String(formData.get("category_id") ?? "").trim();
 	const startAtRaw = String(formData.get("start_at") ?? "").trim();
 	const endAtRaw = String(formData.get("end_at") ?? "").trim();
-	const status = (String(formData.get("status") ?? "approved") as TaskStatus) || "approved";
+	const status = (String(formData.get("status") ?? "draft") as TaskStatus) || "draft";
 	const selectedTagIds = formData.getAll("tag_ids").map((value) => String(value).trim());
 	const newTagNames = parseNewTagNames(String(formData.get("new_tags") ?? ""));
 	const recurrence = parseRecurrenceKind(String(formData.get("recurrence") ?? "none"));

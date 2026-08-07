@@ -95,6 +95,19 @@ export function taskPeriod(task: TaskWithEmployee): TaskPeriod | null {
 	return null;
 }
 
+/** 下書きはカレンダー・ガントに載せず、日付未定リスト側に表示する */
+export function isDraftTask(task: TaskWithEmployee): boolean {
+	return task.status === "draft";
+}
+
+export function showsOnScheduleBoard(task: TaskWithEmployee): boolean {
+	return !isDraftTask(task) && taskPeriod(task) !== null;
+}
+
+export function showsInUnscheduledList(task: TaskWithEmployee): boolean {
+	return isDraftTask(task) || !taskPeriod(task);
+}
+
 export function taskCoversDate(task: TaskWithEmployee, dateKey: string): boolean {
 	const period = taskPeriod(task);
 	if (!period) return false;
