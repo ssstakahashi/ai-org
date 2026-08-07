@@ -9,6 +9,7 @@
 	--accent-soft: #d7ebe1;
 	--calendar-sunday-bg: #fff0f3;
 	--calendar-saturday-bg: #eef6ff;
+	--calendar-today-bg: #fff9c4;
 	--danger: #8b3a2f;
 	--muted: #5b6a62;
 	--status-draft: #8a9a90;
@@ -1397,16 +1398,16 @@ button.ghost {
 }
 
 .calendar-cell.today {
-	border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-	background: color-mix(in srgb, var(--accent-soft) 40%, white);
+	border-color: color-mix(in srgb, #ca8a04 45%, var(--line));
+	background: var(--calendar-today-bg);
 }
 
 .calendar-grid .calendar-cell:nth-child(7n + 1).today:not(.empty) {
-	background: color-mix(in srgb, var(--accent-soft) 40%, var(--calendar-sunday-bg));
+	background: var(--calendar-today-bg);
 }
 
 .calendar-grid .calendar-cell:nth-child(7n).today:not(.empty) {
-	background: color-mix(in srgb, var(--accent-soft) 40%, var(--calendar-saturday-bg));
+	background: var(--calendar-today-bg);
 }
 
 .board-hint {
@@ -1759,7 +1760,7 @@ button.gantt-task-meta {
 
 .gantt-day.today,
 .gantt-cell.today {
-	background: color-mix(in srgb, var(--accent-soft) 35%, white);
+	background: var(--calendar-today-bg);
 }
 
 .gantt-task-meta {
