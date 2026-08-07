@@ -195,7 +195,10 @@ function CalendarView({
 							aria-label={`${key} にタスクを追加`}
 						>
 							<span className="calendar-day">{getZonedParts(day).day}</span>
-							<ul className="calendar-events">
+							<ul
+								className="calendar-events"
+								onClick={(event) => event.stopPropagation()}
+							>
 								{dayTasks.map((task) => {
 									const period = taskPeriod(task);
 									const isStart = period?.start === key;
@@ -259,7 +262,9 @@ function CalendarView({
 												{task.category_name}
 											</span>
 										) : null}
-										<span>{task.title}</span>
+										<span className={task.status === "done" ? "task-done-strike" : undefined}>
+											{task.title}
+										</span>
 										<span className="employee" style={tintStyle(task.employee_color)}>
 											{task.employee_name}
 										</span>
@@ -276,7 +281,9 @@ function CalendarView({
 												{task.category_name}
 											</span>
 										) : null}
-										<span>{task.title}</span>
+										<span className={task.status === "done" ? "task-done-strike" : undefined}>
+											{task.title}
+										</span>
 										<span className="employee" style={tintStyle(task.employee_color)}>
 											{task.employee_name}
 										</span>
@@ -386,7 +393,7 @@ function GanttView({
 											{onTaskClick ? (
 												<button
 													type="button"
-													className="gantt-task-meta clickable"
+													className={`gantt-task-meta clickable status-${task.status}`}
 													onClick={() => onTaskClick(task)}
 												>
 													<span className="gantt-task-title">{task.title}</span>
@@ -397,7 +404,7 @@ function GanttView({
 													</span>
 												</button>
 											) : (
-												<div className="gantt-task-meta">
+												<div className={`gantt-task-meta status-${task.status}`}>
 													<span className="gantt-task-title">{task.title}</span>
 													<span className="muted">
 														{TASK_STATUS_LABEL[task.status]}
@@ -428,13 +435,17 @@ function GanttView({
 										onClick={() => onTaskClick(task)}
 									>
 										<span className="badge">{TASK_STATUS_LABEL[task.status]}</span>
-										<span>{task.title}</span>
+										<span className={task.status === "done" ? "task-done-strike" : undefined}>
+											{task.title}
+										</span>
 										<span className="muted">詳細</span>
 									</button>
 								) : (
 									<>
 										<span className="badge">{TASK_STATUS_LABEL[task.status]}</span>
-										<span>{task.title}</span>
+										<span className={task.status === "done" ? "task-done-strike" : undefined}>
+											{task.title}
+										</span>
 									</>
 								)}
 							</li>

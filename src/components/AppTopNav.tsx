@@ -1,5 +1,6 @@
 import { AppNavLink } from "@/components/AppNavLink";
 import { LogoutButton } from "@/components/LogoutButton";
+import { APP_VERSION } from "@/lib/app-version";
 
 const NAV: { href: string; label: string; matchRoot?: boolean }[] = [
 	{ href: "/", label: "業務台帳", matchRoot: true },
@@ -20,7 +21,10 @@ export function AppTopNav({ logoutHref }: Props) {
 	return (
 		<div className="app-topnav">
 			<div className="app-topnav-inner">
-				<p className="brand">ai-org</p>
+				<div className="brand-wrap">
+					<p className="brand">ai-org</p>
+					<span className="brand-version">ver {APP_VERSION}</span>
+				</div>
 				<div className="hero-actions">
 					<nav className="app-nav" aria-label="主要メニュー">
 						{NAV.map((item) => (

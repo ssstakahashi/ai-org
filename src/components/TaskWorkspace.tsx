@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { createTask } from "@/app/actions";
 import { TaskBoard } from "@/components/TaskBoard";
 import { TaskDetailPanel } from "@/components/TaskDetailPanel";
@@ -58,7 +59,9 @@ export function TaskWorkspace({ employees, categories, tags, tasks }: Props) {
 	}, []);
 
 	function openDetailDialog(task: TaskWithEmployee) {
-		setDetailing(task);
+		flushSync(() => {
+			setDetailing(task);
+		});
 		detailDialogRef.current?.showModal();
 	}
 
@@ -66,8 +69,10 @@ export function TaskWorkspace({ employees, categories, tags, tasks }: Props) {
 		if (!detailing) return;
 		const task = detailing;
 		closeDetailDialog();
-		setEditing(task);
-		setEditFormKey((value) => value + 1);
+		flushSync(() => {
+			setEditing(task);
+			setEditFormKey((value) => value + 1);
+		});
 		editDialogRef.current?.showModal();
 	}
 

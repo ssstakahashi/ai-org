@@ -1,7 +1,18 @@
+import { execSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 import { getDeploymentId } from "@opennextjs/cloudflare";
+
+function getGitVersionName(): string {
+	try {
+		return execSync("git describe --tags --always --dirty", {
+			encoding: "utf8",
+		}).trim();
+	} catch {
+		return "unknown";
+	}
+}
 
 // /Users/user/package.json があると Turbopack がホームをルートと誤認するため固定する
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -15,6 +26,9 @@ if (process.env.NODE_ENV === "production" && !process.env.NEXT_SERVER_ACTIONS_EN
 }
 
 const nextConfig: NextConfig = {
+	env: {
+		NEXT_PUBLIC_APP_VERSION: getGitVersionName(),
+	},
 	deploymentId: getDeploymentId(),
 	turbopack: {
 		root: projectRoot,

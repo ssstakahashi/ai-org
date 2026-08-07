@@ -80,7 +80,7 @@ export function TaskDetailPanel({ task, onEdit, onCompleteSuccess }: Props) {
 						{pending ? "保存中…" : "完了にする"}
 					</button>
 				) : (
-					<span className="badge status-done">完了済み</span>
+					<span className="badge status-done">完了</span>
 				)}
 				<button type="button" disabled={pending} onClick={onEdit}>
 					編集
