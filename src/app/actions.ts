@@ -599,7 +599,7 @@ export async function createXPost(
 	const notes = String(formData.get("notes") ?? "").trim();
 	const scheduledAtRaw = String(formData.get("scheduled_at") ?? "").trim();
 	const status =
-		(String(formData.get("status") ?? "scheduled").trim() as TaskStatus) || "scheduled";
+		(String(formData.get("status") ?? "draft").trim() as TaskStatus) || "draft";
 	const upload = getUploadFile(formData, "image");
 
 	if (!title) {

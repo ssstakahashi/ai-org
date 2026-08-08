@@ -8,7 +8,7 @@ import { toAppDateTimeLocal } from "@/lib/timezone";
 import { replaceInputFile, toWebpFile } from "@/lib/to-webp";
 import { X_POST_STATUS_LABEL, type TaskStatus, type XPost } from "@/lib/types";
 
-const CREATE_STATUSES: TaskStatus[] = ["approved", "scheduled", "draft"];
+const CREATE_STATUSES: TaskStatus[] = ["draft", "approved", "scheduled", "done"];
 const EDIT_STATUSES: TaskStatus[] = ["draft", "approved", "scheduled", "done", "failed"];
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -26,7 +26,7 @@ const initialState: FormState = { error: null, ok: false };
 export function XPostForm({
 	post,
 	defaultScheduledAt = "",
-	defaultStatus = "scheduled",
+	defaultStatus = "draft",
 	onSuccess,
 }: Props) {
 	const isEdit = Boolean(post);
