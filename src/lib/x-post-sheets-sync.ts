@@ -19,6 +19,10 @@ type SheetField =
 	| "body"
 	| "status"
 	| "scheduled_at"
+	| "scheduled_date"
+	| "scheduled_weekday"
+	| "scheduled_time"
+	| "media"
 	| "notes"
 	| "image_url"
 	| "x_post_id"
@@ -33,6 +37,10 @@ const DEFAULT_HEADERS: Record<SheetField, string> = {
 	body: "投稿文",
 	status: "ステータス",
 	scheduled_at: "予約日時",
+	scheduled_date: "日付",
+	scheduled_weekday: "曜日",
+	scheduled_time: "投稿時間",
+	media: "媒体",
 	notes: "メモ",
 	image_url: "画像URL",
 	x_post_id: "X投稿ID",
@@ -44,12 +52,23 @@ const DEFAULT_HEADERS: Record<SheetField, string> = {
 
 const HEADER_ALIASES: Record<SheetField, string[]> = {
 	id: ["id", "ID"],
-	title: ["タイトル", "title", "Title"],
-	body: ["投稿文", "body", "本文"],
+	title: ["タイトル", "title", "Title", "投稿カテゴリー/キャンペーン名", "キャンペーン名"],
+	body: ["投稿文", "body", "本文", "投稿内容・テキスト案", "投稿内容", "テキスト案"],
 	status: ["ステータス", "status", "Status"],
 	scheduled_at: ["予約日時", "scheduled_at", "予約"],
-	notes: ["メモ", "notes", "Notes"],
-	image_url: ["画像URL", "画像", "image_url", "image"],
+	scheduled_date: ["日付", "scheduled_date"],
+	scheduled_weekday: ["曜日", "weekday"],
+	scheduled_time: ["投稿時間", "scheduled_time", "時間"],
+	media: ["媒体", "media"],
+	notes: ["メモ", "notes", "Notes", "備考"],
+	image_url: [
+		"画像URL",
+		"画像",
+		"image_url",
+		"image",
+		"画像・動画ファイル名/リンク",
+		"画像・動画",
+	],
 	x_post_id: ["X投稿ID", "x_post_id", "tweet_id"],
 	x_post_url: ["X投稿URL", "x_url", "x_post_url", "投稿URL"],
 	last_error: ["エラー", "last_error", "error"],
@@ -63,6 +82,10 @@ const FIELD_ORDER: SheetField[] = [
 	"body",
 	"status",
 	"scheduled_at",
+	"scheduled_date",
+	"scheduled_weekday",
+	"scheduled_time",
+	"media",
 	"notes",
 	"image_url",
 	"x_post_id",
@@ -113,6 +136,28 @@ function formatDateTime(value: string | null | undefined): string {
 	});
 }
 
+function formatScheduledDate(value: string | null | undefined): string {
+	if (!value) return "";
+	return formatInAppTz(value, {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	});
+}
+
+function formatScheduledWeekday(value: string | null | undefined): string {
+	if (!value) return "";
+	return formatInAppTz(value, { weekday: "short" });
+}
+
+function formatScheduledTime(value: string | null | undefined): string {
+	if (!value) return "";
+	return formatInAppTz(value, {
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+}
+
 function absoluteMediaUrl(baseUrl: string | undefined, imageKey: string | null): string {
 	if (!imageKey) return "";
 	const path = mediaUrl(imageKey);
@@ -132,6 +177,10 @@ function rowValues(post: XPost, layout: SheetLayout, env: SheetsSyncEnv): string
 		body: post.body,
 		status: X_POST_STATUS_LABEL[post.status as TaskStatus] ?? post.status,
 		scheduled_at: formatDateTime(post.scheduled_at),
+		scheduled_date: formatScheduledDate(post.scheduled_at),
+		scheduled_weekday: formatScheduledWeekday(post.scheduled_at),
+		scheduled_time: formatScheduledTime(post.scheduled_at),
+		media: "X",
 		notes: post.notes,
 		image_url: absoluteMediaUrl(env.APP_PUBLIC_URL, post.image_key),
 		x_post_id: post.x_post_id ?? "",
@@ -142,6 +191,17 @@ function rowValues(post: XPost, layout: SheetLayout, env: SheetsSyncEnv): string
 	};
 
 	return layout.columnFields.map((field) => (field ? values[field] : ""));
+}
+
+function mergeRowValues(
+	layout: SheetLayout,
+	existing: string[],
+	incoming: string[],
+): string[] {
+	return layout.columnFields.map((field, index) => {
+		if (field === null) return existing[index] ?? "";
+		return incoming[index] ?? "";
+	});
 }
 
 export function isSheetsSyncConfigured(env: SheetsSyncEnv): boolean {
@@ -309,20 +369,37 @@ async function findRowIndexById(
 	return null;
 }
 
+async function readRow(
+	token: string,
+	layout: SheetLayout,
+	rowNumber: number,
+): Promise<string[]> {
+	const lastColumn = columnLetter(Math.max(layout.columnFields.length - 1, 0));
+	const range = `${escapeSheetTitle(layout.sheetTitle)}!A${rowNumber}:${lastColumn}${rowNumber}`;
+	const data = await sheetsFetch<{ values?: string[][] }>(
+		`spreadsheets/${X_POST_SHEET_ID}/values/${encodeURIComponent(range)}`,
+		token,
+	);
+	const row = data.values?.[0] ?? [];
+	return layout.columnFields.map((_, index) => row[index] ?? "");
+}
+
 async function writeRow(
 	token: string,
 	layout: SheetLayout,
 	rowNumber: number,
 	values: string[],
+	existing?: string[],
 ): Promise<void> {
-	const lastColumn = columnLetter(Math.max(values.length - 1, 0));
+	const merged = existing ? mergeRowValues(layout, existing, values) : values;
+	const lastColumn = columnLetter(Math.max(merged.length - 1, 0));
 	const range = `${escapeSheetTitle(layout.sheetTitle)}!A${rowNumber}:${lastColumn}${rowNumber}`;
 	await sheetsFetch(
 		`spreadsheets/${X_POST_SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
 		token,
 		{
 			method: "PUT",
-			body: JSON.stringify({ values: [values] }),
+			body: JSON.stringify({ values: [merged] }),
 		},
 	);
 }
@@ -378,7 +455,8 @@ export async function syncXPostToSheet(env: SheetsSyncEnv, post: XPost): Promise
 	const values = rowValues(post, layout, env);
 	const existingRow = await findRowIndexById(token, layout, post.id);
 	if (existingRow) {
-		await writeRow(token, layout, existingRow, values);
+		const existingValues = await readRow(token, layout, existingRow);
+		await writeRow(token, layout, existingRow, values, existingValues);
 	} else {
 		await appendRow(token, layout, values);
 	}
