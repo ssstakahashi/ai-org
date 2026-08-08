@@ -32,6 +32,24 @@ export type Tag = {
 	created_at: string;
 };
 
+/** ページ台帳（カテゴリ・タグで分類） */
+export type Page = {
+	id: string;
+	title: string;
+	path: string;
+	body: string;
+	category_id: string | null;
+	sort_order: number;
+	created_at: string;
+	updated_at: string;
+};
+
+export type PageWithCategory = Page & {
+	category_name: string | null;
+	category_color: string | null;
+	tags: Tag[];
+};
+
 /** 組織ルール（マスタ） */
 export type OrgRule = {
 	id: string;

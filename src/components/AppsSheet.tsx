@@ -52,6 +52,73 @@ const APP_HEADERS = [
 const ALL = "__all__";
 const EMPTY = "__empty__";
 
+const APP_STACK_FIELDS = [
+	"frontend",
+	"css",
+	"backend",
+	"db",
+	"storage",
+	"port",
+	"auth",
+	"hosting",
+] as const;
+
+type AppStackField = (typeof APP_STACK_FIELDS)[number];
+
+function collectAppStackSuggestions(
+	apps: AppEntry[],
+	field: AppStackField,
+): string[] {
+	const seen = new Set<string>();
+	const values: string[] = [];
+	for (const app of apps) {
+		const raw = app[field].trim();
+		if (!raw || seen.has(raw)) continue;
+		seen.add(raw);
+		values.push(raw);
+	}
+	return values.sort((a, b) => a.localeCompare(b, "ja"));
+}
+
+type AutocompleteInputProps = {
+	formId?: string;
+	name: string;
+	defaultValue?: string;
+	suggestions: string[];
+	"aria-label": string;
+	className?: string;
+	listId: string;
+};
+
+function AutocompleteInput({
+	formId,
+	name,
+	defaultValue = "",
+	suggestions,
+	"aria-label": ariaLabel,
+	className,
+	listId,
+}: AutocompleteInputProps) {
+	return (
+		<>
+			<input
+				form={formId}
+				name={name}
+				defaultValue={defaultValue}
+				aria-label={ariaLabel}
+				className={className}
+				list={listId}
+				autoComplete="off"
+			/>
+			<datalist id={listId}>
+				{suggestions.map((value) => (
+					<option key={value} value={value} />
+				))}
+			</datalist>
+		</>
+	);
+}
+
 function withSortOrders<T extends { id: string; sort_order: number }>(items: T[]): T[] {
 	return items.map((item, index) => ({
 		...item,
@@ -281,6 +348,14 @@ export function AppsSheet({
 		],
 		[appTypes, apps],
 	);
+
+	const stackSuggestions = useMemo(() => {
+		const suggestions = {} as Record<AppStackField, string[]>;
+		for (const field of APP_STACK_FIELDS) {
+			suggestions[field] = collectAppStackSuggestions(apps, field);
+		}
+		return suggestions;
+	}, [apps]);
 
 	const devPolicyOptions = useMemo(() => {
 		const seen = new Set<string>();
@@ -588,71 +663,85 @@ export function AppsSheet({
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
+													<AutocompleteInput
+														formId={formId}
 														name="frontend"
 														defaultValue={app.frontend}
+														suggestions={stackSuggestions.frontend}
+														listId={`${formId}-frontend`}
 														aria-label="フロント"
 													/>
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
+													<AutocompleteInput
+														formId={formId}
 														name="css"
 														defaultValue={app.css}
+														suggestions={stackSuggestions.css}
+														listId={`${formId}-css`}
 														aria-label="css"
 													/>
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
+													<AutocompleteInput
+														formId={formId}
 														name="backend"
 														defaultValue={app.backend}
+														suggestions={stackSuggestions.backend}
+														listId={`${formId}-backend`}
 														aria-label="バックエンド"
 													/>
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
+													<AutocompleteInput
+														formId={formId}
 														name="db"
 														defaultValue={app.db}
+														suggestions={stackSuggestions.db}
+														listId={`${formId}-db`}
 														aria-label="DB"
 													/>
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
+													<AutocompleteInput
+														formId={formId}
 														name="storage"
 														defaultValue={app.storage}
+														suggestions={stackSuggestions.storage}
+														listId={`${formId}-storage`}
 														aria-label="Storage"
 													/>
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
+													<AutocompleteInput
+														formId={formId}
 														name="port"
 														className="apps-sheet-narrow"
 														defaultValue={app.port}
+														suggestions={stackSuggestions.port}
+														listId={`${formId}-port`}
 														aria-label="PORT"
 													/>
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
+													<AutocompleteInput
+														formId={formId}
 														name="auth"
 														defaultValue={app.auth}
+														suggestions={stackSuggestions.auth}
+														listId={`${formId}-auth`}
 														aria-label="認証"
 													/>
 												</SheetCell>
@@ -670,10 +759,12 @@ export function AppsSheet({
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
+													<AutocompleteInput
+														formId={formId}
 														name="hosting"
 														defaultValue={app.hosting}
+														suggestions={stackSuggestions.hosting}
+														listId={`${formId}-hosting`}
 														aria-label="Hosting"
 													/>
 												</SheetCell>

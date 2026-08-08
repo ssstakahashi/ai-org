@@ -9,8 +9,7 @@ const NAV: { href: string; label: string; matchRoot?: boolean }[] = [
 	{ href: "/apps", label: "App管理" },
 	{ href: "/employees", label: "従業員" },
 	{ href: "/org-rules", label: "組織ルール" },
-	{ href: "/categories", label: "カテゴリ" },
-	{ href: "/tags", label: "タグ" },
+	{ href: "/pages", label: "ページ管理" },
 ];
 
 type Props = {

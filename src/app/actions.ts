@@ -32,6 +32,7 @@ import {
 	type Category,
 	type Employee,
 	type OrgRule,
+	type PageWithCategory,
 	type Tag,
 	type TaskStatus,
 	type TaskWithEmployee,
@@ -164,6 +165,64 @@ export async function listTags(): Promise<Tag[]> {
 	return results ?? [];
 }
 
+type PageRow = Omit<PageWithCategory, "tags">;
+
+const PAGE_SELECT = `
+	SELECT p.id,
+	       p.title,
+	       p.path,
+	       p.body,
+	       p.category_id,
+	       p.sort_order,
+	       p.created_at,
+	       p.updated_at,
+	       c.name AS category_name,
+	       c.color AS category_color
+	FROM pages p
+	LEFT JOIN categories c ON c.id = p.category_id`;
+
+const PAGE_ORDER = " ORDER BY p.sort_order ASC, p.title ASC";
+
+async function attachPageTags(rows: PageRow[]): Promise<PageWithCategory[]> {
+	if (rows.length === 0) return [];
+
+	const db = await getDb();
+	const placeholders = rows.map(() => "?").join(", ");
+	const { results } = await db
+		.prepare(
+			`SELECT pt.page_id, tg.id, tg.name, tg.color, tg.created_at
+			 FROM page_tags pt
+			 JOIN tags tg ON tg.id = pt.tag_id
+			 WHERE pt.page_id IN (${placeholders})
+			 ORDER BY tg.name ASC`,
+		)
+		.bind(...rows.map((row) => row.id))
+		.all<Tag & { page_id: string }>();
+
+	const byPage = new Map<string, Tag[]>();
+	for (const row of results ?? []) {
+		const list = byPage.get(row.page_id) ?? [];
+		list.push({
+			id: row.id,
+			name: row.name,
+			color: row.color,
+			created_at: row.created_at,
+		});
+		byPage.set(row.page_id, list);
+	}
+
+	return rows.map((row) => ({
+		...row,
+		tags: byPage.get(row.id) ?? [],
+	}));
+}
+
+export async function listPages(): Promise<PageWithCategory[]> {
+	const db = await getDb();
+	const { results } = await db.prepare(`${PAGE_SELECT}${PAGE_ORDER}`).all<PageRow>();
+	return attachPageTags(results ?? []);
+}
+
 export async function listOrgRules(): Promise<OrgRule[]> {
 	const db = await getDb();
 	const { results } = await db
@@ -239,6 +298,9 @@ function revalidateTaskPages() {
 	revalidatePath("/x-schedule");
 	revalidatePath("/categories");
 	revalidatePath("/tags");
+	revalidatePath("/pages");
+	revalidatePath("/pages/categories");
+	revalidatePath("/pages/tags");
 	revalidatePath("/employees");
 	revalidatePath("/apps");
 }
@@ -850,6 +912,10 @@ export async function deleteCategory(formData: FormData) {
 		.prepare("UPDATE tasks SET category_id = NULL, updated_at = datetime('now') WHERE category_id = ?")
 		.bind(id)
 		.run();
+	await db
+		.prepare("UPDATE pages SET category_id = NULL, updated_at = datetime('now') WHERE category_id = ?")
+		.bind(id)
+		.run();
 	await db.prepare("DELETE FROM categories WHERE id = ?").bind(id).run();
 	revalidateTaskPages();
 }
@@ -1018,7 +1084,111 @@ export async function deleteTag(formData: FormData) {
 	if (!id) return;
 
 	await db.prepare("DELETE FROM task_tags WHERE tag_id = ?").bind(id).run();
+	await db.prepare("DELETE FROM page_tags WHERE tag_id = ?").bind(id).run();
 	await db.prepare("DELETE FROM tags WHERE id = ?").bind(id).run();
+	revalidateTaskPages();
+}
+
+function readPageTagIds(formData: FormData): { selectedTagIds: string[]; newTagNames: string[] } {
+	const selectedTagIds = formData
+		.getAll("tag_ids")
+		.map((value) => String(value).trim())
+		.filter(Boolean);
+	const newTagNames = parseNewTagNames(String(formData.get("new_tags") ?? ""));
+	return { selectedTagIds, newTagNames };
+}
+
+export async function createPage(formData: FormData) {
+	const db = await getDb();
+	const title = String(formData.get("title") ?? "").trim();
+	const path = String(formData.get("path") ?? "").trim();
+	const body = String(formData.get("body") ?? "").trim();
+	const categoryId = String(formData.get("category_id") ?? "").trim() || null;
+	const { selectedTagIds, newTagNames } = readPageTagIds(formData);
+
+	if (!title) {
+		throw new Error("タイトルは必須です");
+	}
+
+	const maxSort = await db
+		.prepare("SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM pages")
+		.first<{ max_sort: number }>();
+
+	const id = newId("page");
+	const tagIds = await resolveTagIds(db, selectedTagIds, newTagNames);
+	const statements: D1PreparedStatement[] = [
+		db
+			.prepare(
+				`INSERT INTO pages (id, title, path, body, category_id, sort_order)
+				 VALUES (?, ?, ?, ?, ?, ?)`,
+			)
+			.bind(id, title, path, body, categoryId, (maxSort?.max_sort ?? 0) + 10),
+	];
+
+	const tagInsert = db.prepare("INSERT INTO page_tags (page_id, tag_id) VALUES (?, ?)");
+	for (const tagId of tagIds) {
+		statements.push(tagInsert.bind(id, tagId));
+	}
+
+	await db.batch(statements);
+	revalidateTaskPages();
+}
+
+export async function updatePage(formData: FormData) {
+	const db = await getDb();
+	const id = String(formData.get("id") ?? "").trim();
+	const title = String(formData.get("title") ?? "").trim();
+	const path = String(formData.get("path") ?? "").trim();
+	const body = String(formData.get("body") ?? "").trim();
+	const categoryId = String(formData.get("category_id") ?? "").trim() || null;
+	const sortOrderRaw = String(formData.get("sort_order") ?? "").trim();
+	const { selectedTagIds, newTagNames } = readPageTagIds(formData);
+
+	if (!id || !title) {
+		throw new Error("id とタイトルが必要です");
+	}
+
+	const sortOrder = Number.parseInt(sortOrderRaw, 10);
+	const tagIds = await resolveTagIds(db, selectedTagIds, newTagNames);
+	const statements: D1PreparedStatement[] = [
+		db
+			.prepare(
+				`UPDATE pages
+				 SET title = ?,
+				     path = ?,
+				     body = ?,
+				     category_id = ?,
+				     sort_order = ?,
+				     updated_at = datetime('now')
+				 WHERE id = ?`,
+			)
+			.bind(
+				title,
+				path,
+				body,
+				categoryId,
+				Number.isFinite(sortOrder) ? sortOrder : 0,
+				id,
+			),
+		db.prepare("DELETE FROM page_tags WHERE page_id = ?").bind(id),
+	];
+
+	const tagInsert = db.prepare("INSERT INTO page_tags (page_id, tag_id) VALUES (?, ?)");
+	for (const tagId of tagIds) {
+		statements.push(tagInsert.bind(id, tagId));
+	}
+
+	await db.batch(statements);
+	revalidateTaskPages();
+}
+
+export async function deletePage(formData: FormData) {
+	const db = await getDb();
+	const id = String(formData.get("id") ?? "").trim();
+	if (!id) return;
+
+	await db.prepare("DELETE FROM page_tags WHERE page_id = ?").bind(id).run();
+	await db.prepare("DELETE FROM pages WHERE id = ?").bind(id).run();
 	revalidateTaskPages();
 }
 

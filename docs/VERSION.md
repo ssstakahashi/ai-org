@@ -2,6 +2,11 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.18 (2026-08-08)
+
+- ページ台帳（一覧・カテゴリ・タグ）を `/pages` 配下に追加。既存 `/categories` `/tags` はリダイレクト
+- App 管理のスタック項目（frontend / css / backend 等）に既存値のオートコンプリートを追加
+
 ## 0.0.17 (2026-08-08)
 
 - AppGroup / App / AppType マスタの新規登録をダイアログ UI に統一
