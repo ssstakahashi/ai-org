@@ -219,9 +219,6 @@ async function loadSheetLayout(token: string, sheetTitle: string): Promise<Sheet
 
 	const columnFields = headers.map((header) => resolveField(header));
 	const idColumnIndex = columnFields.findIndex((field) => field === "id");
-	if (idColumnIndex < 0) {
-		throw new Error("スプレッドシートに ID 列がありません（1行目に「ID」列を追加してください）");
-	}
 
 	return {
 		sheetTitle,
@@ -249,6 +246,46 @@ async function ensureHeaderRow(token: string, layout: SheetLayout): Promise<void
 			body: JSON.stringify({ values: [headers] }),
 		},
 	);
+}
+
+/** 既存ヘッダー行に ID 列が無い場合、先頭列へ挿入する */
+async function ensureIdColumn(token: string, layout: SheetLayout): Promise<SheetLayout> {
+	if (layout.idColumnIndex >= 0) return layout;
+
+	await sheetsFetch(`spreadsheets/${X_POST_SHEET_ID}:batchUpdate`, token, {
+		method: "POST",
+		body: JSON.stringify({
+			requests: [
+				{
+					insertDimension: {
+						range: {
+							sheetId: X_POST_SHEET_GID,
+							dimension: "COLUMNS",
+							startIndex: 0,
+							endIndex: 1,
+						},
+						inheritFromBefore: false,
+					},
+				},
+			],
+		}),
+	});
+
+	const headerRange = `${escapeSheetTitle(layout.sheetTitle)}!A1`;
+	await sheetsFetch(
+		`spreadsheets/${X_POST_SHEET_ID}/values/${encodeURIComponent(headerRange)}?valueInputOption=RAW`,
+		token,
+		{
+			method: "PUT",
+			body: JSON.stringify({ values: [[DEFAULT_HEADERS.id]] }),
+		},
+	);
+
+	return {
+		...layout,
+		columnFields: ["id", ...layout.columnFields],
+		idColumnIndex: 0,
+	};
 }
 
 async function findRowIndexById(
@@ -334,6 +371,8 @@ export async function syncXPostToSheet(env: SheetsSyncEnv, post: XPost): Promise
 	if (!layout) {
 		layout = await createDefaultLayout(sheetTitle);
 		await ensureHeaderRow(token, layout);
+	} else {
+		layout = await ensureIdColumn(token, layout);
 	}
 
 	const values = rowValues(post, layout, env);
