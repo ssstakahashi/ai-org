@@ -7,7 +7,6 @@ import {
 	useRef,
 	useState,
 	type DragEvent,
-	type KeyboardEvent,
 	type MouseEvent,
 } from "react";
 import {
@@ -25,11 +24,13 @@ type Props = {
 
 export function EmployeeManager({ employees: initialEmployees }: Props) {
 	const router = useRouter();
+	const createDialogRef = useRef<HTMLDialogElement>(null);
 	const editDialogRef = useRef<HTMLDialogElement>(null);
 	const [employees, setEmployees] = useState(initialEmployees);
 	const [draggingId, setDraggingId] = useState<string | null>(null);
 	const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 	const [reordering, setReordering] = useState(false);
+	const [createFormKey, setCreateFormKey] = useState(0);
 	const [editing, setEditing] = useState<Employee | null>(null);
 	const [editFormKey, setEditFormKey] = useState(0);
 
@@ -85,6 +86,15 @@ export function EmployeeManager({ employees: initialEmployees }: Props) {
 		setDropTargetId(null);
 	}
 
+	function openCreateDialog() {
+		setCreateFormKey((value) => value + 1);
+		createDialogRef.current?.showModal();
+	}
+
+	function closeCreateDialog() {
+		createDialogRef.current?.close();
+	}
+
 	function openEditDialog(employee: Employee) {
 		setEditing(employee);
 		setEditFormKey((value) => value + 1);
@@ -96,79 +106,42 @@ export function EmployeeManager({ employees: initialEmployees }: Props) {
 		setEditing(null);
 	}, []);
 
+	async function handleCreate(formData: FormData) {
+		await createEmployee(formData);
+		closeCreateDialog();
+		router.refresh();
+	}
+
 	async function handleUpdate(formData: FormData) {
 		await updateEmployee(formData);
 		closeEditDialog();
 		router.refresh();
 	}
 
-	function onCardActivate(employee: Employee) {
-		if (draggingId) return;
-		openEditDialog(employee);
-	}
-
-	function onCardKeyDown(event: KeyboardEvent<HTMLDivElement>, employee: Employee) {
-		if (event.key === "Enter" || event.key === " ") {
-			event.preventDefault();
-			onCardActivate(employee);
-		}
-	}
-
 	function stopCardActivate(event: MouseEvent) {
 		event.stopPropagation();
+	}
+
+	async function handleColorUpdate(form: HTMLFormElement) {
+		const formData = new FormData(form);
+		await updateEmployee(formData);
+		router.refresh();
 	}
 
 	return (
 		<>
 			<section className="panel">
-				<h2>従業員（{employees.length}）</h2>
-				<form action={createEmployee} className="employee-add-form">
-					<label>
-						<span>名前</span>
-						<input name="name" required placeholder="例: デザイン担当" />
-					</label>
-					<label>
-						<span>役割</span>
-						<textarea
-							name="role"
-							required
-							rows={4}
-							className="employee-role-textarea"
-							placeholder="例: タスクの優先度付け、進捗会議の議事起案、部署横断の調整。"
-							defaultValue="ops"
-						/>
-					</label>
-					<label>
-						<span>担当領域</span>
-						<textarea
-							name="area"
-							rows={3}
-							className="employee-role-textarea"
-							placeholder="例: 経営企画、進捗管理、Inbox振り分け"
-						/>
-					</label>
-					<label>
-						<span>職務権限</span>
-						<textarea
-							name="authority"
-							rows={3}
-							className="employee-role-textarea"
-							placeholder="例: 優先度の提案、議事起案、他部署への依頼調整"
-						/>
-					</label>
-					<label className="color-field">
-						<span>色</span>
-						<input type="color" name="color" defaultValue={colorInputValue("")} />
-					</label>
-					<button type="submit" className="primary">
-						追加
+				<div className="panel-head">
+					<h2>従業員（{employees.length}）</h2>
+					<button type="button" className="primary" onClick={openCreateDialog}>
+						新規登録
 					</button>
-				</form>
+				</div>
 				<p className="field-hint">
-					カードをクリックすると編集できます。左のハンドルをドラッグして表示順を変更できます。タスクが残っている従業員は削除できません。
+					「編集」で詳細を変更できます。色はカード上から直接設定できます。左のハンドルをドラッグして表示順を変更できます。タスクが残っている従業員は削除できません。
 				</p>
 				{employees.length === 0 ? (
-					<p className="empty">従業員がいません。上のフォームから追加してください。</p>
+					<p className="empty">従業員がいません。「新規登録」から追加してください。</p>
 				) : (
 					<ul className="master-list employee-card-list">
 						{employees.map((employee) => {
@@ -206,21 +179,31 @@ export function EmployeeManager({ employees: initialEmployees }: Props) {
 										>
 											<span aria-hidden="true">⋮⋮</span>
 										</button>
-										<span
-											className="color-swatch"
-											style={{ background: colorInputValue(employee.color) }}
-											title={employee.color || "未設定"}
-											aria-hidden="true"
-										/>
+										<form
+											className="employee-card-color-form"
+											onClick={stopCardActivate}
+											onChange={(event) => {
+												void handleColorUpdate(event.currentTarget);
+											}}
+										>
+											<input type="hidden" name="id" value={employee.id} />
+											<input type="hidden" name="name" value={employee.name} />
+											<input type="hidden" name="role" value={employee.role} />
+											<input type="hidden" name="area" value={employee.area} />
+											<input type="hidden" name="authority" value={employee.authority} />
+											<label className="color-field">
+												<span className="sr-only">{employee.name} の色</span>
+												<input
+													type="color"
+													name="color"
+													defaultValue={colorInputValue(employee.color)}
+													aria-label={`${employee.name} の色`}
+													title="色を変更"
+												/>
+											</label>
+										</form>
 									</div>
-									<div
-										className="employee-card-body"
-										role="button"
-										tabIndex={0}
-										aria-label={`${employee.name} を編集`}
-										onClick={() => onCardActivate(employee)}
-										onKeyDown={(event) => onCardKeyDown(event, employee)}
-									>
+									<div className="employee-card-body">
 										<p className="employee-card-name">{employee.name}</p>
 										<div className="employee-card-field">
 											<span className="employee-card-label">役割</span>
@@ -239,22 +222,90 @@ export function EmployeeManager({ employees: initialEmployees }: Props) {
 											</p>
 										</div>
 									</div>
-									<form
-										action={deleteEmployee}
-										className="employee-card-actions"
-										onClick={stopCardActivate}
-									>
-										<input type="hidden" name="id" value={employee.id} />
-										<button type="submit" className="ghost">
-											削除
+									<div className="employee-card-actions" onClick={stopCardActivate}>
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => openEditDialog(employee)}
+										>
+											編集
 										</button>
-									</form>
+										<form action={deleteEmployee}>
+											<input type="hidden" name="id" value={employee.id} />
+											<button type="submit" className="ghost">
+												削除
+											</button>
+										</form>
+									</div>
 								</li>
 							);
 						})}
 					</ul>
 				)}
 			</section>
+
+			<dialog
+				ref={createDialogRef}
+				className="task-dialog"
+				onClick={(event) => {
+					if (event.target === createDialogRef.current) closeCreateDialog();
+				}}
+			>
+				<div className="task-dialog-panel">
+					<div className="task-dialog-head">
+						<h2>従業員を登録</h2>
+						<button type="button" className="ghost" onClick={closeCreateDialog}>
+							閉じる
+						</button>
+					</div>
+					<form
+						key={createFormKey}
+						action={handleCreate}
+						className="employee-edit-form employee-dialog-form"
+					>
+						<label>
+							<span>名前</span>
+							<input name="name" required placeholder="例: デザイン担当" />
+						</label>
+						<label>
+							<span>役割</span>
+							<textarea
+								name="role"
+								required
+								rows={6}
+								className="employee-role-textarea"
+								placeholder="例: タスクの優先度付け、進捗会議の議事起案、部署横断の調整。"
+								defaultValue="ops"
+							/>
+						</label>
+						<label>
+							<span>担当領域</span>
+							<textarea
+								name="area"
+								rows={4}
+								className="employee-role-textarea"
+								placeholder="例: 経営企画、進捗管理、Inbox振り分け"
+							/>
+						</label>
+						<label>
+							<span>職務権限</span>
+							<textarea
+								name="authority"
+								rows={4}
+								className="employee-role-textarea"
+								placeholder="例: 優先度の提案、議事起案、他部署への依頼調整"
+							/>
+						</label>
+						<label className="color-field">
+							<span>色</span>
+							<input type="color" name="color" defaultValue={colorInputValue("")} />
+						</label>
+						<button type="submit" className="primary">
+							追加
+						</button>
+					</form>
+				</div>
+			</dialog>
 
 			<dialog
 				ref={editDialogRef}

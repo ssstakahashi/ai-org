@@ -735,6 +735,15 @@ a.logout-button:hover {
 	gap: 0.65rem;
 }
 
+.employee-card-color-form {
+	margin: 0;
+	margin-left: auto;
+}
+
+.employee-card-color-form .color-field {
+	display: inline-flex;
+}
+
 .employee-drag-handle {
 	flex: 0 0 auto;
 	display: inline-flex;
@@ -784,16 +793,7 @@ a.logout-button:hover {
 	width: 100%;
 	padding: 0.15rem 0.1rem;
 	border-radius: 10px;
-	cursor: pointer;
 	outline: none;
-}
-
-.employee-card-body:hover {
-	background: color-mix(in srgb, var(--line) 28%, transparent);
-}
-
-.employee-card-body:focus-visible {
-	box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .employee-card-name {
@@ -835,7 +835,19 @@ a.logout-button:hover {
 }
 
 .employee-card-actions {
+	display: flex;
+	gap: 0.5rem;
 	margin-top: auto;
+}
+
+.employee-card-actions .ghost,
+.employee-card-actions form {
+	flex: 1;
+	min-width: 0;
+}
+
+.employee-card-actions form {
+	display: flex;
 }
 
 .employee-card-actions .ghost {
