@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, type ReactNode } from "react";
-import { deleteXPost, postXPostNow, updateXPostStatus } from "@/app/actions";
+import { deleteXPost, updateXPostStatus } from "@/app/actions";
+import { PostXPostNowButton } from "@/components/PostXPostNowButton";
 import { RunDuePostsButton } from "@/components/RunDuePostsButton";
 import { SyncXPostsToSheetButton } from "@/components/SyncXPostsToSheetButton";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -110,6 +111,7 @@ export function XPostScheduleTable({ posts }: Props) {
 	const [editing, setEditing] = useState<XPost | null>(null);
 	const [createFormKey, setCreateFormKey] = useState(0);
 	const [editFormKey, setEditFormKey] = useState(0);
+	const [actionMessage, setActionMessage] = useState<string | null>(null);
 
 	const closeCreateDialog = useCallback(() => {
 		createDialogRef.current?.close();
@@ -162,6 +164,7 @@ export function XPostScheduleTable({ posts }: Props) {
 					</li>
 				))}
 			</ul>
+			{actionMessage ? <p className="run-due-message">{actionMessage}</p> : null}
 
 			{posts.length === 0 ? (
 				<p className="empty">
@@ -247,18 +250,15 @@ export function XPostScheduleTable({ posts }: Props) {
 													<span>編集</span>
 												</button>
 												{canPostNow(post.status) ? (
-													<form action={postXPostNow}>
-														<input type="hidden" name="id" value={post.id} />
-														<button
-															type="submit"
-															className="x-schedule-action-btn x-action-post"
-														>
-															<ActionButtonIcon>
-																<PostToXIcon />
-															</ActionButtonIcon>
-															<span>Xへ投稿</span>
-														</button>
-													</form>
+													<PostXPostNowButton
+														postId={post.id}
+														onMessage={setActionMessage}
+													>
+														<ActionButtonIcon>
+															<PostToXIcon />
+														</ActionButtonIcon>
+														<span>Xへ投稿</span>
+													</PostXPostNowButton>
 												) : null}
 												{next && post.status !== "scheduled" ? (
 													<form action={updateXPostStatus}>

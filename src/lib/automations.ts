@@ -105,7 +105,7 @@ export const AUTOMATIONS: AutomationEntry[] = [
 		status: "manual",
 		trigger: "予定一覧の行アクション「Xへ投稿」",
 		summary: "指定の x_posts 1件を予約時刻を待たず投稿する（承認済・予約・失敗が対象）。",
-		location: "XPostScheduleTable → postXPostNow → publishXPostNow",
+		location: "PostXPostNowButton → postXPostNow → publishXPostNow",
 		href: "/x-schedule",
 		source: LOCAL_AUTOMATION_SOURCE,
 	},
