@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { deleteXPost, postXPostNow, updateXPostStatus } from "@/app/actions";
 import { RunDuePostsButton } from "@/components/RunDuePostsButton";
 import { StatusBadge } from "@/components/StatusBadge";
+import { StatusIcon } from "@/components/StatusIcon";
 import { XPostForm } from "@/components/XPostForm";
 import { mediaUrl } from "@/lib/media-upload";
 import { formatInAppTz } from "@/lib/timezone";
@@ -59,6 +60,45 @@ function countByStatus(posts: XPost[]) {
 
 function canPostNow(status: TaskStatus) {
 	return status === "scheduled" || status === "approved" || status === "failed";
+}
+
+function ActionButtonIcon({ children }: { children: ReactNode }) {
+	return <span className="x-schedule-action-icon">{children}</span>;
+}
+
+function PostToXIcon() {
+	return (
+		<svg
+			width={14}
+			height={14}
+			viewBox="0 0 16 16"
+			fill="currentColor"
+			aria-hidden
+		>
+			<path d="M9.5 7.2 14.8 1h-1.3L8.9 6.3 5.1 1H1l5.6 8.1L1 15h1.3l4.8-5.6L11 15h4.1L9.5 7.2Zm-1.9 2.2-.6-.8L2.7 2.2h2l3.7 5.3.6.8 4.8 6.9h-2l-3.9-5.6Z" />
+		</svg>
+	);
+}
+
+function DeleteIcon() {
+	return (
+		<svg
+			width={14}
+			height={14}
+			viewBox="0 0 16 16"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth={1.75}
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden
+		>
+			<path d="M3.5 4.5h9" />
+			<path d="M6.2 4.5V3.2a.7.7 0 0 1 .7-.7h2.2a.7.7 0 0 1 .7.7v1.3" />
+			<path d="M5.2 4.5v8.3a1 1 0 0 0 1 1h3.6a1 1 0 0 0 1-1V4.5" />
+			<path d="M6.8 7v4.8M9.2 7v4.8" />
+		</svg>
+	);
 }
 
 export function XPostScheduleTable({ posts }: Props) {
@@ -130,12 +170,10 @@ export function XPostScheduleTable({ posts }: Props) {
 					<table className="x-schedule-table">
 						<thead>
 							<tr>
-								<th>予約日時</th>
-								<th>ステータス</th>
+								<th>予約 / ステータス</th>
 								<th>画像</th>
-								<th>タイトル</th>
-								<th>投稿文</th>
-								<th>操作</th>
+								<th>投稿内容</th>
+								<th className="actions-col">操作</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -143,9 +181,11 @@ export function XPostScheduleTable({ posts }: Props) {
 								const next = NEXT_STATUS[post.status];
 								return (
 									<tr key={post.id} className={`status-${post.status}`}>
-										<td className="when">{formatWhen(post.scheduled_at)}</td>
-										<td>
-											<StatusBadge status={post.status} />
+										<td className="meta-cell">
+											<p className="x-schedule-when">{formatWhen(post.scheduled_at)}</p>
+											<div className="x-schedule-status">
+												<StatusBadge status={post.status} />
+											</div>
 											{post.x_post_id ? (
 												<p className="x-post-id">
 													<a
@@ -183,20 +223,38 @@ export function XPostScheduleTable({ posts }: Props) {
 												<span className="no-image">なし</span>
 											)}
 										</td>
-										<td className="title">{post.title}</td>
-										<td className="body-cell" title={post.body || undefined}>
-											{truncate(post.body)}
+										<td className="content-cell">
+											<p className="x-schedule-post-title">{post.title}</p>
+											<p
+												className="x-schedule-post-body"
+												title={post.body || undefined}
+											>
+												{truncate(post.body)}
+											</p>
 										</td>
-										<td>
-											<div className="task-actions">
-												<button type="button" onClick={() => openEdit(post)}>
-													編集
+										<td className="actions-col">
+											<div className="x-schedule-actions">
+												<button
+													type="button"
+													className="x-schedule-action-btn x-action-edit"
+													onClick={() => openEdit(post)}
+												>
+													<ActionButtonIcon>
+														<StatusIcon status="draft" className="x-schedule-action-svg" />
+													</ActionButtonIcon>
+													<span>編集</span>
 												</button>
 												{canPostNow(post.status) ? (
 													<form action={postXPostNow}>
 														<input type="hidden" name="id" value={post.id} />
-														<button type="submit" className="primary">
-															Xへ投稿
+														<button
+															type="submit"
+															className="x-schedule-action-btn x-action-post"
+														>
+															<ActionButtonIcon>
+																<PostToXIcon />
+															</ActionButtonIcon>
+															<span>Xへ投稿</span>
 														</button>
 													</form>
 												) : null}
@@ -204,29 +262,57 @@ export function XPostScheduleTable({ posts }: Props) {
 													<form action={updateXPostStatus}>
 														<input type="hidden" name="id" value={post.id} />
 														<input type="hidden" name="status" value={next} />
-														<button type="submit">→ {X_POST_STATUS_LABEL[next]}</button>
+														<button
+															type="submit"
+															className={`x-schedule-action-btn x-action-advance status-${next}`}
+														>
+															<ActionButtonIcon>
+																<StatusIcon status={next} className="x-schedule-action-svg" />
+															</ActionButtonIcon>
+															<span>{X_POST_STATUS_LABEL[next]}</span>
+														</button>
 													</form>
 												) : null}
 												{post.status === "scheduled" ? (
 													<form action={updateXPostStatus}>
 														<input type="hidden" name="id" value={post.id} />
 														<input type="hidden" name="status" value="done" />
-														<button type="submit">手動完了</button>
+														<button
+															type="submit"
+															className="x-schedule-action-btn x-action-complete"
+														>
+															<ActionButtonIcon>
+																<StatusIcon status="done" className="x-schedule-action-svg" />
+															</ActionButtonIcon>
+															<span>手動完了</span>
+														</button>
 													</form>
 												) : null}
 												{post.status !== "failed" && post.status !== "done" ? (
 													<form action={updateXPostStatus}>
 														<input type="hidden" name="id" value={post.id} />
 														<input type="hidden" name="status" value="failed" />
-														<button type="submit" className="danger">
-															失敗
+														<button
+															type="submit"
+															className="x-schedule-action-btn x-action-fail"
+														>
+															<ActionButtonIcon>
+																<StatusIcon status="failed" className="x-schedule-action-svg" />
+															</ActionButtonIcon>
+															<span>失敗</span>
 														</button>
 													</form>
 												) : null}
 												<form action={deleteXPost}>
 													<input type="hidden" name="id" value={post.id} />
-													<button type="submit" className="ghost">
-														削除
+													<button
+														type="submit"
+														className="x-schedule-action-btn x-action-delete"
+													>
+														<ActionButtonIcon>
+															<DeleteIcon />
+														</ActionButtonIcon>
+														<span>削除</span>
 													</button>
 												</form>
 											</div>

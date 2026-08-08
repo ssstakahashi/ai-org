@@ -52,4 +52,7 @@ next-env.d.ts
 .tmp/
 
 
+# Google Cloud service account keys (never commit)
+ai-organization-*.json
+
 !.dev.vars.example

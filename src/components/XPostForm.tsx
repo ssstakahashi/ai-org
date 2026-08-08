@@ -158,7 +158,7 @@ export function XPostForm({
 					<span>投稿文</span>
 					<textarea
 						name="body"
-						rows={4}
+						rows={isEdit ? 10 : 4}
 						placeholder="X に投稿する本文（280文字以内）"
 						defaultValue={post?.body ?? ""}
 					/>
