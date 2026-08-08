@@ -118,6 +118,34 @@ npx wrangler secret put X_ACCESS_TOKEN_SECRET
 
 `/x-schedule` から「予約分をいま投稿」または行の「Xへ投稿」でも実行できます。
 
+## X投稿 → Google スプレッドシート転記
+
+`/x-schedule` で投稿を作成・更新・削除・ステータス変更・X投稿完了すると、指定の Google スプレッドシートへ自動転記します。
+
+転記先（固定）: [スプレッドシート](https://docs.google.com/spreadsheets/d/1a1ZZgAgHoxgoG6y2FB_SVFRb9YBlIFiW7rm1IlJeIvI/edit?gid=1053570355)
+
+| 変数 | 内容 |
+|---|---|
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Service Account の client_email |
+| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | Service Account の private_key（PEM。`\n` エスケープ可） |
+| `APP_PUBLIC_URL` | 任意。画像 URL を絶対パスで書き込むときのサイト URL |
+
+セットアップ:
+
+1. Google Cloud で **Google Sheets API** を有効化し、Service Account を作成
+2. 転記先シートを SA のメールアドレスに **編集者** で共有
+3. 1行目に `ID` 列が必要（空シートなら初回同期時にヘッダーを自動作成）
+
+ローカルは `.dev.vars`、本番は Secrets:
+
+```bash
+npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_EMAIL
+npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+npx wrangler secret put APP_PUBLIC_URL   # 任意
+```
+
+転記列（デフォルト）: ID / タイトル / 投稿文 / ステータス / 予約日時 / メモ / 画像URL / X投稿ID / X投稿URL / エラー / 作成日時 / 更新日時
+
 ## デプロイ
 
 D1 `ai-org` と R2 `ai-org-media` は作成済みです。リモートへ出すとき:

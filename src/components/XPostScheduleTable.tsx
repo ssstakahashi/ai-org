@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { deleteXPost, postXPostNow, updateXPostStatus } from "@/app/actions";
+import { RunDuePostsButton } from "@/components/RunDuePostsButton";
+import { StatusBadge } from "@/components/StatusBadge";
 import { XPostForm } from "@/components/XPostForm";
 import { mediaUrl } from "@/lib/media-upload";
 import { formatInAppTz } from "@/lib/timezone";
@@ -62,32 +64,58 @@ function canPostNow(status: TaskStatus) {
 export function XPostScheduleTable({ posts }: Props) {
 	const router = useRouter();
 	const counts = countByStatus(posts);
-	const dialogRef = useRef<HTMLDialogElement>(null);
+	const createDialogRef = useRef<HTMLDialogElement>(null);
+	const editDialogRef = useRef<HTMLDialogElement>(null);
 	const [editing, setEditing] = useState<XPost | null>(null);
-	const [formKey, setFormKey] = useState(0);
+	const [createFormKey, setCreateFormKey] = useState(0);
+	const [editFormKey, setEditFormKey] = useState(0);
 
-	const closeDialog = useCallback(() => {
-		dialogRef.current?.close();
+	const closeCreateDialog = useCallback(() => {
+		createDialogRef.current?.close();
+	}, []);
+
+	const closeEditDialog = useCallback(() => {
+		editDialogRef.current?.close();
 		setEditing(null);
 	}, []);
 
-	const handleEditSuccess = useCallback(() => {
-		closeDialog();
+	const handleCreateSuccess = useCallback(() => {
+		closeCreateDialog();
 		router.refresh();
-	}, [closeDialog, router]);
+	}, [closeCreateDialog, router]);
+
+	const handleEditSuccess = useCallback(() => {
+		closeEditDialog();
+		router.refresh();
+	}, [closeEditDialog, router]);
+
+	function openCreateDialog() {
+		setCreateFormKey((value) => value + 1);
+		createDialogRef.current?.showModal();
+	}
 
 	function openEdit(post: XPost) {
 		setEditing(post);
-		setFormKey((value) => value + 1);
-		dialogRef.current?.showModal();
+		setEditFormKey((value) => value + 1);
+		editDialogRef.current?.showModal();
 	}
 
 	return (
-		<div className="x-schedule">
+		<section className="panel">
+			<div className="panel-head">
+				<h2>予定一覧（{posts.length}）</h2>
+				<div className="task-actions">
+					<button type="button" className="primary" onClick={openCreateDialog}>
+						新規登録
+					</button>
+					<RunDuePostsButton />
+				</div>
+			</div>
+			<div className="x-schedule">
 			<ul className="x-schedule-summary">
 				{STATUS_ORDER.map((status) => (
-					<li key={status}>
-						<span className="label">{X_POST_STATUS_LABEL[status]}</span>
+					<li key={status} className={`status-${status}`}>
+						<StatusBadge status={status} />
 						<span className="count">{counts[status]}</span>
 					</li>
 				))}
@@ -95,7 +123,7 @@ export function XPostScheduleTable({ posts }: Props) {
 
 			{posts.length === 0 ? (
 				<p className="empty">
-					X投稿の予定はまだありません。上のフォームから追加してください。
+					X投稿の予定はまだありません。「新規登録」から追加してください。
 				</p>
 			) : (
 				<div className="x-schedule-scroll">
@@ -117,7 +145,7 @@ export function XPostScheduleTable({ posts }: Props) {
 									<tr key={post.id} className={`status-${post.status}`}>
 										<td className="when">{formatWhen(post.scheduled_at)}</td>
 										<td>
-											<span className="badge">{X_POST_STATUS_LABEL[post.status]}</span>
+											<StatusBadge status={post.status} />
 											{post.x_post_id ? (
 												<p className="x-post-id">
 													<a
@@ -212,24 +240,43 @@ export function XPostScheduleTable({ posts }: Props) {
 			)}
 
 			<dialog
-				ref={dialogRef}
+				ref={createDialogRef}
 				className="task-dialog"
 				onClick={(event) => {
-					if (event.target === dialogRef.current) closeDialog();
+					if (event.target === createDialogRef.current) closeCreateDialog();
+				}}
+			>
+				<div className="task-dialog-panel">
+					<div className="task-dialog-head">
+						<h2>新規投稿</h2>
+						<button type="button" className="ghost" onClick={closeCreateDialog}>
+							閉じる
+						</button>
+					</div>
+					<XPostForm key={createFormKey} onSuccess={handleCreateSuccess} />
+				</div>
+			</dialog>
+
+			<dialog
+				ref={editDialogRef}
+				className="task-dialog"
+				onClick={(event) => {
+					if (event.target === editDialogRef.current) closeEditDialog();
 				}}
 			>
 				<div className="task-dialog-panel">
 					<div className="task-dialog-head">
 						<h2>投稿を編集</h2>
-						<button type="button" className="ghost" onClick={closeDialog}>
+						<button type="button" className="ghost" onClick={closeEditDialog}>
 							閉じる
 						</button>
 					</div>
 					{editing ? (
-						<XPostForm key={formKey} post={editing} onSuccess={handleEditSuccess} />
+						<XPostForm key={editFormKey} post={editing} onSuccess={handleEditSuccess} />
 					) : null}
 				</div>
 			</dialog>
-		</div>
+			</div>
+		</section>
 	);
 }

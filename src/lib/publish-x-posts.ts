@@ -1,6 +1,7 @@
 import { createXPost, getXCredentials, uploadXMedia } from "@/lib/x-client";
+import { queueXPostSheetSync, type SheetsSyncEnv } from "@/lib/x-post-sheets-sync";
 
-export type PublishEnv = {
+export type PublishEnv = SheetsSyncEnv & {
 	DB: D1Database;
 	MEDIA: R2Bucket;
 	X_API_KEY?: string;
@@ -35,8 +36,8 @@ function postText(post: DuePost) {
 	return text;
 }
 
-async function markDone(db: D1Database, postId: string, xPostId: string) {
-	await db
+async function markDone(env: PublishEnv, postId: string, xPostId: string) {
+	await env.DB
 		.prepare(
 			`UPDATE x_posts
 			 SET status = 'done', x_post_id = ?, last_error = '', updated_at = datetime('now')
@@ -44,10 +45,11 @@ async function markDone(db: D1Database, postId: string, xPostId: string) {
 		)
 		.bind(xPostId, postId)
 		.run();
+	queueXPostSheetSync(env, postId);
 }
 
-async function markFailed(db: D1Database, postId: string, message: string) {
-	await db
+async function markFailed(env: PublishEnv, postId: string, message: string) {
+	await env.DB
 		.prepare(
 			`UPDATE x_posts
 			 SET status = 'failed', last_error = ?, updated_at = datetime('now')
@@ -55,6 +57,7 @@ async function markFailed(db: D1Database, postId: string, message: string) {
 		)
 		.bind(message.slice(0, 1000), postId)
 		.run();
+	queueXPostSheetSync(env, postId);
 }
 
 async function publishOne(env: PublishEnv, post: DuePost) {
@@ -76,7 +79,7 @@ async function publishOne(env: PublishEnv, post: DuePost) {
 	}
 
 	const { id } = await createXPost(creds, { text, mediaIds });
-	await markDone(env.DB, post.id, id);
+	await markDone(env, post.id, id);
 	return id;
 }
 
@@ -105,7 +108,7 @@ export async function publishDueXPosts(env: PublishEnv): Promise<PublishResult> 
 			result.succeeded += 1;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			await markFailed(env.DB, post.id, message);
+			await markFailed(env, post.id, message);
 			result.failed += 1;
 			result.errors.push({ postId: post.id, message });
 		}
@@ -138,7 +141,7 @@ export async function publishXPostNow(env: PublishEnv, postId: string): Promise<
 		await publishOne(env, post);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		await markFailed(env.DB, post.id, message);
+		await markFailed(env, post.id, message);
 		throw error;
 	}
 }

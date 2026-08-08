@@ -1048,6 +1048,52 @@ button.ghost {
 	font-weight: 600;
 }
 
+.status-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.2rem 0.65rem;
+	border-radius: 999px;
+	font-weight: 600;
+	font-size: 0.85rem;
+	border: 1px solid transparent;
+	white-space: nowrap;
+}
+
+.status-badge .status-icon {
+	flex-shrink: 0;
+}
+
+.status-badge.status-draft {
+	color: var(--status-draft);
+	border-color: color-mix(in srgb, var(--status-draft) 40%, var(--line));
+	background: color-mix(in srgb, var(--status-draft) 14%, white);
+}
+
+.status-badge.status-approved {
+	color: var(--status-approved);
+	border-color: color-mix(in srgb, var(--status-approved) 40%, var(--line));
+	background: color-mix(in srgb, var(--status-approved) 14%, white);
+}
+
+.status-badge.status-scheduled {
+	color: var(--status-scheduled);
+	border-color: color-mix(in srgb, var(--status-scheduled) 40%, var(--line));
+	background: color-mix(in srgb, var(--status-scheduled) 14%, white);
+}
+
+.status-badge.status-done {
+	color: var(--status-done);
+	border-color: color-mix(in srgb, var(--status-done) 40%, var(--line));
+	background: color-mix(in srgb, var(--status-done) 14%, white);
+}
+
+.status-badge.status-failed {
+	color: var(--status-failed);
+	border-color: color-mix(in srgb, var(--status-failed) 40%, var(--line));
+	background: color-mix(in srgb, var(--status-failed) 14%, white);
+}
+
 .task-item h2 {
 	margin: 0.35rem 0;
 	font-size: 1.1rem;
@@ -1088,17 +1134,13 @@ button.ghost {
 
 .x-schedule-summary li {
 	display: inline-flex;
-	align-items: baseline;
-	gap: 0.4rem;
-	padding: 0.35rem 0.7rem;
+	align-items: center;
+	gap: 0.45rem;
+	padding: 0.35rem 0.55rem 0.35rem 0.35rem;
 	border: 1px solid var(--line);
 	border-radius: 999px;
 	background: #fff;
 	font-size: 0.85rem;
-}
-
-.x-schedule-summary .label {
-	color: var(--muted);
 }
 
 .x-schedule-summary .count {

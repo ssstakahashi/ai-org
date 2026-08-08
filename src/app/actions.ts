@@ -7,6 +7,10 @@ import { getUploadFile, putTaskImage, putXPostImage } from "@/lib/media-upload";
 import { LOCAL_SOURCE, recordAutomationRun } from "@/lib/automation-ingest";
 import { publishDueXPosts, publishXPostNow } from "@/lib/publish-x-posts";
 import {
+	queueXPostSheetRemoval,
+	queueXPostSheetSync,
+} from "@/lib/x-post-sheets-sync";
+import {
 	expandRecurrenceDates,
 	parseOptionalCount,
 	parseOptionalDate,
@@ -636,6 +640,8 @@ export async function createXPost(
 			)
 			.bind(id, title, body, imageKey, status, scheduledAt, notes)
 			.run();
+		const { env } = await getCloudflareContext({ async: true });
+		queueXPostSheetSync(env, id);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return { error: `投稿の保存に失敗しました: ${message}` };
@@ -742,6 +748,8 @@ export async function updateXPost(
 			)
 			.bind(title, body, imageKey, status, scheduledAt, notes, id)
 			.run();
+		const { env } = await getCloudflareContext({ async: true });
+		queueXPostSheetSync(env, id);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return { error: `投稿の更新に失敗しました: ${message}` };
@@ -1071,6 +1079,8 @@ export async function updateXPostStatus(formData: FormData) {
 		.bind(status, id)
 		.run();
 
+	const { env } = await getCloudflareContext({ async: true });
+	queueXPostSheetSync(env, id);
 	revalidateXPostPages();
 }
 
@@ -1090,6 +1100,8 @@ export async function deleteXPost(formData: FormData) {
 	}
 
 	await db.prepare("DELETE FROM x_posts WHERE id = ?").bind(id).run();
+	const { env } = await getCloudflareContext({ async: true });
+	queueXPostSheetRemoval(env, id);
 	revalidateXPostPages();
 }
 

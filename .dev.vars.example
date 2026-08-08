@@ -10,3 +10,11 @@
 
 # agri 等からの自動化 push 受信
 # AUTOMATION_INGEST_SECRET=
+
+# X投稿 → Google スプレッドシート転記（Service Account）
+# 1. Google Cloud で Sheets API を有効化し Service Account を作成
+# 2. 転記先シートを SA の client_email に「編集者」で共有
+# 3. 秘密鍵 JSON の client_email / private_key を設定
+# GOOGLE_SERVICE_ACCOUNT_EMAIL=
+# GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=
+# APP_PUBLIC_URL=https://your-ai-org.example.com
