@@ -8,6 +8,7 @@ const TABS = [
 	{ href: "/apps/names", label: "App", match: "prefix" as const },
 	{ href: "/apps/groups", label: "AppGroup", match: "prefix" as const },
 	{ href: "/apps/types", label: "AppType", match: "prefix" as const },
+	{ href: "/apps/requirements", label: "要件定義", match: "prefix" as const },
 ];
 
 export function AppsTabs() {

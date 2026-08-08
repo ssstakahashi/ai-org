@@ -91,6 +91,31 @@ npx wrangler secret put AUTOMATION_INGEST_SECRET
 
 Cloudflare Access ではこのパスを Bypass（または Service Auth）にしてください。アプリ側はシークレットのみ検証します。
 
+対象パス:
+
+- `POST /api/internal/automation-ingest` — 外部アプリからの自動化カタログ push
+- `GET /api/internal/requirements` — App 要件定義の export（Cursor Automation 用）
+
+### App 要件定義 export
+
+承認済み要件を Markdown で取得します（Cursor Automation が読み取る）。
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $AUTOMATION_INGEST_SECRET" \
+  "https://<ai-org-host>/api/internal/requirements?all=1"
+```
+
+| クエリ | 説明 |
+|---|---|
+| `all=1` | 全 App |
+| `app_name_id=<id>` | App マスタ id で絞り込み |
+| `app=<名前>` | App 名で絞り込み |
+| `status=approved` | デフォルト（`draft` 等も指定可） |
+
+管理画面: `/apps/requirements`  
+セットアップ手順: [docs/cursor-automation-app-requirements.md](./docs/cursor-automation-app-requirements.md)
+
 agri 側の適用手順: [integrations/agri-next-backend/README.md](./integrations/agri-next-backend/README.md)
 
 一覧: `/automations`

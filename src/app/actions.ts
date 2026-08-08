@@ -28,6 +28,10 @@ import {
 	type AppEntry,
 	type AppGroup,
 	type AppName,
+	type AppRequirement,
+	APP_REQUIREMENT_STATUS_OPTIONS,
+	type AppRequirementStatus,
+	type AppRequirementWithApp,
 	type AppType,
 	type Category,
 	type Employee,
@@ -331,6 +335,165 @@ function revalidateAppsPage() {
 	revalidatePath("/apps/names");
 	revalidatePath("/apps/groups");
 	revalidatePath("/apps/types");
+	revalidatePath("/apps/requirements");
+}
+
+function parseAppRequirementStatus(raw: unknown): AppRequirementStatus {
+	const value = String(raw ?? "").trim();
+	if ((APP_REQUIREMENT_STATUS_OPTIONS as readonly string[]).includes(value)) {
+		return value as AppRequirementStatus;
+	}
+	throw new Error("ステータスが不正です");
+}
+
+const APP_REQUIREMENT_SELECT = `SELECT
+				r.id, r.app_name_id, r.title, r.body, r.status, r.sort_order,
+				r.created_at, r.updated_at,
+				n.name AS app_name,
+				COALESCE(n.color, '') AS app_name_color,
+				COALESCE(n.text_color, '') AS app_name_text_color,
+				COALESCE(n.icon, '') AS app_name_icon
+			 FROM app_requirements r
+			 JOIN app_names n ON n.id = r.app_name_id`;
+
+export async function listAppRequirements(
+	appNameId?: string,
+): Promise<AppRequirementWithApp[]> {
+	const db = await getDb();
+	const trimmed = appNameId?.trim();
+	const sql = trimmed
+		? `${APP_REQUIREMENT_SELECT} WHERE r.app_name_id = ? ORDER BY r.sort_order ASC, r.title ASC`
+		: `${APP_REQUIREMENT_SELECT} ORDER BY n.sort_order ASC, n.name ASC, r.sort_order ASC, r.title ASC`;
+	const stmt = trimmed ? db.prepare(sql).bind(trimmed) : db.prepare(sql);
+	const { results } = await stmt.all<AppRequirementWithApp>();
+	return results ?? [];
+}
+
+async function resolveAppNameId(
+	db: Awaited<ReturnType<typeof getDb>>,
+	appNameId: string,
+): Promise<string> {
+	const row = await db
+		.prepare("SELECT id FROM app_names WHERE id = ?")
+		.bind(appNameId)
+		.first<{ id: string }>();
+	if (!row) {
+		throw new Error("App マスタが見つかりません");
+	}
+	return row.id;
+}
+
+export async function createAppRequirement(formData: FormData) {
+	const db = await getDb();
+	const appNameId = formText(formData, "app_name_id");
+	const title = formText(formData, "title");
+	const body = String(formData.get("body") ?? "").trim();
+	const status = parseAppRequirementStatus(formData.get("status") ?? "draft");
+
+	if (!appNameId) {
+		throw new Error("App の選択は必須です");
+	}
+	if (!title) {
+		throw new Error("タイトルは必須です");
+	}
+
+	await resolveAppNameId(db, appNameId);
+
+	const maxSort = await db
+		.prepare(
+			"SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM app_requirements WHERE app_name_id = ?",
+		)
+		.bind(appNameId)
+		.first<{ max_sort: number }>();
+
+	const id = newId("req");
+	await db
+		.prepare(
+			`INSERT INTO app_requirements (id, app_name_id, title, body, status, sort_order)
+			 VALUES (?, ?, ?, ?, ?, ?)`,
+		)
+		.bind(id, appNameId, title, body, status, (maxSort?.max_sort ?? 0) + 10)
+		.run();
+
+	revalidateAppsPage();
+}
+
+export async function updateAppRequirement(formData: FormData) {
+	const db = await getDb();
+	const id = formText(formData, "id");
+	const appNameId = formText(formData, "app_name_id");
+	const title = formText(formData, "title");
+	const body = String(formData.get("body") ?? "").trim();
+	const status = parseAppRequirementStatus(formData.get("status"));
+	const sortOrderRaw = String(formData.get("sort_order") ?? "").trim();
+
+	if (!id || !title) {
+		throw new Error("id とタイトルが必要です");
+	}
+	if (!appNameId) {
+		throw new Error("App の選択は必須です");
+	}
+
+	await resolveAppNameId(db, appNameId);
+
+	const sortOrder = Number.parseInt(sortOrderRaw, 10);
+	await db
+		.prepare(
+			`UPDATE app_requirements
+			 SET app_name_id = ?,
+			     title = ?,
+			     body = ?,
+			     status = ?,
+			     sort_order = ?,
+			     updated_at = datetime('now')
+			 WHERE id = ?`,
+		)
+		.bind(
+			appNameId,
+			title,
+			body,
+			status,
+			Number.isFinite(sortOrder) ? sortOrder : 0,
+			id,
+		)
+		.run();
+
+	revalidateAppsPage();
+}
+
+export async function deleteAppRequirement(formData: FormData) {
+	const db = await getDb();
+	const id = formText(formData, "id");
+	if (!id) return;
+
+	await db.prepare("DELETE FROM app_requirements WHERE id = ?").bind(id).run();
+	revalidateAppsPage();
+}
+
+export async function reorderAppRequirements(formData: FormData) {
+	const db = await getDb();
+	const raw = String(formData.get("ordered_ids") ?? "").trim();
+	if (!raw) return;
+
+	const orderedIds = raw
+		.split(",")
+		.map((id) => id.trim())
+		.filter(Boolean);
+	if (orderedIds.length === 0) return;
+
+	for (let index = 0; index < orderedIds.length; index += 1) {
+		await db
+			.prepare(
+				`UPDATE app_requirements
+				 SET sort_order = ?,
+				     updated_at = datetime('now')
+				 WHERE id = ?`,
+			)
+			.bind((index + 1) * 10, orderedIds[index])
+			.run();
+	}
+
+	revalidateAppsPage();
 }
 
 function revalidateAutomationsPage() {

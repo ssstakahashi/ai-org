@@ -8,7 +8,10 @@ export async function middleware(request: NextRequest) {
 	}
 
 	// agri 等からの push。エッジ Access Bypass と併用し、アプリ側は共有シークレットのみ検証する
-	if (request.nextUrl.pathname === "/api/internal/automation-ingest") {
+	if (
+		request.nextUrl.pathname === "/api/internal/automation-ingest" ||
+		request.nextUrl.pathname === "/api/internal/requirements"
+	) {
 		return NextResponse.next();
 	}
 

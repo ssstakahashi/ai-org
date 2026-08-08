@@ -130,6 +130,48 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
 
 export const X_POST_STATUS_LABEL = TASK_STATUS_LABEL;
 
+export type AppRequirementStatus =
+	| "draft"
+	| "approved"
+	| "in_progress"
+	| "done"
+	| "cancelled";
+
+/** App ごとの要件定義 */
+export type AppRequirement = {
+	id: string;
+	app_name_id: string;
+	title: string;
+	body: string;
+	status: AppRequirementStatus;
+	sort_order: number;
+	created_at: string;
+	updated_at: string;
+};
+
+export type AppRequirementWithApp = AppRequirement & {
+	app_name: string;
+	app_name_color: string;
+	app_name_text_color: string;
+	app_name_icon: string;
+};
+
+export const APP_REQUIREMENT_STATUS_LABEL: Record<AppRequirementStatus, string> = {
+	draft: "下書き",
+	approved: "承認済",
+	in_progress: "対応中",
+	done: "完了",
+	cancelled: "取消",
+};
+
+export const APP_REQUIREMENT_STATUS_OPTIONS = [
+	"draft",
+	"approved",
+	"in_progress",
+	"done",
+	"cancelled",
+] as const satisfies readonly AppRequirementStatus[];
+
 /** アプリケーション名マスタ */
 export type AppName = {
 	id: string;

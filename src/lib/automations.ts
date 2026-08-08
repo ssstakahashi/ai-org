@@ -109,6 +109,19 @@ export const AUTOMATIONS: AutomationEntry[] = [
 		href: "/x-schedule",
 		source: LOCAL_AUTOMATION_SOURCE,
 	},
+	{
+		id: "app-requirements-cursor",
+		name: "App 要件定義の自動実装",
+		runner: "cursor",
+		status: "none",
+		trigger: "手動 / スケジュール（Cursor Automations で設定）",
+		summary:
+			"GET /api/internal/requirements から承認済み要件を Markdown で取得し、各 App の dev_folder リポで実装する。",
+		location:
+			"src/app/api/internal/requirements/route.ts → docs/cursor-automation-app-requirements.md",
+		href: "/apps/requirements",
+		source: LOCAL_AUTOMATION_SOURCE,
+	},
 	/**
 	 * @automation
 	 * id: cursor-automations
