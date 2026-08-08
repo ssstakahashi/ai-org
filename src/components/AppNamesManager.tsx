@@ -1,3 +1,5 @@
+"use client";
+
 import {
 	createAppName,
 	deleteAppName,
@@ -34,7 +36,7 @@ function GroupSelect({
 			form={formId}
 			name="app_group_id"
 			defaultValue={defaultValue}
-			aria-label="アプリグループ"
+				aria-label="AppGroup"
 		>
 			<option value="">（未設定）</option>
 			{appGroups.map((group) => (
@@ -105,7 +107,7 @@ export function AppNamesManager({ appNames, appGroups, appTypes }: Props) {
 			enableColor
 			enableIcon
 			extraColumns={{
-				headers: ["アプリグループ", "AppType"],
+				headers: ["AppGroup", "AppType"],
 				renderCreate: () => (
 					<GroupTypeSelects appGroups={appGroups} appTypes={appTypes} />
 				),
