@@ -28,6 +28,10 @@ export function SyncXPostsToSheetButton() {
 					startTransition(async () => {
 						try {
 							const result = await syncXPostsToSheet();
+							if (result.fatalError) {
+								setMessage(result.fatalError);
+								return;
+							}
 							if (result.total === 0) {
 								setMessage("同期対象の投稿がありません");
 								return;

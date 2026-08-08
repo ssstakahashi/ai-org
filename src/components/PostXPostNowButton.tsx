@@ -5,7 +5,6 @@ import { useTransition, type ReactNode } from "react";
 import { postXPostNow } from "@/app/actions";
 import {
 	recoverFromStaleServerAction,
-	STALE_SERVER_ACTION_MESSAGE,
 } from "@/lib/server-action-client";
 
 type Props = {
@@ -29,7 +28,11 @@ export function PostXPostNowButton({ postId, onMessage, children }: Props) {
 					try {
 						const formData = new FormData();
 						formData.set("id", postId);
-						await postXPostNow(formData);
+						const result = await postXPostNow(formData);
+						if (!result.ok) {
+							onMessage(result.error);
+							return;
+						}
 						onMessage("Xへ投稿しました");
 						router.refresh();
 					} catch (error) {

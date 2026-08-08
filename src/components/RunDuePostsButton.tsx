@@ -31,6 +31,10 @@ export function RunDuePostsButton() {
 					startTransition(async () => {
 						try {
 							const result = await runDueXPosts();
+							if (result.fatalError) {
+								setMessage(result.fatalError);
+								return;
+							}
 							setMessage(
 								`実行: ${result.attempted}件 / 成功 ${result.succeeded} / 失敗 ${result.failed}`,
 							);

@@ -5,11 +5,12 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getDb, getMediaBucket, newId } from "@/lib/db";
 import { getUploadFile, putTaskImage, putXPostImage } from "@/lib/media-upload";
 import { LOCAL_SOURCE, recordAutomationRun } from "@/lib/automation-ingest";
-import { publishDueXPosts, publishXPostNow } from "@/lib/publish-x-posts";
+import { publishDueXPosts, publishXPostNow, type PublishResult } from "@/lib/publish-x-posts";
 import {
 	queueXPostSheetRemoval,
 	queueXPostSheetSync,
 	syncAllXPostsToSheet,
+	type SyncAllXPostsResult,
 } from "@/lib/x-post-sheets-sync";
 import {
 	expandRecurrenceDates,
@@ -1107,7 +1108,9 @@ export async function deleteXPost(formData: FormData) {
 }
 
 /** x_posts 全件を Google スプレッドシートへ手動同期 */
-export async function syncXPostsToSheet() {
+export async function syncXPostsToSheet(): Promise<
+	SyncAllXPostsResult & { fatalError?: string }
+> {
 	const { env } = await getCloudflareContext({ async: true });
 	const startedAt = new Date().toISOString();
 	try {
@@ -1137,12 +1140,12 @@ export async function syncXPostsToSheet() {
 			finishedAt: new Date().toISOString(),
 			error: message,
 		});
-		throw error;
+		return { total: 0, synced: 0, failed: 0, errors: [], fatalError: message };
 	}
 }
 
 /** 予約時刻を過ぎた X 投稿をまとめて実行 */
-export async function runDueXPosts() {
+export async function runDueXPosts(): Promise<PublishResult & { fatalError?: string }> {
 	const { env } = await getCloudflareContext({ async: true });
 	const startedAt = new Date().toISOString();
 	try {
@@ -1175,9 +1178,11 @@ export async function runDueXPosts() {
 			finishedAt: new Date().toISOString(),
 			error: message,
 		});
-		throw error;
+		return { attempted: 0, succeeded: 0, failed: 0, errors: [], fatalError: message };
 	}
 }
+
+export type PostXPostNowResult = { ok: true } | { ok: false; error: string };
 
 /**
  * @automation
@@ -1190,10 +1195,10 @@ export async function runDueXPosts() {
  * location: PostXPostNowButton → postXPostNow → publishXPostNow
  * href: /x-schedule
  */
-export async function postXPostNow(formData: FormData) {
+export async function postXPostNow(formData: FormData): Promise<PostXPostNowResult> {
 	const id = String(formData.get("id") ?? "").trim();
 	if (!id) {
-		throw new Error("id が必要です");
+		return { ok: false, error: "id が必要です" };
 	}
 	const { env } = await getCloudflareContext({ async: true });
 	const startedAt = new Date().toISOString();
@@ -1208,6 +1213,7 @@ export async function postXPostNow(formData: FormData) {
 			meta: { postId: id },
 		});
 		revalidateXPostPages();
+		return { ok: true };
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		await recordAutomationRun(env.DB, {
@@ -1219,7 +1225,7 @@ export async function postXPostNow(formData: FormData) {
 			error: message,
 			meta: { postId: id },
 		});
-		throw error;
+		return { ok: false, error: message };
 	}
 }
 
