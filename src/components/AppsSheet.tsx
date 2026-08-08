@@ -205,6 +205,10 @@ function AppNameSelect({
 	);
 }
 
+function SheetCell({ children }: { children: ReactNode }) {
+	return <div className="apps-sheet-cell">{children}</div>;
+}
+
 function MasterReadonlyCell({
 	name,
 	icon,
@@ -514,183 +518,223 @@ export function AppsSheet({
 											}}
 										>
 											<td>
-												<button
-													type="button"
-													className="apps-sheet-drag-handle"
-													draggable={!reorderingApps}
-													aria-label={`${app.name || "アプリ"} を並び替え`}
-													title="ドラッグして並び替え"
-													onDragStart={(event) => onAppDragStart(event, app.id)}
-													onDragEnd={onAppDragEnd}
-												>
-													<span aria-hidden="true">⋮⋮</span>
-												</button>
-												<form id={formId} action={updateApp}>
-													<input type="hidden" name="id" value={app.id} />
-												</form>
-											</td>
-											<td>
-												<MasterReadonlyCell
-													name={app.app_group}
-													icon={app.app_group_icon}
-													color={app.app_group_color}
-													textColor={app.app_group_text_color}
-												/>
-											</td>
-											<td>
-												<AppNameSelect
-													formId={formId}
-													appNames={appNames}
-													defaultValue={app.app_name_id ?? ""}
-													fallbackLabel={app.name || "(不明)"}
-													required
-													placeholder="選択してください"
-												/>
-											</td>
-											<td>
-												<MasterReadonlyCell
-													name={app.app_type}
-													icon={app.app_type_icon}
-													color={app.app_type_color}
-													textColor={app.app_type_text_color}
-												/>
-											</td>
-											<td>
-												<DevPolicyField
-													formId={formId}
-													defaultValue={app.dev_policy}
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="dev_folder"
-													className="apps-sheet-wide"
-													defaultValue={app.dev_folder}
-													aria-label="開発フォルダ"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="frontend"
-													defaultValue={app.frontend}
-													aria-label="フロント"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="css"
-													defaultValue={app.css}
-													aria-label="css"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="backend"
-													defaultValue={app.backend}
-													aria-label="バックエンド"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="db"
-													defaultValue={app.db}
-													aria-label="DB"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="storage"
-													defaultValue={app.storage}
-													aria-label="Storage"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="port"
-													className="apps-sheet-narrow"
-													defaultValue={app.port}
-													aria-label="PORT"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="auth"
-													defaultValue={app.auth}
-													aria-label="認証"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="staging_url"
-													className="apps-sheet-wide"
-													defaultValue={app.staging_url}
-													aria-label="ステージングURL"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="hosting"
-													defaultValue={app.hosting}
-													aria-label="Hosting"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="production_url"
-													className="apps-sheet-wide"
-													defaultValue={app.production_url}
-													aria-label="本番URL"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="owner"
-													className="apps-sheet-narrow"
-													defaultValue={app.owner}
-													aria-label="担当"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="last_deployed_at"
-													defaultValue={app.last_deployed_at}
-													aria-label="最終デプロイ日"
-												/>
-											</td>
-											<td>
-												<input
-													form={formId}
-													name="notes"
-													className="apps-sheet-wide"
-													defaultValue={app.notes}
-													aria-label="備考"
-												/>
-											</td>
-											<td>
-												<div className="task-actions">
-													<button form={formId} type="submit">
-														保存
+												<SheetCell>
+													<button
+														type="button"
+														className="apps-sheet-drag-handle"
+														draggable={!reorderingApps}
+														aria-label={`${app.name || "アプリ"} を並び替え`}
+														title="ドラッグして並び替え"
+														onDragStart={(event) => onAppDragStart(event, app.id)}
+														onDragEnd={onAppDragEnd}
+													>
+														<span aria-hidden="true">⋮⋮</span>
 													</button>
-													<form action={deleteApp}>
+													<form id={formId} action={updateApp}>
 														<input type="hidden" name="id" value={app.id} />
-														<button type="submit" className="ghost">
-															削除
-														</button>
 													</form>
-												</div>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<MasterReadonlyCell
+														name={app.app_group}
+														icon={app.app_group_icon}
+														color={app.app_group_color}
+														textColor={app.app_group_text_color}
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<AppNameSelect
+														formId={formId}
+														appNames={appNames}
+														defaultValue={app.app_name_id ?? ""}
+														fallbackLabel={app.name || "(不明)"}
+														required
+														placeholder="選択してください"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<MasterReadonlyCell
+														name={app.app_type}
+														icon={app.app_type_icon}
+														color={app.app_type_color}
+														textColor={app.app_type_text_color}
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<DevPolicyField
+														formId={formId}
+														defaultValue={app.dev_policy}
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="dev_folder"
+														className="apps-sheet-wide"
+														defaultValue={app.dev_folder}
+														aria-label="開発フォルダ"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="frontend"
+														defaultValue={app.frontend}
+														aria-label="フロント"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="css"
+														defaultValue={app.css}
+														aria-label="css"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="backend"
+														defaultValue={app.backend}
+														aria-label="バックエンド"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="db"
+														defaultValue={app.db}
+														aria-label="DB"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="storage"
+														defaultValue={app.storage}
+														aria-label="Storage"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="port"
+														className="apps-sheet-narrow"
+														defaultValue={app.port}
+														aria-label="PORT"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="auth"
+														defaultValue={app.auth}
+														aria-label="認証"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="staging_url"
+														className="apps-sheet-wide"
+														defaultValue={app.staging_url}
+														aria-label="ステージングURL"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="hosting"
+														defaultValue={app.hosting}
+														aria-label="Hosting"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="production_url"
+														className="apps-sheet-wide"
+														defaultValue={app.production_url}
+														aria-label="本番URL"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="owner"
+														className="apps-sheet-narrow"
+														defaultValue={app.owner}
+														aria-label="担当"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="last_deployed_at"
+														defaultValue={app.last_deployed_at}
+														aria-label="最終デプロイ日"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<input
+														form={formId}
+														name="notes"
+														className="apps-sheet-wide"
+														defaultValue={app.notes}
+														aria-label="備考"
+													/>
+												</SheetCell>
+											</td>
+											<td>
+												<SheetCell>
+													<div className="task-actions">
+														<button form={formId} type="submit">
+															保存
+														</button>
+														<form action={deleteApp}>
+															<input type="hidden" name="id" value={app.id} />
+															<button type="submit" className="ghost">
+																削除
+															</button>
+														</form>
+													</div>
+												</SheetCell>
 											</td>
 										</tr>
 									);

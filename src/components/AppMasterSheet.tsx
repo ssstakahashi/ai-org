@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useState, type DragEvent, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import {
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	type DragEvent,
+	type ReactNode,
+} from "react";
 import { colorInputValue, masterTintStyle } from "@/lib/colors";
 import { APP_MASTER_ICONS } from "@/lib/types";
 
@@ -111,6 +119,9 @@ export function AppMasterSheet({
 	deleteAction,
 	reorderAction,
 }: Props) {
+	const router = useRouter();
+	const createDialogRef = useRef<HTMLDialogElement>(null);
+	const [createFormKey, setCreateFormKey] = useState(0);
 	const [items, setItems] = useState(initialItems);
 	const [draggingId, setDraggingId] = useState<string | null>(null);
 	const [dropTargetId, setDropTargetId] = useState<string | null>(null);
@@ -178,26 +189,38 @@ export function AppMasterSheet({
 		setDropTargetId(null);
 	}
 
-	return (
-		<section className="panel">
-			<div className="panel-head">
-				<h2>
-					{title}（{items.length}）
-				</h2>
-			</div>
+	function openCreateDialog() {
+		setCreateFormKey((value) => value + 1);
+		createDialogRef.current?.showModal();
+	}
 
-			<form action={createAction} className="inline-add-form">
-				<input name="name" required placeholder={addPlaceholder} />
-				{extraColumns?.renderCreate()}
-				{enableIcon ? <IconSelect /> : null}
-				{enableColor ? <ColorFields /> : null}
-				<button type="submit" className="primary">
-					行を追加
-				</button>
-			</form>
+	function closeCreateDialog() {
+		createDialogRef.current?.close();
+	}
+
+	const handleCreate = useCallback(
+		async (formData: FormData) => {
+			await createAction(formData);
+			closeCreateDialog();
+			router.refresh();
+		},
+		[createAction, router],
+	);
+
+	return (
+		<>
+			<section className="panel">
+				<div className="panel-head">
+					<h2>
+						{title}（{items.length}）
+					</h2>
+					<button type="button" className="primary" onClick={openCreateDialog}>
+						新規
+					</button>
+				</div>
 
 			{items.length === 0 ? (
-				<p className="empty">まだ登録がありません。上のフォームから追加してください。</p>
+				<p className="empty">まだ登録がありません。「新規」から追加してください。</p>
 			) : (
 				<div className="x-schedule-scroll">
 					<p className="field-hint apps-sheet-hint">
@@ -233,63 +256,73 @@ export function AppMasterSheet({
 										}}
 									>
 										<td>
-											<button
-												type="button"
-												className="apps-sheet-drag-handle"
-												draggable={!reordering}
-												aria-label={`${item.name} を並び替え`}
-												title="ドラッグして並び替え"
-												onDragStart={(event) => onDragStart(event, item.id)}
-												onDragEnd={onDragEnd}
-											>
-												<span aria-hidden="true">⋮⋮</span>
-											</button>
-											<form id={formId} action={updateAction}>
-												<input type="hidden" name="id" value={item.id} />
-											</form>
+											<div className="apps-sheet-cell">
+												<button
+													type="button"
+													className="apps-sheet-drag-handle"
+													draggable={!reordering}
+													aria-label={`${item.name} を並び替え`}
+													title="ドラッグして並び替え"
+													onDragStart={(event) => onDragStart(event, item.id)}
+													onDragEnd={onDragEnd}
+												>
+													<span aria-hidden="true">⋮⋮</span>
+												</button>
+												<form id={formId} action={updateAction}>
+													<input type="hidden" name="id" value={item.id} />
+												</form>
+											</div>
 										</td>
 										<td>
-											<input
-												form={formId}
-												name="name"
-												required
-												defaultValue={item.name}
-												aria-label={nameAriaLabel}
-												style={
-													enableColor
-														? masterTintStyle(item.color, item.text_color)
-														: undefined
-												}
-											/>
+											<div className="apps-sheet-cell">
+												<input
+													form={formId}
+													name="name"
+													required
+													defaultValue={item.name}
+													aria-label={nameAriaLabel}
+													style={
+														enableColor
+															? masterTintStyle(item.color, item.text_color)
+															: undefined
+													}
+												/>
+											</div>
 										</td>
 										{extraColumns
 											? extraColumns.renderRow(item, formId)
 											: null}
 										{enableIcon ? (
 											<td>
-												<IconSelect formId={formId} defaultValue={item.icon ?? ""} />
+												<div className="apps-sheet-cell">
+													<IconSelect formId={formId} defaultValue={item.icon ?? ""} />
+												</div>
 											</td>
 										) : null}
 										{enableColor ? (
 											<td>
-												<ColorFields
-													formId={formId}
-													bgDefault={item.color ?? ""}
-													textDefault={item.text_color ?? ""}
-												/>
+												<div className="apps-sheet-cell">
+													<ColorFields
+														formId={formId}
+														bgDefault={item.color ?? ""}
+														textDefault={item.text_color ?? ""}
+													/>
+												</div>
 											</td>
 										) : null}
 										<td>
-											<div className="task-actions">
-												<button form={formId} type="submit">
-													保存
-												</button>
-												<form action={deleteAction}>
-													<input type="hidden" name="id" value={item.id} />
-													<button type="submit" className="ghost">
-														削除
+											<div className="apps-sheet-cell">
+												<div className="task-actions">
+													<button form={formId} type="submit">
+														保存
 													</button>
-												</form>
+													<form action={deleteAction}>
+														<input type="hidden" name="id" value={item.id} />
+														<button type="submit" className="ghost">
+															削除
+														</button>
+													</form>
+												</div>
 											</div>
 										</td>
 									</tr>
@@ -299,6 +332,50 @@ export function AppMasterSheet({
 					</table>
 				</div>
 			)}
-		</section>
+			</section>
+
+			<dialog
+				ref={createDialogRef}
+				className="task-dialog"
+				onClick={(event) => {
+					if (event.target === createDialogRef.current) closeCreateDialog();
+				}}
+			>
+				<div className="task-dialog-panel">
+					<div className="task-dialog-head">
+						<h2>{title}を追加</h2>
+						<button type="button" className="ghost" onClick={closeCreateDialog}>
+							閉じる
+						</button>
+					</div>
+					<form
+						key={createFormKey}
+						action={handleCreate}
+						className="employee-edit-form employee-dialog-form"
+					>
+						<label>
+							<span>名前</span>
+							<input
+								name="name"
+								required
+								placeholder={addPlaceholder}
+								aria-label={nameAriaLabel}
+							/>
+						</label>
+						{extraColumns?.renderCreate()}
+						{enableIcon ? (
+							<label>
+								<span>アイコン</span>
+								<IconSelect />
+							</label>
+						) : null}
+						{enableColor ? <ColorFields /> : null}
+						<button type="submit" className="primary">
+							追加
+						</button>
+					</form>
+				</div>
+			</dialog>
+		</>
 	);
 }

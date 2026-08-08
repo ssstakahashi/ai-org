@@ -988,9 +988,9 @@ a.logout-button:hover {
 }
 
 .app-master-color-fields .color-field {
-	display: grid;
-	gap: 0.15rem;
-	justify-items: center;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
 }
 
 .color-field-label {
@@ -1231,6 +1231,27 @@ button.ghost {
 	text-align: left;
 	vertical-align: top;
 	border-bottom: 1px solid var(--line);
+}
+
+.x-schedule-table.apps-sheet-table th,
+.x-schedule-table.apps-sheet-table td {
+	vertical-align: middle;
+	white-space: nowrap;
+}
+
+.apps-sheet-table .apps-sheet-cell {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	flex-wrap: nowrap;
+}
+
+.apps-sheet-table td:first-child form {
+	display: contents;
+}
+
+.apps-sheet-table .apps-sheet-cell .task-actions {
+	flex: 0 0 auto;
 }
 
 .x-schedule-table th {

@@ -91,8 +91,14 @@ function GroupTypeSelects({
 }) {
 	return (
 		<>
-			<GroupSelect appGroups={appGroups} />
-			<TypeSelect appTypes={appTypes} />
+			<label>
+				<span>AppGroup</span>
+				<GroupSelect appGroups={appGroups} />
+			</label>
+			<label>
+				<span>AppType</span>
+				<TypeSelect appTypes={appTypes} />
+			</label>
 		</>
 	);
 }
@@ -116,20 +122,24 @@ export function AppNamesManager({ appNames, appGroups, appTypes }: Props) {
 					return (
 						<>
 							<td>
-								<GroupSelect
-									formId={formId}
-									appGroups={appGroups}
-									defaultValue={appName.app_group_id ?? ""}
-									fallbackLabel={appName.app_group}
-								/>
+								<div className="apps-sheet-cell">
+									<GroupSelect
+										formId={formId}
+										appGroups={appGroups}
+										defaultValue={appName.app_group_id ?? ""}
+										fallbackLabel={appName.app_group}
+									/>
+								</div>
 							</td>
 							<td>
-								<TypeSelect
-									formId={formId}
-									appTypes={appTypes}
-									defaultValue={appName.app_type_id ?? ""}
-									fallbackLabel={appName.app_type}
-								/>
+								<div className="apps-sheet-cell">
+									<TypeSelect
+										formId={formId}
+										appTypes={appTypes}
+										defaultValue={appName.app_type_id ?? ""}
+										fallbackLabel={appName.app_type}
+									/>
+								</div>
 							</td>
 						</>
 					);

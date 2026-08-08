@@ -2,6 +2,13 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.17 (2026-08-08)
+
+- AppGroup / App / AppType マスタの新規登録をダイアログ UI に統一
+- App 管理タブ順を変更（リスト → App → AppGroup → AppType）
+- 全タブのテーブル行を横一行・縦中央揃えに統一（apps-sheet-cell）
+- AppGroup / AppType の背景・文字色ラベルを横並びに
+
 ## 0.0.16 (2026-08-08)
 
 - App タブの Server Components エラーを修正（Client Component へ関数 props を渡していた）

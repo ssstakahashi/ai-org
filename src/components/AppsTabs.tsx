@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
 	{ href: "/apps", label: "リスト", match: "exact" as const },
-	{ href: "/apps/groups", label: "AppGroup", match: "prefix" as const },
 	{ href: "/apps/names", label: "App", match: "prefix" as const },
+	{ href: "/apps/groups", label: "AppGroup", match: "prefix" as const },
 	{ href: "/apps/types", label: "AppType", match: "prefix" as const },
 ];
 
