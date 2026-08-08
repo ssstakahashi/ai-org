@@ -17,6 +17,20 @@
 	--status-scheduled: #1f6b4a;
 	--status-done: #4a6356;
 	--status-failed: #8b3a2f;
+	--page-padding-inline: 1rem;
+	--page-content-width: calc(100vw - 2 * var(--page-padding-inline));
+}
+
+@media (min-width: 721px) {
+	:root {
+		--page-padding-inline: 2rem;
+	}
+}
+
+@media (min-width: 1024px) {
+	:root {
+		--page-padding-inline: 4rem;
+	}
 }
 
 @theme inline {
@@ -25,10 +39,16 @@
 	--font-sans: var(--font-body);
 }
 
+html {
+	overflow-x: clip;
+}
+
 body {
 	--font-display: var(--font-body);
 	margin: 0;
 	min-height: 100vh;
+	max-width: 100vw;
+	overflow-x: clip;
 	background:
 		radial-gradient(circle at top left, #d9ebe2 0%, transparent 42%),
 		linear-gradient(180deg, #f5f8f6 0%, var(--background) 55%, #e4ebe6 100%);
@@ -46,11 +66,17 @@ body {
 }
 
 .page {
-	width: min(920px, calc(100% - 2rem));
-	margin: 0 auto;
+	width: min(var(--page-content-width), 100%);
+	margin-inline: auto;
 	padding: 1.5rem 0 4rem;
 	display: grid;
 	gap: 1.5rem;
+	box-sizing: border-box;
+	min-width: 0;
+}
+
+.page > * {
+	min-width: 0;
 }
 
 .app-topnav {
@@ -62,9 +88,10 @@ body {
 }
 
 .app-topnav-inner {
-	width: min(1480px, calc(100% - 2rem));
-	margin: 0 auto;
+	width: min(var(--page-content-width), 100%);
+	margin-inline: auto;
 	padding: 0.75rem 0;
+	box-sizing: border-box;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -152,10 +179,6 @@ a.logout-button {
 a.logout-button:hover {
 	color: var(--foreground);
 	border-color: var(--muted);
-}
-
-.page-wide {
-	width: min(1100px, calc(100% - 2rem));
 }
 
 .apps-sheet-table {
@@ -249,6 +272,7 @@ a.logout-button:hover {
 }
 
 .panel {
+	min-width: 0;
 	background: color-mix(in srgb, var(--panel) 92%, white);
 	border: 1px solid var(--line);
 	border-radius: 18px;
@@ -381,8 +405,32 @@ a.logout-button:hover {
 	color: var(--muted);
 }
 
-.choice-field.full {
+.choice-field.full,
+.status-field.full {
 	grid-column: 1 / -1;
+}
+
+.task-period-row {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.85rem;
+}
+
+.task-period-row label {
+	display: grid;
+	gap: 0.35rem;
+	font-size: 0.85rem;
+	color: var(--muted);
+}
+
+.status-field.full .status-options {
+	flex-wrap: nowrap;
+}
+
+.status-field.full .status-option {
+	flex: 1 1 0;
+	min-width: 0;
 }
 
 .status-options,
@@ -1158,9 +1206,17 @@ button.ghost {
 
 .x-schedule-scroll {
 	overflow-x: auto;
+	max-width: 100%;
+	min-width: 0;
 	border: 1px solid var(--line);
 	border-radius: 14px;
 	background: #fff;
+	-webkit-overflow-scrolling: touch;
+}
+
+.x-schedule-scroll .x-schedule-table {
+	width: max-content;
+	min-width: 100%;
 }
 
 .x-schedule-table {
@@ -1398,6 +1454,7 @@ button.ghost {
 .task-board {
 	display: grid;
 	gap: 1rem;
+	min-width: 0;
 }
 
 .view-tabs {
@@ -1935,13 +1992,17 @@ button.gantt-task-meta {
 .gantt-view {
 	display: grid;
 	gap: 1rem;
+	min-width: 0;
 }
 
 .gantt-scroll {
 	overflow-x: auto;
+	max-width: 100%;
+	min-width: 0;
 	border: 1px solid var(--line);
 	border-radius: 14px;
 	background: #fff;
+	-webkit-overflow-scrolling: touch;
 }
 
 .gantt-table {
@@ -2064,7 +2125,10 @@ button.gantt-task-meta {
 	grid-template-columns: repeat(5, minmax(11rem, 1fr));
 	gap: 0.75rem;
 	overflow-x: auto;
+	max-width: 100%;
+	min-width: 0;
 	padding-bottom: 0.25rem;
+	-webkit-overflow-scrolling: touch;
 }
 
 .kanban-board.is-pending {
@@ -2151,6 +2215,7 @@ button.gantt-task-meta {
 .automation-catalog {
 	display: grid;
 	gap: 1.5rem;
+	min-width: 0;
 }
 
 .automation-legend {
@@ -2310,12 +2375,6 @@ a.automation-link:hover {
 
 	.employee-card-list {
 		grid-template-columns: 1fr;
-	}
-
-	.page,
-	.page-wide,
-	.app-topnav-inner {
-		width: min(100% - 1.25rem, 1100px);
 	}
 
 	.calendar-cell {

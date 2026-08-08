@@ -1294,7 +1294,7 @@ async function resolveAppGroup(
 		.bind(appGroupId)
 		.first<AppGroup>();
 	if (!row) {
-		throw new Error("アプリグループマスタが見つかりません");
+		throw new Error("AppGroup マスタが見つかりません");
 	}
 	return row;
 }
@@ -1332,7 +1332,7 @@ const MASTER_CONFIG = {
 		table: "app_groups",
 		fkColumn: "app_group_id",
 		idPrefix: "appgroup",
-		label: "アプリグループ",
+		label: "AppGroup",
 		syncColumn: "app_group",
 		hasColor: true,
 		hasIcon: true,

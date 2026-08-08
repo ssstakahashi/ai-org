@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties, type DragEvent, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from "react";
 import {
 	createApp,
 	deleteApp,
@@ -27,7 +28,7 @@ type Props = {
 
 const APP_HEADERS = [
 	"並び",
-	"グループ",
+	"AppGroup",
 	"App",
 	"AppType",
 	"開発方針",
@@ -169,7 +170,7 @@ function AppNameSelect({
 	defaultValue = "",
 	fallbackLabel,
 	required = false,
-	placeholder = "アプリケーション名（必須）",
+	placeholder = "App（必須）",
 }: AppNameSelectProps) {
 	const [value, setValue] = useState(defaultValue);
 	const selected = appNames.find((item) => item.id === value);
@@ -236,6 +237,8 @@ export function AppsSheet({
 	appNames,
 	appTypes,
 }: Props) {
+	const router = useRouter();
+	const createDialogRef = useRef<HTMLDialogElement>(null);
 	const [apps, setApps] = useState(initialApps);
 	const [draggingAppId, setDraggingAppId] = useState<string | null>(null);
 	const [dropTargetAppId, setDropTargetAppId] = useState<string | null>(null);
@@ -243,6 +246,7 @@ export function AppsSheet({
 	const [groupFilter, setGroupFilter] = useState(ALL);
 	const [appTypeFilter, setAppTypeFilter] = useState(ALL);
 	const [devPolicyFilter, setDevPolicyFilter] = useState(ALL);
+	const [createFormKey, setCreateFormKey] = useState(0);
 
 	useEffect(() => {
 		setApps(initialApps);
@@ -375,8 +379,27 @@ export function AppsSheet({
 		setDropTargetAppId(null);
 	}
 
+	function openCreateDialog() {
+		setCreateFormKey((value) => value + 1);
+		createDialogRef.current?.showModal();
+	}
+
+	function closeCreateDialog() {
+		createDialogRef.current?.close();
+	}
+
+	const handleCreate = useCallback(
+		async (formData: FormData) => {
+			await createApp(formData);
+			closeCreateDialog();
+			router.refresh();
+		},
+		[router],
+	);
+
 	return (
-		<div className="master-grid">
+		<>
+			<div className="master-grid">
 			<section className="panel">
 				<div className="panel-head">
 					<h2>
@@ -386,11 +409,19 @@ export function AppsSheet({
 							: apps.length}
 						）
 					</h2>
+					<button
+						type="button"
+						className="primary"
+						onClick={openCreateDialog}
+						disabled={appNames.length === 0}
+					>
+						新規
+					</button>
 				</div>
 
 				<div className="apps-filters">
 					<FilterRow
-						label="グループ"
+						label="AppGroup"
 						options={groupOptions}
 						value={groupFilter}
 						onChange={setGroupFilter}
@@ -438,24 +469,13 @@ export function AppsSheet({
 					/>
 				</div>
 
-				<form action={createApp} className="inline-add-form">
-					<AppNameSelect appNames={appNames} required />
-					<DevPolicyField className="dev-policy-field-inline" />
-					<button type="submit" className="primary">
-						行を追加
-					</button>
-				</form>
-				<p className="field-hint apps-sheet-hint">
-					グループと AppType は「アプリケーション名」タブで設定します。
-				</p>
-
 				{appNames.length === 0 ? (
 					<p className="empty">
 						先に「App」タブでマスタを追加してください。
 					</p>
 				) : apps.length === 0 ? (
 					<p className="empty">
-						まだアプリがありません。上のフォームから追加してください。
+						まだアプリがありません。「新規」から追加してください。
 					</p>
 				) : visibleApps.length === 0 ? (
 					<p className="empty">条件に一致するアプリがありません。</p>
@@ -680,6 +700,41 @@ export function AppsSheet({
 					</div>
 				)}
 			</section>
-		</div>
+			</div>
+
+			<dialog
+				ref={createDialogRef}
+				className="task-dialog"
+				onClick={(event) => {
+					if (event.target === createDialogRef.current) closeCreateDialog();
+				}}
+			>
+				<div className="task-dialog-panel">
+					<div className="task-dialog-head">
+						<h2>リストに追加</h2>
+						<button type="button" className="ghost" onClick={closeCreateDialog}>
+							閉じる
+						</button>
+					</div>
+					<form
+						key={createFormKey}
+						action={handleCreate}
+						className="employee-edit-form employee-dialog-form"
+					>
+						<label>
+							<span>App</span>
+							<AppNameSelect appNames={appNames} required />
+						</label>
+						<DevPolicyField />
+						<p className="field-hint">
+							AppGroup と AppType は「App」タブで設定します。
+						</p>
+						<button type="submit" className="primary">
+							追加
+						</button>
+					</form>
+				</div>
+			</dialog>
+		</>
 	);
 }

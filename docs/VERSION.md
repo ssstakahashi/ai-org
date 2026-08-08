@@ -2,6 +2,13 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.16 (2026-08-08)
+
+- App タブの Server Components エラーを修正（Client Component へ関数 props を渡していた）
+- AppGroup 表示名の統一、App リスト追加をダイアログ UI に変更
+- ページ横スクロール・レスポンシブレイアウト改善、タスクフォームの期間・ステータス配置調整
+- db:pull / db:push で org_rules をクリア対象に追加（本番データコピー時の UNIQUE 制約エラー修正）
+
 ## 0.0.15 (2026-08-08)
 
 - App マスタにアプリグループ・AppType を紐づけ、App 管理リストではアプリケーション名から自動反映

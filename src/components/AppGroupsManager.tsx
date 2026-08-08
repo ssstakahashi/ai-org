@@ -14,10 +14,10 @@ type Props = {
 export function AppGroupsManager({ appGroups }: Props) {
 	return (
 		<AppMasterSheet
-			title="アプリグループ"
+			title="AppGroup"
 			items={appGroups}
-			addPlaceholder="新しいアプリグループ"
-			nameAriaLabel="アプリグループ"
+			addPlaceholder="新しい AppGroup"
+			nameAriaLabel="AppGroup"
 			enableColor
 			enableIcon
 			createAction={createAppGroup}

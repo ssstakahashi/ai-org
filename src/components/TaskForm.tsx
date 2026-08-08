@@ -210,7 +210,17 @@ export function TaskForm({
 						))}
 					</div>
 				</div>
-				<div className="status-field">
+				<div className="task-period-row">
+					<label>
+						<span>開始</span>
+						<input type="datetime-local" name="start_at" defaultValue={startAtDefault} />
+					</label>
+					<label>
+						<span>終了</span>
+						<input type="datetime-local" name="end_at" defaultValue={endAtDefault} />
+					</label>
+				</div>
+				<div className="status-field full">
 					<span>ステータス</span>
 					<div className="status-options" role="radiogroup" aria-label="ステータス">
 						{statuses.map((status) => (
@@ -227,14 +237,6 @@ export function TaskForm({
 						))}
 					</div>
 				</div>
-				<label>
-					<span>開始</span>
-					<input type="datetime-local" name="start_at" defaultValue={startAtDefault} />
-				</label>
-				<label>
-					<span>終了</span>
-					<input type="datetime-local" name="end_at" defaultValue={endAtDefault} />
-				</label>
 				<label className="full">
 					<span>タイトル</span>
 					<input
