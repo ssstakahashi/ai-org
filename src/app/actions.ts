@@ -1235,15 +1235,51 @@ async function resolveAppName(
 ): Promise<AppName> {
 	const row = await db
 		.prepare(
-			`SELECT id, name, sort_order, created_at, updated_at
-			 FROM app_names WHERE id = ?`,
+			`SELECT n.id, n.name, n.color, n.text_color, n.icon,
+			        n.app_group_id, COALESCE(g.name, n.app_group) AS app_group,
+			        COALESCE(g.color, '') AS app_group_color,
+			        COALESCE(g.text_color, '') AS app_group_text_color,
+			        COALESCE(g.icon, '') AS app_group_icon,
+			        n.app_type_id, COALESCE(t.name, n.app_type) AS app_type,
+			        COALESCE(t.color, '') AS app_type_color,
+			        COALESCE(t.text_color, '') AS app_type_text_color,
+			        COALESCE(t.icon, '') AS app_type_icon,
+			        n.sort_order, n.created_at, n.updated_at
+			 FROM app_names n
+			 LEFT JOIN app_groups g ON g.id = n.app_group_id
+			 LEFT JOIN app_types t ON t.id = n.app_type_id
+			 WHERE n.id = ?`,
 		)
 		.bind(appNameId)
 		.first<AppName>();
 	if (!row) {
-		throw new Error("アプリケーション名マスタが見つかりません");
+		throw new Error("App マスタが見つかりません");
 	}
 	return row;
+}
+
+async function syncAppsFromAppName(
+	db: Awaited<ReturnType<typeof getDb>>,
+	appName: AppName,
+) {
+	await db
+		.prepare(
+			`UPDATE apps
+			 SET app_group_id = ?,
+			     app_group = ?,
+			     app_type_id = ?,
+			     app_type = ?,
+			     updated_at = datetime('now')
+			 WHERE app_name_id = ?`,
+		)
+		.bind(
+			appName.app_group_id,
+			appName.app_group,
+			appName.app_type_id,
+			appName.app_type,
+			appName.id,
+		)
+		.run();
 }
 
 async function resolveAppGroup(
@@ -1287,7 +1323,7 @@ const MASTER_CONFIG = {
 		table: "app_names",
 		fkColumn: "app_name_id",
 		idPrefix: "appname",
-		label: "アプリケーション名",
+		label: "App",
 		syncColumn: "name",
 		hasColor: true,
 		hasIcon: true,
@@ -1479,11 +1515,18 @@ async function deleteMasterRow(kind: MasterKind, formData: FormData) {
 	const id = formText(formData, "id");
 	if (!id) return;
 
-	const inUse = await db
+	const inUseApps = await db
 		.prepare(`SELECT id FROM apps WHERE ${fkColumn} = ? LIMIT 1`)
 		.bind(id)
 		.first();
-	if (inUse) {
+	const inUseNames =
+		kind === "groups" || kind === "types"
+			? await db
+					.prepare(`SELECT id FROM app_names WHERE ${fkColumn} = ? LIMIT 1`)
+					.bind(id)
+					.first()
+			: null;
+	if (inUseApps || inUseNames) {
 		throw new Error(`この${label}は App 管理で使用中のため削除できません`);
 	}
 
@@ -1491,16 +1534,147 @@ async function deleteMasterRow(kind: MasterKind, formData: FormData) {
 	revalidateAppsPage();
 }
 
+const APP_NAME_LIST_SQL = `
+	SELECT n.id, n.name, n.color, n.text_color, n.icon,
+	       n.app_group_id, COALESCE(g.name, n.app_group) AS app_group,
+	       COALESCE(g.color, '') AS app_group_color,
+	       COALESCE(g.text_color, '') AS app_group_text_color,
+	       COALESCE(g.icon, '') AS app_group_icon,
+	       n.app_type_id, COALESCE(t.name, n.app_type) AS app_type,
+	       COALESCE(t.color, '') AS app_type_color,
+	       COALESCE(t.text_color, '') AS app_type_text_color,
+	       COALESCE(t.icon, '') AS app_type_icon,
+	       n.sort_order, n.created_at, n.updated_at
+	 FROM app_names n
+	 LEFT JOIN app_groups g ON g.id = n.app_group_id
+	 LEFT JOIN app_types t ON t.id = n.app_type_id
+	 ORDER BY n.sort_order ASC, n.name ASC`;
+
 export async function listAppNames(): Promise<AppName[]> {
-	return listMasterRows<AppName>("names");
+	const db = await getDb();
+	const { results } = await db.prepare(APP_NAME_LIST_SQL).all<AppName>();
+	return results ?? [];
 }
 
 export async function createAppName(formData: FormData) {
-	await createMasterRow("names", formData);
+	const db = await getDb();
+	const name = formText(formData, "name");
+	if (!name) {
+		throw new Error("App は必須です");
+	}
+
+	const existing = await db
+		.prepare("SELECT id FROM app_names WHERE lower(name) = lower(?)")
+		.bind(name)
+		.first();
+	if (existing) {
+		throw new Error("同じ App が既にあります");
+	}
+
+	const appGroupId = formText(formData, "app_group_id");
+	const appGroup = appGroupId ? await resolveAppGroup(db, appGroupId) : null;
+	const appTypeId = formText(formData, "app_type_id");
+	const appType = appTypeId ? await resolveAppType(db, appTypeId) : null;
+
+	const maxSort = await db
+		.prepare("SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM app_names")
+		.first<{ max_sort: number }>();
+
+	const id = newId("appname");
+	const sortOrder = (maxSort?.max_sort ?? 0) + 10;
+	const color = normalizeColor(formData.get("color"));
+	const textColor = normalizeColor(formData.get("text_color"));
+	const icon = normalizeAppMasterIcon(formData.get("icon"));
+
+	await db
+		.prepare(
+			`INSERT INTO app_names (
+				id, name, color, text_color, icon,
+				app_group_id, app_group, app_type_id, app_type, sort_order
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		)
+		.bind(
+			id,
+			name,
+			color,
+			textColor,
+			icon,
+			appGroup?.id ?? null,
+			appGroup?.name ?? "",
+			appType?.id ?? null,
+			appType?.name ?? "",
+			sortOrder,
+		)
+		.run();
+
+	revalidateAppsPage();
 }
 
 export async function updateAppName(formData: FormData) {
-	await updateMasterRow("names", formData);
+	const db = await getDb();
+	const id = formText(formData, "id");
+	const name = formText(formData, "name");
+	if (!id || !name) {
+		throw new Error("id と App が必要です");
+	}
+
+	const duplicate = await db
+		.prepare("SELECT id FROM app_names WHERE lower(name) = lower(?) AND id != ?")
+		.bind(name, id)
+		.first();
+	if (duplicate) {
+		throw new Error("同じ App が既にあります");
+	}
+
+	const appGroupId = formText(formData, "app_group_id");
+	const appGroup = appGroupId ? await resolveAppGroup(db, appGroupId) : null;
+	const appTypeId = formText(formData, "app_type_id");
+	const appType = appTypeId ? await resolveAppType(db, appTypeId) : null;
+
+	const color = normalizeColor(formData.get("color"));
+	const textColor = normalizeColor(formData.get("text_color"));
+	const icon = normalizeAppMasterIcon(formData.get("icon"));
+
+	await db
+		.prepare(
+			`UPDATE app_names
+			 SET name = ?,
+			     color = ?,
+			     text_color = ?,
+			     icon = ?,
+			     app_group_id = ?,
+			     app_group = ?,
+			     app_type_id = ?,
+			     app_type = ?,
+			     updated_at = datetime('now')
+			 WHERE id = ?`,
+		)
+		.bind(
+			name,
+			color,
+			textColor,
+			icon,
+			appGroup?.id ?? null,
+			appGroup?.name ?? "",
+			appType?.id ?? null,
+			appType?.name ?? "",
+			id,
+		)
+		.run();
+
+	await db
+		.prepare(
+			`UPDATE apps
+			 SET name = ?, updated_at = datetime('now')
+			 WHERE app_name_id = ?`,
+		)
+		.bind(name, id)
+		.run();
+
+	const appName = await resolveAppName(db, id);
+	await syncAppsFromAppName(db, appName);
+
+	revalidateAppsPage();
 }
 
 export async function reorderAppNames(ids: string[]) {
@@ -1586,14 +1760,9 @@ export async function createApp(formData: FormData) {
 	const db = await getDb();
 	const appNameId = formText(formData, "app_name_id");
 	if (!appNameId) {
-		throw new Error("アプリケーション名は必須です");
+		throw new Error("App は必須です");
 	}
 	const appName = await resolveAppName(db, appNameId);
-
-	const appGroupId = formText(formData, "app_group_id");
-	const appGroup = appGroupId ? await resolveAppGroup(db, appGroupId) : null;
-	const appTypeId = formText(formData, "app_type_id");
-	const appType = appTypeId ? await resolveAppType(db, appTypeId) : null;
 
 	const maxSort = await db
 		.prepare("SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM apps")
@@ -1612,12 +1781,12 @@ export async function createApp(formData: FormData) {
 		.bind(
 			id,
 			(maxSort?.max_sort ?? 0) + 10,
-			appGroup?.id ?? null,
-			appGroup?.name ?? "",
+			appName.app_group_id,
+			appName.app_group,
 			appName.id,
 			appName.name,
-			appType?.id ?? null,
-			appType?.name ?? "",
+			appName.app_type_id,
+			appName.app_type,
 			formText(formData, "dev_policy"),
 			formText(formData, "dev_folder"),
 			formText(formData, "frontend"),
@@ -1644,7 +1813,7 @@ export async function updateApp(formData: FormData) {
 	const id = formText(formData, "id");
 	const appNameId = formText(formData, "app_name_id");
 	if (!id || !appNameId) {
-		throw new Error("id とアプリケーション名が必要です");
+		throw new Error("id と App が必要です");
 	}
 
 	const existing = await db
@@ -1656,10 +1825,6 @@ export async function updateApp(formData: FormData) {
 	}
 
 	const appName = await resolveAppName(db, appNameId);
-	const appGroupId = formText(formData, "app_group_id");
-	const appGroup = appGroupId ? await resolveAppGroup(db, appGroupId) : null;
-	const appTypeId = formText(formData, "app_type_id");
-	const appType = appTypeId ? await resolveAppType(db, appTypeId) : null;
 
 	await db
 		.prepare(
@@ -1689,12 +1854,12 @@ export async function updateApp(formData: FormData) {
 			 WHERE id = ?`,
 		)
 		.bind(
-			appGroup?.id ?? null,
-			appGroup?.name ?? "",
+			appName.app_group_id,
+			appName.app_group,
 			appName.id,
 			appName.name,
-			appType?.id ?? null,
-			appType?.name ?? "",
+			appName.app_type_id,
+			appName.app_type,
 			formText(formData, "dev_policy"),
 			formText(formData, "dev_folder"),
 			formText(formData, "frontend"),

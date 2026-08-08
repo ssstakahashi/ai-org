@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type DragEvent } from "react";
+import { useEffect, useState, type DragEvent, type ReactNode } from "react";
 import { colorInputValue, masterTintStyle } from "@/lib/colors";
 import { APP_MASTER_ICONS } from "@/lib/types";
 
@@ -13,6 +13,12 @@ export type AppMasterItem = {
 	icon?: string;
 };
 
+type ExtraColumns = {
+	headers: readonly string[];
+	renderCreate: () => ReactNode;
+	renderRow: (item: AppMasterItem, formId: string) => ReactNode;
+};
+
 type Props = {
 	title: string;
 	items: AppMasterItem[];
@@ -20,6 +26,7 @@ type Props = {
 	nameAriaLabel: string;
 	enableColor?: boolean;
 	enableIcon?: boolean;
+	extraColumns?: ExtraColumns;
 	createAction: (formData: FormData) => Promise<void>;
 	updateAction: (formData: FormData) => Promise<void>;
 	deleteAction: (formData: FormData) => Promise<void>;
@@ -98,6 +105,7 @@ export function AppMasterSheet({
 	nameAriaLabel,
 	enableColor = false,
 	enableIcon = false,
+	extraColumns,
 	createAction,
 	updateAction,
 	deleteAction,
@@ -111,6 +119,7 @@ export function AppMasterSheet({
 	const headers = [
 		"並び",
 		"名前",
+		...(extraColumns?.headers ?? []),
 		...(enableIcon ? (["アイコン"] as const) : []),
 		...(enableColor ? (["色"] as const) : []),
 		"操作",
@@ -179,6 +188,7 @@ export function AppMasterSheet({
 
 			<form action={createAction} className="inline-add-form">
 				<input name="name" required placeholder={addPlaceholder} />
+				{extraColumns?.renderCreate()}
 				{enableIcon ? <IconSelect /> : null}
 				{enableColor ? <ColorFields /> : null}
 				<button type="submit" className="primary">
@@ -252,6 +262,9 @@ export function AppMasterSheet({
 												}
 											/>
 										</td>
+										{extraColumns
+											? extraColumns.renderRow(item, formId)
+											: null}
 										{enableIcon ? (
 											<td>
 												<IconSelect formId={formId} defaultValue={item.icon ?? ""} />

@@ -1495,6 +1495,18 @@ button.ghost {
 	font-size: 0.85rem;
 }
 
+.apps-master-readonly {
+	display: inline-block;
+	min-width: 6rem;
+	padding: 0.45rem 0.55rem;
+	border-radius: 8px;
+	font-size: 0.85rem;
+}
+
+.apps-master-readonly.muted {
+	color: var(--muted);
+}
+
 .app-master-icon-select,
 .inline-add-form .app-master-icon-select {
 	flex: 0 0 auto;

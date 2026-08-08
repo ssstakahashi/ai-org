@@ -2,6 +2,11 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.15 (2026-08-08)
+
+- App マスタにアプリグループ・AppType を紐づけ、App 管理リストではアプリケーション名から自動反映
+- App 管理タブの表示名を整理（リスト / App）
+
 ## 0.0.14 (2026-08-08)
 
 - X投稿関連 Server Action のエラーを throw せず return するよう修正（本番でメッセージが隠れる問題）

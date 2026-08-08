@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-	{ href: "/apps", label: "アプリケーション", match: "exact" as const },
+	{ href: "/apps", label: "リスト", match: "exact" as const },
 	{ href: "/apps/groups", label: "アプリグループ", match: "prefix" as const },
-	{ href: "/apps/names", label: "アプリケーション名", match: "prefix" as const },
+	{ href: "/apps/names", label: "App", match: "prefix" as const },
 	{ href: "/apps/types", label: "AppType", match: "prefix" as const },
 ];
 

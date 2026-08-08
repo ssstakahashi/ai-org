@@ -106,6 +106,16 @@ export type AppName = {
 	text_color: string;
 	/** 先頭表示用アイコン。空文字はなし */
 	icon: string;
+	app_group_id: string | null;
+	app_group: string;
+	app_group_color: string;
+	app_group_text_color: string;
+	app_group_icon: string;
+	app_type_id: string | null;
+	app_type: string;
+	app_type_color: string;
+	app_type_text_color: string;
+	app_type_icon: string;
 	sort_order: number;
 	created_at: string;
 	updated_at: string;

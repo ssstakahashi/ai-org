@@ -1,10 +1,20 @@
-import { listAppNames } from "@/app/actions";
+import { listAppGroups, listAppNames, listAppTypes } from "@/app/actions";
 import { AppNamesManager } from "@/components/AppNamesManager";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppNamesPage() {
-	const appNames = await listAppNames();
+	const [appNames, appGroups, appTypes] = await Promise.all([
+		listAppNames(),
+		listAppGroups(),
+		listAppTypes(),
+	]);
 
-	return <AppNamesManager appNames={appNames} />;
+	return (
+		<AppNamesManager
+			appNames={appNames}
+			appGroups={appGroups}
+			appTypes={appTypes}
+		/>
+	);
 }

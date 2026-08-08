@@ -11,7 +11,7 @@ export default function AppsLayout({
 		<main className="page page-wide">
 			<AppHeader
 				title="App管理"
-				lede="アプリケーションの構成・デプロイ先と、グループ・名称・AppType マスタを管理します。"
+				lede="リストの構成・デプロイ先と、グループ・App・AppType マスタを管理します。"
 			/>
 			<AppsTabs />
 			{children}

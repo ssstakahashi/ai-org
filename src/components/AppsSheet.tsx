@@ -28,7 +28,7 @@ type Props = {
 const APP_HEADERS = [
 	"並び",
 	"グループ",
-	"アプリケーション名",
+	"App",
 	"AppType",
 	"開発方針",
 	"開発フォルダ",
@@ -181,7 +181,7 @@ function AppNameSelect({
 			name="app_name_id"
 			required={required}
 			value={value}
-			aria-label="アプリケーション名"
+			aria-label="App"
 			style={masterTintStyle(selected?.color, selected?.text_color)}
 			onChange={(event) => setValue(event.target.value)}
 		>
@@ -204,87 +204,29 @@ function AppNameSelect({
 	);
 }
 
-type AppGroupSelectProps = {
-	formId?: string;
-	appGroups: AppGroup[];
-	defaultValue?: string;
-	fallbackLabel?: string;
-	placeholder?: string;
-};
-
-function AppGroupSelect({
-	formId,
-	appGroups,
-	defaultValue = "",
-	fallbackLabel,
-	placeholder = "グループ",
-}: AppGroupSelectProps) {
-	const [value, setValue] = useState(defaultValue);
-	const selected = appGroups.find((item) => item.id === value);
-
+function MasterReadonlyCell({
+	name,
+	icon,
+	color,
+	textColor,
+	fallback = "（未設定）",
+}: {
+	name: string;
+	icon?: string;
+	color?: string;
+	textColor?: string;
+	fallback?: string;
+}) {
+	if (!name) {
+		return <span className="apps-master-readonly muted">{fallback}</span>;
+	}
 	return (
-		<select
-			form={formId}
-			name="app_group_id"
-			value={value}
-			aria-label="グループ"
-			style={masterTintStyle(selected?.color, selected?.text_color)}
-			onChange={(event) => setValue(event.target.value)}
+		<span
+			className="apps-master-readonly"
+			style={masterTintStyle(color, textColor)}
 		>
-			<option value="">{placeholder}</option>
-			{appGroups.map((group) => (
-				<option key={group.id} value={group.id}>
-					{formatMasterLabel(group.name, group.icon)}
-				</option>
-			))}
-			{value && !appGroups.some((item) => item.id === value) ? (
-				<option value={value}>
-					{formatMasterLabel(fallbackLabel || "(不明)", selected?.icon)}
-				</option>
-			) : null}
-		</select>
-	);
-}
-
-type AppTypeSelectProps = {
-	formId?: string;
-	appTypes: AppType[];
-	defaultValue?: string;
-	fallbackLabel?: string;
-	placeholder?: string;
-};
-
-function AppTypeSelect({
-	formId,
-	appTypes,
-	defaultValue = "",
-	fallbackLabel,
-	placeholder = "AppType",
-}: AppTypeSelectProps) {
-	const [value, setValue] = useState(defaultValue);
-	const selected = appTypes.find((item) => item.id === value);
-
-	return (
-		<select
-			form={formId}
-			name="app_type_id"
-			value={value}
-			aria-label="AppType"
-			style={masterTintStyle(selected?.color, selected?.text_color)}
-			onChange={(event) => setValue(event.target.value)}
-		>
-			<option value="">{placeholder}</option>
-			{appTypes.map((type) => (
-				<option key={type.id} value={type.id}>
-					{formatMasterLabel(type.name, type.icon)}
-				</option>
-			))}
-			{value && !appTypes.some((item) => item.id === value) ? (
-				<option value={value}>
-					{formatMasterLabel(fallbackLabel || "(不明)", selected?.icon)}
-				</option>
-			) : null}
-		</select>
+			{formatMasterLabel(name, icon)}
+		</span>
 	);
 }
 
@@ -438,7 +380,7 @@ export function AppsSheet({
 			<section className="panel">
 				<div className="panel-head">
 					<h2>
-						アプリケーション（
+						リスト（
 						{isFiltered
 							? `${visibleApps.length} / ${apps.length}`
 							: apps.length}
@@ -497,18 +439,19 @@ export function AppsSheet({
 				</div>
 
 				<form action={createApp} className="inline-add-form">
-					<AppGroupSelect appGroups={appGroups} placeholder="グループ" />
 					<AppNameSelect appNames={appNames} required />
-					<AppTypeSelect appTypes={appTypes} placeholder="AppType" />
 					<DevPolicyField className="dev-policy-field-inline" />
 					<button type="submit" className="primary">
 						行を追加
 					</button>
 				</form>
+				<p className="field-hint apps-sheet-hint">
+					グループと AppType は「アプリケーション名」タブで設定します。
+				</p>
 
 				{appNames.length === 0 ? (
 					<p className="empty">
-						先に「アプリケーション名」タブでマスタを追加してください。
+						先に「App」タブでマスタを追加してください。
 					</p>
 				) : apps.length === 0 ? (
 					<p className="empty">
@@ -567,12 +510,11 @@ export function AppsSheet({
 												</form>
 											</td>
 											<td>
-												<AppGroupSelect
-													formId={formId}
-													appGroups={appGroups}
-													defaultValue={app.app_group_id ?? ""}
-													fallbackLabel={app.app_group || "(不明)"}
-													placeholder="（未設定）"
+												<MasterReadonlyCell
+													name={app.app_group}
+													icon={app.app_group_icon}
+													color={app.app_group_color}
+													textColor={app.app_group_text_color}
 												/>
 											</td>
 											<td>
@@ -586,12 +528,11 @@ export function AppsSheet({
 												/>
 											</td>
 											<td>
-												<AppTypeSelect
-													formId={formId}
-													appTypes={appTypes}
-													defaultValue={app.app_type_id ?? ""}
-													fallbackLabel={app.app_type || "(不明)"}
-													placeholder="（未設定）"
+												<MasterReadonlyCell
+													name={app.app_type}
+													icon={app.app_type_icon}
+													color={app.app_type_color}
+													textColor={app.app_type_text_color}
 												/>
 											</td>
 											<td>
