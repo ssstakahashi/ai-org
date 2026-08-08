@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { deleteXPost, postXPostNow, updateXPostStatus } from "@/app/actions";
 import { RunDuePostsButton } from "@/components/RunDuePostsButton";
+import { SyncXPostsToSheetButton } from "@/components/SyncXPostsToSheetButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusIcon } from "@/components/StatusIcon";
 import { XPostForm } from "@/components/XPostForm";
@@ -148,6 +149,7 @@ export function XPostScheduleTable({ posts }: Props) {
 					<button type="button" className="primary" onClick={openCreateDialog}>
 						新規登録
 					</button>
+					<SyncXPostsToSheetButton />
 					<RunDuePostsButton />
 				</div>
 			</div>

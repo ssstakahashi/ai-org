@@ -9,6 +9,7 @@ import { publishDueXPosts, publishXPostNow } from "@/lib/publish-x-posts";
 import {
 	queueXPostSheetRemoval,
 	queueXPostSheetSync,
+	syncAllXPostsToSheet,
 } from "@/lib/x-post-sheets-sync";
 import {
 	expandRecurrenceDates,
@@ -1103,6 +1104,41 @@ export async function deleteXPost(formData: FormData) {
 	const { env } = await getCloudflareContext({ async: true });
 	queueXPostSheetRemoval(env, id);
 	revalidateXPostPages();
+}
+
+/** x_posts 全件を Google スプレッドシートへ手動同期 */
+export async function syncXPostsToSheet() {
+	const { env } = await getCloudflareContext({ async: true });
+	const startedAt = new Date().toISOString();
+	try {
+		const result = await syncAllXPostsToSheet(env);
+		await recordAutomationRun(env.DB, {
+			source: LOCAL_SOURCE,
+			automationId: "x-sheet-sync-ui",
+			ok: result.failed === 0,
+			startedAt,
+			finishedAt: new Date().toISOString(),
+			error:
+				result.failed > 0 ? result.errors.join("; ").slice(0, 2000) : null,
+			meta: {
+				total: result.total,
+				synced: result.synced,
+				failed: result.failed,
+			},
+		});
+		return result;
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		await recordAutomationRun(env.DB, {
+			source: LOCAL_SOURCE,
+			automationId: "x-sheet-sync-ui",
+			ok: false,
+			startedAt,
+			finishedAt: new Date().toISOString(),
+			error: message,
+		});
+		throw error;
+	}
 }
 
 /** 予約時刻を過ぎた X 投稿をまとめて実行 */

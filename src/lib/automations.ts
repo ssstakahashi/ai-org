@@ -88,6 +88,17 @@ export const AUTOMATIONS: AutomationEntry[] = [
 		source: LOCAL_AUTOMATION_SOURCE,
 	},
 	{
+		id: "x-sheet-sync-ui",
+		name: "X 投稿をスプレッドシートへ同期",
+		runner: "manual",
+		status: "manual",
+		trigger: "X投稿スケジュール画面のボタン",
+		summary: "x_posts 全件を Google スプレッドシートへ upsert する（手動・一括同期）。",
+		location: "SyncXPostsToSheetButton → syncXPostsToSheet",
+		href: "/x-schedule",
+		source: LOCAL_AUTOMATION_SOURCE,
+	},
+	{
 		id: "x-one-ui",
 		name: "X へ単発投稿",
 		runner: "manual",

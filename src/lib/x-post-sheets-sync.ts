@@ -394,3 +394,48 @@ export function queueXPostSheetRemoval(env: SheetsSyncEnv, postId: string): void
 		console.error("x-post sheets removal failed", postId, error);
 	});
 }
+
+export type SyncAllXPostsResult = {
+	total: number;
+	synced: number;
+	failed: number;
+	errors: string[];
+};
+
+/** x_posts 全件をスプレッドシートへ upsert（手動同期用） */
+export async function syncAllXPostsToSheet(
+	env: SheetsSyncEnv & { DB: D1Database },
+): Promise<SyncAllXPostsResult> {
+	if (!isSheetsSyncConfigured(env)) {
+		throw new Error(
+			"Google Service Account が未設定です。.dev.vars または Workers シークレットを確認してください。",
+		);
+	}
+
+	const { results } = await env.DB.prepare(
+		`SELECT id, title, body, image_key, status, scheduled_at, notes,
+		        x_post_id, last_error, created_at, updated_at
+		 FROM x_posts ORDER BY created_at ASC`,
+	).all<XPost>();
+
+	const posts = results ?? [];
+	let synced = 0;
+	const errors: string[] = [];
+
+	for (const post of posts) {
+		try {
+			await syncXPostToSheet(env, post);
+			synced += 1;
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			errors.push(`${post.id}: ${message}`);
+		}
+	}
+
+	return {
+		total: posts.length,
+		synced,
+		failed: errors.length,
+		errors,
+	};
+}
