@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { updateTaskStatus } from "@/app/actions";
-import { tintStyle } from "@/lib/colors";
+import { masterTintStyle, tintStyle } from "@/lib/colors";
 import {
 	TASK_STATUS_LABEL,
 	type TaskStatus,
@@ -235,6 +235,19 @@ function CalendarView({
 													{task.category_name}
 												</span>
 											) : null}
+											{isStart && task.tags.length > 0 ? (
+												<ul className="tag-list calendar-event-tags">
+													{task.tags.map((tag) => (
+														<li
+															key={tag.id}
+															className="tag-chip"
+															style={masterTintStyle(tag.color, tag.text_color)}
+														>
+															{tag.name}
+														</li>
+													))}
+												</ul>
+											) : null}
 										</li>
 									);
 								})}
@@ -264,6 +277,15 @@ function CalendarView({
 												{task.category_name}
 											</span>
 										) : null}
+										{task.tags.map((tag) => (
+											<span
+												key={tag.id}
+												className="tag-chip"
+												style={masterTintStyle(tag.color, tag.text_color)}
+											>
+												{tag.name}
+											</span>
+										))}
 										<span className={task.status === "done" ? "task-done-strike" : undefined}>
 											{task.title}
 										</span>
@@ -283,6 +305,15 @@ function CalendarView({
 												{task.category_name}
 											</span>
 										) : null}
+										{task.tags.map((tag) => (
+											<span
+												key={tag.id}
+												className="tag-chip"
+												style={masterTintStyle(tag.color, tag.text_color)}
+											>
+												{tag.name}
+											</span>
+										))}
 										<span className={task.status === "done" ? "task-done-strike" : undefined}>
 											{task.title}
 										</span>
@@ -546,7 +577,7 @@ function KanbanView({
 									{task.tags.length > 0 ? (
 										<ul className="tag-list">
 											{task.tags.map((tag) => (
-												<li key={tag.id} className="tag-chip" style={tintStyle(tag.color)}>
+												<li key={tag.id} className="tag-chip" style={masterTintStyle(tag.color, tag.text_color)}>
 													{tag.name}
 												</li>
 											))}

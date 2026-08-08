@@ -1015,10 +1015,18 @@ a.logout-button:hover {
 
 .page-edit-form {
 	align-items: start;
+	flex: 1 1 100%;
 }
 
-.page-form .form-grid {
-	margin-bottom: 0.75rem;
+.page-edit-form .full,
+.page-edit-form .choice-field.full,
+.page-edit-form .tag-fieldset {
+	flex: 1 1 100%;
+	width: 100%;
+}
+
+.page-form {
+	margin-bottom: 0;
 }
 
 .master-item-simple {
@@ -2061,6 +2069,17 @@ button.gantt-task-meta {
 
 .calendar-event-cat {
 	color: var(--muted);
+}
+
+.calendar-event-tags {
+	margin: 0.1rem 0 0;
+	gap: 0.15rem;
+}
+
+.calendar-event-tags .tag-chip {
+	padding: 0.05rem 0.35rem;
+	font-size: 0.62rem;
+	line-height: 1.2;
 }
 
 .unscheduled-block h3 {

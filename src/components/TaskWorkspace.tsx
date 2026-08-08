@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -7,11 +8,12 @@ import { createTask } from "@/app/actions";
 import { TaskBoard } from "@/components/TaskBoard";
 import { TaskDetailPanel } from "@/components/TaskDetailPanel";
 import { TaskForm } from "@/components/TaskForm";
-import type { Category, Employee, Tag, TaskWithEmployee } from "@/lib/types";
+import type { Category, Employee, Tag, TaskGroup, TaskWithEmployee } from "@/lib/types";
 
 type Props = {
 	employees: Employee[];
 	categories: Category[];
+	taskGroups: TaskGroup[];
 	tags: Tag[];
 	tasks: TaskWithEmployee[];
 };
@@ -20,7 +22,7 @@ function toDateTimeLocal(dateKey: string, time: string) {
 	return `${dateKey}T${time}`;
 }
 
-export function TaskWorkspace({ employees, categories, tags, tasks }: Props) {
+export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }: Props) {
 	const router = useRouter();
 	const createDialogRef = useRef<HTMLDialogElement>(null);
 	const detailDialogRef = useRef<HTMLDialogElement>(null);
@@ -87,6 +89,11 @@ export function TaskWorkspace({ employees, categories, tags, tasks }: Props) {
 		router.refresh();
 	}, [closeEditDialog, router]);
 
+	const handleApproveSuccess = useCallback(() => {
+		setDetailing((current) => (current ? { ...current, status: "approved" } : null));
+		router.refresh();
+	}, [router]);
+
 	const handleCompleteSuccess = useCallback(() => {
 		closeDetailDialog();
 		router.refresh();
@@ -102,9 +109,14 @@ export function TaskWorkspace({ employees, categories, tags, tasks }: Props) {
 			<section className="panel">
 				<div className="panel-head">
 					<h2>タスク（{tasks.length}）</h2>
-					<button type="button" className="primary" onClick={() => openCreateDialog()}>
-						新規タスク
-					</button>
+					<div className="task-actions">
+						<Link href="/task-groups" className="ghost">
+							タスクグループ
+						</Link>
+						<button type="button" className="primary" onClick={() => openCreateDialog()}>
+							新規タスク
+						</button>
+					</div>
 				</div>
 				<p className="board-hint">
 					カレンダーの日付をクリックすると追加、タスクをクリックすると詳細を表示します。
@@ -134,6 +146,7 @@ export function TaskWorkspace({ employees, categories, tags, tasks }: Props) {
 						key={createFormKey}
 						employees={employees}
 						categories={categories}
+						taskGroups={taskGroups}
 						tags={tags}
 						action={handleCreate}
 						defaultStartAt={defaultStartAt}
@@ -160,6 +173,7 @@ export function TaskWorkspace({ employees, categories, tags, tasks }: Props) {
 						<TaskDetailPanel
 							task={detailing}
 							onEdit={openEditFromDetail}
+							onApproveSuccess={handleApproveSuccess}
 							onCompleteSuccess={handleCompleteSuccess}
 							onDeleteSuccess={handleDeleteSuccess}
 						/>
@@ -186,6 +200,7 @@ export function TaskWorkspace({ employees, categories, tags, tasks }: Props) {
 							key={editFormKey}
 							employees={employees}
 							categories={categories}
+							taskGroups={taskGroups}
 							tags={tags}
 							task={editing}
 							onSuccess={handleEditSuccess}

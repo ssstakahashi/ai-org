@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { StatusIcon } from "@/components/StatusIcon";
 import { deleteTask, updateTaskStatus } from "@/app/actions";
-import { tintStyle } from "@/lib/colors";
+import { masterTintStyle, tintStyle } from "@/lib/colors";
 import { mediaUrl } from "@/lib/media-upload";
 import { formatPeriodLabel } from "@/lib/task-views";
 import { TASK_STATUS_LABEL, type TaskWithEmployee } from "@/lib/types";
@@ -11,15 +11,39 @@ import { TASK_STATUS_LABEL, type TaskWithEmployee } from "@/lib/types";
 type Props = {
 	task: TaskWithEmployee;
 	onEdit: () => void;
+	onApproveSuccess: () => void;
 	onCompleteSuccess: () => void;
 	onDeleteSuccess: () => void;
 };
 
-export function TaskDetailPanel({ task, onEdit, onCompleteSuccess, onDeleteSuccess }: Props) {
+export function TaskDetailPanel({
+	task,
+	onEdit,
+	onApproveSuccess,
+	onCompleteSuccess,
+	onDeleteSuccess,
+}: Props) {
 	const [pending, startTransition] = useTransition();
 	const [error, setError] = useState<string | null>(null);
 	const periodLabel = formatPeriodLabel(task);
 	const isDone = task.status === "done";
+	const isDraft = task.status === "draft";
+
+	function handleApprove() {
+		if (!isDraft || pending) return;
+		setError(null);
+		startTransition(async () => {
+			try {
+				const formData = new FormData();
+				formData.set("id", task.id);
+				formData.set("status", "approved");
+				await updateTaskStatus(formData);
+				onApproveSuccess();
+			} catch (err) {
+				setError(err instanceof Error ? err.message : "承認の保存に失敗しました");
+			}
+		});
+	}
 
 	function handleComplete() {
 		if (isDone || pending) return;
@@ -62,6 +86,11 @@ export function TaskDetailPanel({ task, onEdit, onCompleteSuccess, onDeleteSucce
 						{task.category_name}
 					</span>
 				) : null}
+				{task.task_group_name ? (
+					<span className="badge badge-category" style={tintStyle(task.task_group_color)}>
+						{task.task_group_name}
+					</span>
+				) : null}
 				<span className="employee" style={tintStyle(task.employee_color)}>
 					{task.employee_name}
 				</span>
@@ -70,7 +99,7 @@ export function TaskDetailPanel({ task, onEdit, onCompleteSuccess, onDeleteSucce
 			{task.tags.length > 0 ? (
 				<ul className="tag-list">
 					{task.tags.map((tag) => (
-						<li key={tag.id} className="tag-chip" style={tintStyle(tag.color)}>
+						<li key={tag.id} className="tag-chip" style={masterTintStyle(tag.color, tag.text_color)}>
 							{tag.name}
 						</li>
 					))}
@@ -93,6 +122,17 @@ export function TaskDetailPanel({ task, onEdit, onCompleteSuccess, onDeleteSucce
 			) : null}
 			{error ? <p className="form-error">{error}</p> : null}
 			<div className="task-actions task-detail-actions">
+				{isDraft ? (
+					<button
+						type="button"
+						className="primary task-detail-btn task-detail-btn-approve"
+						disabled={pending}
+						onClick={handleApprove}
+					>
+						<StatusIcon status="approved" className="task-detail-btn-icon" />
+						<span>{pending ? "保存中…" : "承認済にする"}</span>
+					</button>
+				) : null}
 				{!isDone ? (
 					<button
 						type="button"

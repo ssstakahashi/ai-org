@@ -1,5 +1,5 @@
 import { deleteTask, updateTaskStatus } from "@/app/actions";
-import { tintStyle } from "@/lib/colors";
+import { masterTintStyle, tintStyle } from "@/lib/colors";
 import { formatInAppTz } from "@/lib/timezone";
 import { TASK_STATUS_LABEL, type TaskStatus, type TaskWithEmployee } from "@/lib/types";
 
@@ -55,7 +55,7 @@ export function TaskList({ tasks }: Props) {
 							{task.tags.length > 0 ? (
 								<ul className="tag-list">
 									{task.tags.map((tag) => (
-										<li key={tag.id} className="tag-chip" style={tintStyle(tag.color)}>
+										<li key={tag.id} className="tag-chip" style={masterTintStyle(tag.color, tag.text_color)}>
 											{tag.name}
 										</li>
 									))}

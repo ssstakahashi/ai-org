@@ -24,11 +24,24 @@ export type Category = {
 	updated_at: string;
 };
 
+/** タスクをまとめるグループ（マスタ） */
+export type TaskGroup = {
+	id: string;
+	name: string;
+	/** #rrggbb。空文字はデフォルト表示 */
+	color: string;
+	sort_order: number;
+	created_at: string;
+	updated_at: string;
+};
+
 export type Tag = {
 	id: string;
 	name: string;
 	/** #rrggbb。空文字はデフォルト表示 */
 	color: string;
+	/** #rrggbb。空文字は color と同じ */
+	text_color: string;
 	created_at: string;
 };
 
@@ -76,6 +89,7 @@ export type Task = {
 	end_at: string | null;
 	notes: string;
 	category_id: string | null;
+	task_group_id: string | null;
 	created_at: string;
 	updated_at: string;
 };
@@ -86,6 +100,8 @@ export type TaskWithEmployee = Task & {
 	employee_color: string;
 	category_name: string | null;
 	category_color: string | null;
+	task_group_name: string | null;
+	task_group_color: string | null;
 	tags: Tag[];
 };
 

@@ -34,6 +34,7 @@ import {
 	type OrgRule,
 	type PageWithCategory,
 	type Tag,
+	type TaskGroup,
 	type TaskStatus,
 	type TaskWithEmployee,
 	type XPost,
@@ -157,10 +158,22 @@ export async function listCategories(): Promise<Category[]> {
 	return results ?? [];
 }
 
+export async function listTaskGroups(): Promise<TaskGroup[]> {
+	const db = await getDb();
+	const { results } = await db
+		.prepare(
+			`SELECT id, name, color, sort_order, created_at, updated_at
+			 FROM task_groups
+			 ORDER BY sort_order ASC, name ASC`,
+		)
+		.all<TaskGroup>();
+	return results ?? [];
+}
+
 export async function listTags(): Promise<Tag[]> {
 	const db = await getDb();
 	const { results } = await db
-		.prepare("SELECT id, name, color, created_at FROM tags ORDER BY name ASC")
+		.prepare("SELECT id, name, color, text_color, created_at FROM tags ORDER BY name ASC")
 		.all<Tag>();
 	return results ?? [];
 }
@@ -190,7 +203,7 @@ async function attachPageTags(rows: PageRow[]): Promise<PageWithCategory[]> {
 	const placeholders = rows.map(() => "?").join(", ");
 	const { results } = await db
 		.prepare(
-			`SELECT pt.page_id, tg.id, tg.name, tg.color, tg.created_at
+			`SELECT pt.page_id, tg.id, tg.name, tg.color, tg.text_color, tg.created_at
 			 FROM page_tags pt
 			 JOIN tags tg ON tg.id = pt.tag_id
 			 WHERE pt.page_id IN (${placeholders})
@@ -206,6 +219,7 @@ async function attachPageTags(rows: PageRow[]): Promise<PageWithCategory[]> {
 			id: row.id,
 			name: row.name,
 			color: row.color,
+			text_color: row.text_color,
 			created_at: row.created_at,
 		});
 		byPage.set(row.page_id, list);
@@ -260,13 +274,15 @@ function revalidateOrgRulesPage() {
 
 const TASK_SELECT = `SELECT
 				t.id, t.employee_id, t.title, t.body, t.image_key, t.status,
-				t.start_at, t.end_at, t.notes, t.category_id,
+				t.start_at, t.end_at, t.notes, t.category_id, t.task_group_id,
 				t.created_at, t.updated_at,
 				e.name AS employee_name, e.role AS employee_role, e.color AS employee_color,
-				c.name AS category_name, c.color AS category_color
+				c.name AS category_name, c.color AS category_color,
+				g.name AS task_group_name, g.color AS task_group_color
 			 FROM tasks t
 			 JOIN employees e ON e.id = t.employee_id
-			 LEFT JOIN categories c ON c.id = t.category_id`;
+			 LEFT JOIN categories c ON c.id = t.category_id
+			 LEFT JOIN task_groups g ON g.id = t.task_group_id`;
 
 const TASK_ORDER = `ORDER BY
 				CASE t.status
@@ -298,6 +314,7 @@ function revalidateTaskPages() {
 	revalidatePath("/x-schedule");
 	revalidatePath("/categories");
 	revalidatePath("/tags");
+	revalidatePath("/task-groups");
 	revalidatePath("/pages");
 	revalidatePath("/pages/categories");
 	revalidatePath("/pages/tags");
@@ -331,7 +348,7 @@ async function attachTags(rows: TaskRow[]): Promise<TaskWithEmployee[]> {
 	const placeholders = rows.map(() => "?").join(", ");
 	const { results } = await db
 		.prepare(
-			`SELECT tt.task_id, tg.id, tg.name, tg.color, tg.created_at
+			`SELECT tt.task_id, tg.id, tg.name, tg.color, tg.text_color, tg.created_at
 			 FROM task_tags tt
 			 JOIN tags tg ON tg.id = tt.tag_id
 			 WHERE tt.task_id IN (${placeholders})
@@ -347,6 +364,7 @@ async function attachTags(rows: TaskRow[]): Promise<TaskWithEmployee[]> {
 			id: row.id,
 			name: row.name,
 			color: row.color,
+			text_color: row.text_color,
 			created_at: row.created_at,
 		});
 		byTask.set(row.task_id, list);
@@ -421,6 +439,7 @@ export async function createTask(formData: FormData) {
 	const notes = String(formData.get("notes") ?? "").trim();
 	const employeeId = String(formData.get("employee_id") ?? "").trim();
 	const categoryIdRaw = String(formData.get("category_id") ?? "").trim();
+	const taskGroupIdRaw = String(formData.get("task_group_id") ?? "").trim();
 	const startAtRaw = String(formData.get("start_at") ?? "").trim();
 	const endAtRaw = String(formData.get("end_at") ?? "").trim();
 	const status = (String(formData.get("status") ?? "draft") as TaskStatus) || "draft";
@@ -443,6 +462,17 @@ export async function createTask(formData: FormData) {
 			.first();
 		if (!category) {
 			throw new Error("カテゴリが見つかりません");
+		}
+	}
+
+	const taskGroupId = taskGroupIdRaw || null;
+	if (taskGroupId) {
+		const taskGroup = await db
+			.prepare("SELECT id FROM task_groups WHERE id = ?")
+			.bind(taskGroupId)
+			.first();
+		if (!taskGroup) {
+			throw new Error("タスクグループが見つかりません");
 		}
 	}
 
@@ -488,8 +518,8 @@ export async function createTask(formData: FormData) {
 	const tagIds = await resolveTagIds(db, selectedTagIds, newTagNames);
 	const insert = db.prepare(
 		`INSERT INTO tasks
-			(id, employee_id, title, body, image_key, status, start_at, end_at, notes, category_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			(id, employee_id, title, body, image_key, status, start_at, end_at, notes, category_id, task_group_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	);
 	const tagInsert = db.prepare("INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)");
 
@@ -511,6 +541,7 @@ export async function createTask(formData: FormData) {
 				startAt || endAt ? end.toISOString() : null,
 				notes,
 				categoryId,
+				taskGroupId,
 			),
 		);
 
@@ -532,6 +563,7 @@ export async function updateTask(formData: FormData) {
 	const notes = String(formData.get("notes") ?? "").trim();
 	const employeeId = String(formData.get("employee_id") ?? "").trim();
 	const categoryIdRaw = String(formData.get("category_id") ?? "").trim();
+	const taskGroupIdRaw = String(formData.get("task_group_id") ?? "").trim();
 	const startAtRaw = String(formData.get("start_at") ?? "").trim();
 	const endAtRaw = String(formData.get("end_at") ?? "").trim();
 	const status = (String(formData.get("status") ?? "approved") as TaskStatus) || "approved";
@@ -570,6 +602,17 @@ export async function updateTask(formData: FormData) {
 			.first();
 		if (!category) {
 			throw new Error("カテゴリが見つかりません");
+		}
+	}
+
+	const taskGroupId = taskGroupIdRaw || null;
+	if (taskGroupId) {
+		const taskGroup = await db
+			.prepare("SELECT id FROM task_groups WHERE id = ?")
+			.bind(taskGroupId)
+			.first();
+		if (!taskGroup) {
+			throw new Error("タスクグループが見つかりません");
 		}
 	}
 
@@ -630,6 +673,7 @@ export async function updateTask(formData: FormData) {
 				     end_at = ?,
 				     notes = ?,
 				     category_id = ?,
+				     task_group_id = ?,
 				     updated_at = datetime('now')
 				 WHERE id = ?`,
 			)
@@ -643,6 +687,7 @@ export async function updateTask(formData: FormData) {
 				endAt ? endAt.toISOString() : null,
 				notes,
 				categoryId,
+				taskGroupId,
 				id,
 			),
 		db.prepare("DELETE FROM task_tags WHERE task_id = ?").bind(id),
@@ -920,6 +965,88 @@ export async function deleteCategory(formData: FormData) {
 	revalidateTaskPages();
 }
 
+export async function createTaskGroup(formData: FormData) {
+	const db = await getDb();
+	const name = String(formData.get("name") ?? "").trim();
+	const color = normalizeColor(formData.get("color"));
+	if (!name) {
+		throw new Error("タスクグループ名は必須です");
+	}
+
+	const existing = await db
+		.prepare("SELECT id FROM task_groups WHERE lower(name) = lower(?)")
+		.bind(name)
+		.first();
+	if (existing) {
+		throw new Error("同じ名前のタスクグループが既にあります");
+	}
+
+	const maxSort = await db
+		.prepare("SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM task_groups")
+		.first<{ max_sort: number }>();
+
+	const id = newId("tgrp");
+	await db
+		.prepare(
+			`INSERT INTO task_groups (id, name, color, sort_order)
+			 VALUES (?, ?, ?, ?)`,
+		)
+		.bind(id, name, color, (maxSort?.max_sort ?? 0) + 10)
+		.run();
+
+	revalidateTaskPages();
+}
+
+export async function updateTaskGroup(formData: FormData) {
+	const db = await getDb();
+	const id = String(formData.get("id") ?? "").trim();
+	const name = String(formData.get("name") ?? "").trim();
+	const color = normalizeColor(formData.get("color"));
+	const sortOrderRaw = String(formData.get("sort_order") ?? "").trim();
+
+	if (!id || !name) {
+		throw new Error("id とタスクグループ名が必要です");
+	}
+
+	const duplicate = await db
+		.prepare("SELECT id FROM task_groups WHERE lower(name) = lower(?) AND id != ?")
+		.bind(name, id)
+		.first();
+	if (duplicate) {
+		throw new Error("同じ名前のタスクグループが既にあります");
+	}
+
+	const sortOrder = Number.parseInt(sortOrderRaw, 10);
+	await db
+		.prepare(
+			`UPDATE task_groups
+			 SET name = ?,
+			     color = ?,
+			     sort_order = ?,
+			     updated_at = datetime('now')
+			 WHERE id = ?`,
+		)
+		.bind(name, color, Number.isFinite(sortOrder) ? sortOrder : 0, id)
+		.run();
+
+	revalidateTaskPages();
+}
+
+export async function deleteTaskGroup(formData: FormData) {
+	const db = await getDb();
+	const id = String(formData.get("id") ?? "").trim();
+	if (!id) return;
+
+	await db
+		.prepare(
+			"UPDATE tasks SET task_group_id = NULL, updated_at = datetime('now') WHERE task_group_id = ?",
+		)
+		.bind(id)
+		.run();
+	await db.prepare("DELETE FROM task_groups WHERE id = ?").bind(id).run();
+	revalidateTaskPages();
+}
+
 export async function createOrgRule(formData: FormData) {
 	const db = await getDb();
 	const title = String(formData.get("title") ?? "").trim();
@@ -1027,6 +1154,7 @@ export async function createTag(formData: FormData) {
 	const db = await getDb();
 	const name = String(formData.get("name") ?? "").trim();
 	const color = normalizeColor(formData.get("color"));
+	const textColor = normalizeColor(formData.get("text_color"));
 	if (!name) {
 		throw new Error("タグ名は必須です");
 	}
@@ -1041,8 +1169,8 @@ export async function createTag(formData: FormData) {
 
 	const id = newId("tag");
 	await db
-		.prepare("INSERT INTO tags (id, name, color) VALUES (?, ?, ?)")
-		.bind(id, name, color)
+		.prepare("INSERT INTO tags (id, name, color, text_color) VALUES (?, ?, ?, ?)")
+		.bind(id, name, color, textColor)
 		.run();
 	revalidateTaskPages();
 }
@@ -1052,6 +1180,7 @@ export async function updateTag(formData: FormData) {
 	const id = String(formData.get("id") ?? "").trim();
 	const name = String(formData.get("name") ?? "").trim();
 	const color = normalizeColor(formData.get("color"));
+	const textColor = normalizeColor(formData.get("text_color"));
 
 	if (!id || !name) {
 		throw new Error("id とタグ名が必要です");
@@ -1071,8 +1200,8 @@ export async function updateTag(formData: FormData) {
 	}
 
 	await db
-		.prepare("UPDATE tags SET name = ?, color = ? WHERE id = ?")
-		.bind(name, color, id)
+		.prepare("UPDATE tags SET name = ?, color = ?, text_color = ? WHERE id = ?")
+		.bind(name, color, textColor, id)
 		.run();
 
 	revalidateTaskPages();

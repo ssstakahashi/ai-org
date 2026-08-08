@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createPage, deletePage, updatePage } from "@/app/actions";
-import { tintStyle } from "@/lib/colors";
+import { masterTintStyle, tintStyle } from "@/lib/colors";
 import type { Category, PageWithCategory, Tag } from "@/lib/types";
 
 type Props = {
@@ -33,7 +33,7 @@ function PageTagFields({
 			{tags.length > 0 ? (
 				<div className="tag-options">
 					{tags.map((tag) => (
-						<label key={tag.id} className="tag-option" style={tintStyle(tag.color)}>
+						<label key={tag.id} className="tag-option" style={masterTintStyle(tag.color, tag.text_color)}>
 							<input
 								type="checkbox"
 								name="tag_ids"
@@ -118,7 +118,7 @@ function PageCard({ page }: { page: PageWithCategory }) {
 					</span>
 				) : null}
 				{page.tags.map((tag) => (
-					<span key={tag.id} className="tag-chip" style={tintStyle(tag.color)}>
+					<span key={tag.id} className="tag-chip" style={masterTintStyle(tag.color, tag.text_color)}>
 						{tag.name}
 					</span>
 				))}
@@ -134,8 +134,8 @@ export function PageManager({ pages, categories, tags }: Props) {
 		<>
 			<section className="panel">
 				<h2>新規ページ</h2>
-				<form action={createPage} className="page-form">
-					<div className="form-grid">
+				<form action={createPage} className="task-form page-form">
+					<div className="field-grid">
 						<label className="full">
 							<span>タイトル</span>
 							<input name="title" required placeholder="例: 業務台帳" />
@@ -167,7 +167,7 @@ export function PageManager({ pages, categories, tags }: Props) {
 							taggedPages.length === 0 ? null : (
 								<section key={tag.id} className="page-tag-group">
 									<h3>
-										<span className="tag-chip" style={tintStyle(tag.color)}>
+										<span className="tag-chip" style={masterTintStyle(tag.color, tag.text_color)}>
 											{tag.name}
 										</span>
 										<span className="page-tag-count">{taggedPages.length}</span>

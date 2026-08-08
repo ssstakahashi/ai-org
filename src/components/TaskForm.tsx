@@ -4,7 +4,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { createTask, updateTask } from "@/app/actions";
 import { RecurrenceFields } from "@/components/RecurrenceFields";
 import { StatusIcon } from "@/components/StatusIcon";
-import { tintStyle } from "@/lib/colors";
+import { masterTintStyle, tintStyle } from "@/lib/colors";
 import { mediaUrl } from "@/lib/media-upload";
 import { toAppDateTimeLocal } from "@/lib/timezone";
 import { recoverFromStaleServerAction } from "@/lib/server-action-client";
@@ -14,6 +14,7 @@ import {
 	type Category,
 	type Employee,
 	type Tag,
+	type TaskGroup,
 	type TaskStatus,
 	type TaskWithEmployee,
 } from "@/lib/types";
@@ -25,6 +26,7 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 type Props = {
 	employees: Employee[];
 	categories: Category[];
+	taskGroups: TaskGroup[];
 	tags: Tag[];
 	task?: TaskWithEmployee;
 	action?: (formData: FormData) => void | Promise<void>;
@@ -39,6 +41,7 @@ type Props = {
 export function TaskForm({
 	employees,
 	categories,
+	taskGroups,
 	tags,
 	task,
 	action,
@@ -64,6 +67,7 @@ export function TaskForm({
 			? defaultEmployeeId
 			: (employees[0]?.id ?? ""));
 	const selectedCategoryId = task?.category_id ?? defaultCategoryId;
+	const selectedTaskGroupId = task?.task_group_id ?? "";
 	const selectedStatus = task?.status ?? defaultStatus;
 	const selectedTagIds = new Set(task?.tags.map((tag) => tag.id) ?? []);
 	const startAtDefault = task ? toAppDateTimeLocal(task.start_at) : defaultStartAt;
@@ -210,6 +214,35 @@ export function TaskForm({
 						))}
 					</div>
 				</div>
+				<div className="choice-field full">
+					<span>タスクグループ</span>
+					<div className="choice-options" role="radiogroup" aria-label="タスクグループ">
+						<label className="choice-option">
+							<input
+								type="radio"
+								name="task_group_id"
+								value=""
+								defaultChecked={!selectedTaskGroupId}
+							/>
+							<span>未設定</span>
+						</label>
+						{taskGroups.map((taskGroup) => (
+							<label
+								key={taskGroup.id}
+								className="choice-option"
+								style={tintStyle(taskGroup.color)}
+							>
+								<input
+									type="radio"
+									name="task_group_id"
+									value={taskGroup.id}
+									defaultChecked={taskGroup.id === selectedTaskGroupId}
+								/>
+								<span>{taskGroup.name}</span>
+							</label>
+						))}
+					</div>
+				</div>
 				<div className="task-period-row">
 					<label>
 						<span>開始</span>
@@ -264,7 +297,7 @@ export function TaskForm({
 								<label
 									key={tag.id}
 									className="tag-option"
-									style={tintStyle(tag.color)}
+									style={masterTintStyle(tag.color, tag.text_color)}
 								>
 									<input
 										type="checkbox"

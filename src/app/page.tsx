@@ -1,13 +1,14 @@
-import { listCategories, listEmployees, listTags, listTasks } from "@/app/actions";
+import { listCategories, listEmployees, listTags, listTaskGroups, listTasks } from "@/app/actions";
 import { AppHeader } from "@/components/AppHeader";
 import { TaskWorkspace } from "@/components/TaskWorkspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-	const [employees, categories, tags, tasks] = await Promise.all([
+	const [employees, categories, taskGroups, tags, tasks] = await Promise.all([
 		listEmployees(),
 		listCategories(),
+		listTaskGroups(),
 		listTags(),
 		listTasks(),
 	]);
@@ -22,6 +23,7 @@ export default async function Home() {
 			<TaskWorkspace
 				employees={employees}
 				categories={categories}
+				taskGroups={taskGroups}
 				tags={tags}
 				tasks={tasks}
 			/>
