@@ -425,7 +425,6 @@ export async function updateAppRequirement(formData: FormData) {
 	const title = formText(formData, "title");
 	const body = String(formData.get("body") ?? "").trim();
 	const status = parseAppRequirementStatus(formData.get("status"));
-	const sortOrderRaw = String(formData.get("sort_order") ?? "").trim();
 
 	if (!id || !title) {
 		throw new Error("id とタイトルが必要です");
@@ -436,7 +435,6 @@ export async function updateAppRequirement(formData: FormData) {
 
 	await resolveAppNameId(db, appNameId);
 
-	const sortOrder = Number.parseInt(sortOrderRaw, 10);
 	await db
 		.prepare(
 			`UPDATE app_requirements
@@ -444,18 +442,10 @@ export async function updateAppRequirement(formData: FormData) {
 			     title = ?,
 			     body = ?,
 			     status = ?,
-			     sort_order = ?,
 			     updated_at = datetime('now')
 			 WHERE id = ?`,
 		)
-		.bind(
-			appNameId,
-			title,
-			body,
-			status,
-			Number.isFinite(sortOrder) ? sortOrder : 0,
-			id,
-		)
+		.bind(appNameId, title, body, status, id)
 		.run();
 
 	revalidateAppsPage();
@@ -470,29 +460,22 @@ export async function deleteAppRequirement(formData: FormData) {
 	revalidateAppsPage();
 }
 
-export async function reorderAppRequirements(formData: FormData) {
+export async function reorderAppRequirements(ids: string[]) {
 	const db = await getDb();
-	const raw = String(formData.get("ordered_ids") ?? "").trim();
-	if (!raw) return;
-
-	const orderedIds = raw
-		.split(",")
-		.map((id) => id.trim())
-		.filter(Boolean);
+	const orderedIds = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
 	if (orderedIds.length === 0) return;
 
-	for (let index = 0; index < orderedIds.length; index += 1) {
-		await db
+	const statements = orderedIds.map((id, index) =>
+		db
 			.prepare(
 				`UPDATE app_requirements
 				 SET sort_order = ?,
 				     updated_at = datetime('now')
 				 WHERE id = ?`,
 			)
-			.bind((index + 1) * 10, orderedIds[index])
-			.run();
-	}
-
+			.bind((index + 1) * 10, id),
+	);
+	await db.batch(statements);
 	revalidateAppsPage();
 }
 

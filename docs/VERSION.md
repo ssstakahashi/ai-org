@@ -2,6 +2,11 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.21 (2026-08-11)
+
+- App 要件定義画面をマスタ詳細レイアウトに刷新（App 一覧・DnD 並び替え・ステータス UI）
+- 要件の並び替えを batch 更新に変更し、App 詳細パネルを追加
+
 ## 0.0.20 (2026-08-08)
 
 - App 要件定義を追加（管理画面 `/apps/requirements`、D1 テーブル `app_requirements`）
