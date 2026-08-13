@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.23 (2026-08-14)
+
+- 業務台帳ガントチャートの横スクロール位置を localStorage に保存し、ページ遷移後も復元
+
 ## 0.0.22 (2026-08-14)
 
 - 従業員に文字色（text_color）を追加し、タスク・担当選択 UI の表示を統一

@@ -1,6 +1,18 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+	type ReactNode,
+} from "react";
+import {
+	getGanttScrollLeft,
+	saveGanttScrollLeft,
+} from "@/lib/gantt-scroll-storage";
 import { updateTaskStatus } from "@/app/actions";
 import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
 import {
@@ -344,6 +356,10 @@ function GanttView({
 }) {
 	const { days } = ganttRangeForMonth(month);
 	const todayKey = toDateKey(new Date());
+	const monthKey = toDateKey(startOfMonth(month)).slice(0, 7);
+	const scrollRef = useRef<HTMLDivElement>(null);
+	const restoringRef = useRef(false);
+	const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const sorted = useMemo(
 		() =>
 			[...tasks].sort((a, b) => {
@@ -354,12 +370,44 @@ function GanttView({
 		[tasks],
 	);
 
+	const persistScroll = useCallback(() => {
+		if (restoringRef.current) return;
+		const el = scrollRef.current;
+		if (!el) return;
+		saveGanttScrollLeft(monthKey, el.scrollLeft);
+	}, [monthKey]);
+
+	const handleScroll = useCallback(() => {
+		if (restoringRef.current) return;
+		if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+		saveTimerRef.current = setTimeout(persistScroll, 100);
+	}, [persistScroll]);
+
+	useLayoutEffect(() => {
+		const el = scrollRef.current;
+		if (!el) return;
+		const saved = getGanttScrollLeft(monthKey);
+		if (saved == null) return;
+		restoringRef.current = true;
+		el.scrollLeft = saved;
+		requestAnimationFrame(() => {
+			restoringRef.current = false;
+		});
+	}, [monthKey, sorted.length]);
+
+	useEffect(() => {
+		return () => {
+			if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+			persistScroll();
+		};
+	}, [persistScroll]);
+
 	return (
 		<div className="gantt-view">
 			{sorted.length === 0 ? (
 				<p className="empty">この月に期間のあるタスクはありません。</p>
 			) : (
-				<div className="gantt-scroll">
+				<div className="gantt-scroll" ref={scrollRef} onScroll={handleScroll}>
 					<table className="gantt-table">
 						<thead>
 							<tr>
