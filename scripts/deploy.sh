@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+OPENNEXT="$ROOT/node_modules/.bin/opennextjs-cloudflare"
+
 bash scripts/check-build-env.sh
 
 if [[ -z "${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:-}" && -f .dev.vars ]]; then
@@ -14,10 +16,12 @@ fi
 mode="${1:-deploy}"
 case "$mode" in
 	deploy)
-		exec opennextjs-cloudflare build && opennextjs-cloudflare deploy
+		"$OPENNEXT" build
+		"$OPENNEXT" deploy
 		;;
 	upload)
-		exec opennextjs-cloudflare build && opennextjs-cloudflare upload
+		"$OPENNEXT" build
+		"$OPENNEXT" upload
 		;;
 	*)
 		echo "用法: scripts/deploy.sh [deploy|upload]" >&2
