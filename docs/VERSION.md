@@ -7,6 +7,7 @@
 - 従業員に文字色（text_color）を追加し、タスク・担当選択 UI の表示を統一
 - Apps ナビのタブ記憶（apps-tabs）とデプロイスクリプト（check-build-env / deploy.sh）を追加
 - NEXT_SERVER_ACTIONS_ENCRYPTION_KEY を本番ビルド必須にし README のデプロイ手順を更新
+- deploy.sh の exec 除去と node_modules バイナリ参照でデプロイが確実に実行されるよう修正
 
 ## 0.0.21 (2026-08-11)
 
