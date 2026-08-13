@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { updateTaskStatus } from "@/app/actions";
-import { masterTintStyle, tintStyle } from "@/lib/colors";
+import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
 import {
 	TASK_STATUS_LABEL,
 	type TaskStatus,
@@ -289,7 +289,7 @@ function CalendarView({
 										<span className={task.status === "done" ? "task-done-strike" : undefined}>
 											{task.title}
 										</span>
-										<span className="employee" style={tintStyle(task.employee_color)}>
+										<span className="employee" style={employeeTintStyle(task.employee_color, task.employee_text_color)}>
 											{task.employee_name}
 										</span>
 										<span className="muted">詳細</span>
@@ -317,7 +317,7 @@ function CalendarView({
 										<span className={task.status === "done" ? "task-done-strike" : undefined}>
 											{task.title}
 										</span>
-										<span className="employee" style={tintStyle(task.employee_color)}>
+										<span className="employee" style={employeeTintStyle(task.employee_color, task.employee_text_color)}>
 											{task.employee_name}
 										</span>
 									</>
@@ -569,7 +569,7 @@ function KanbanView({
 												{task.category_name}
 											</span>
 										) : null}
-										<span className="employee" style={tintStyle(task.employee_color)}>
+										<span className="employee" style={employeeTintStyle(task.employee_color, task.employee_text_color)}>
 											{task.employee_name}
 										</span>
 									</div>

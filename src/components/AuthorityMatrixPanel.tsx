@@ -484,7 +484,7 @@ export function AuthorityMatrixPanel({ rule }: Props) {
 
 			<dialog
 				ref={matrixDialogRef}
-				className="task-dialog task-dialog-docked"
+				className="task-dialog task-dialog-docked task-dialog-docked-wide"
 				onClose={() => {
 					setEditingSection(null);
 					setDraftTable(null);

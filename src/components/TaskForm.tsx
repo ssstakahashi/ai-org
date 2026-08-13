@@ -4,7 +4,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { createTask, updateTask } from "@/app/actions";
 import { RecurrenceFields } from "@/components/RecurrenceFields";
 import { StatusIcon } from "@/components/StatusIcon";
-import { masterTintStyle, tintStyle } from "@/lib/colors";
+import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
 import { mediaUrl } from "@/lib/media-upload";
 import { toAppDateTimeLocal } from "@/lib/timezone";
 import { recoverFromStaleServerAction } from "@/lib/server-action-client";
@@ -166,11 +166,20 @@ export function TaskForm({
 						<p className="field-hint">従業員を先に登録してください</p>
 					) : (
 						<div className="choice-options" role="radiogroup" aria-label="担当従業員">
-							{employees.map((employee) => (
+							{employees.map((employee) => {
+								const employeeStyle = employeeTintStyle(
+									employee.color,
+									employee.text_color,
+								);
+								return (
 								<label
 									key={employee.id}
-									className="choice-option"
-									style={tintStyle(employee.color)}
+									className={
+										employeeStyle
+											? "choice-option employee-choice-option"
+											: "choice-option"
+									}
+									style={employeeStyle}
 								>
 									<input
 										type="radio"
@@ -181,7 +190,8 @@ export function TaskForm({
 									/>
 									<span>{employee.name}</span>
 								</label>
-							))}
+								);
+							})}
 						</div>
 					)}
 				</div>

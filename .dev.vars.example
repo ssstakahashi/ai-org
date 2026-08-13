@@ -1,6 +1,10 @@
 # ローカル用。必要ならシークレットを追加
 # EXAMPLE_SECRET=value
 
+# Server Action ID をデプロイ間で安定させる（ビルド時のみ・本番 runtime 不要）
+# 初回: openssl rand -base64 32 で生成し、以降ずっと同じ値を使う
+# NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=
+
 # X API（投稿用・値はコンソールから取得）
 # X_API_KEY=
 # X_API_SECRET=

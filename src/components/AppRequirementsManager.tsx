@@ -566,34 +566,43 @@ export function AppRequirementsManager({
 						</button>
 					</div>
 					{selectedApp ? (
-						<form
-							key={createFormKey}
-							action={handleCreate}
-							className="employee-edit-form employee-dialog-form requirement-dialog-form"
-						>
-							<input type="hidden" name="app_name_id" value={selectedApp.id} />
-							<label>
-								<span>タイトル</span>
-								<input
-									name="title"
-									required
-									placeholder="新しい要件のタイトル"
-								/>
-							</label>
-							<label>
-								<span>本文</span>
-								<textarea
-									name="body"
-									rows={4}
-									className="requirement-body-textarea"
-									placeholder="要件本文（Markdown 可）"
-								/>
-							</label>
-							<AppRequirementStatusField />
-							<button type="submit" className="primary">
-								追加
-							</button>
-						</form>
+						<>
+							<form
+								id="requirement-create-form"
+								key={createFormKey}
+								action={handleCreate}
+								className="employee-edit-form employee-dialog-form requirement-dialog-form"
+							>
+								<input type="hidden" name="app_name_id" value={selectedApp.id} />
+								<label>
+									<span>タイトル</span>
+									<input
+										name="title"
+										required
+										placeholder="新しい要件のタイトル"
+									/>
+								</label>
+								<label>
+									<span>本文</span>
+									<textarea
+										name="body"
+										rows={4}
+										className="requirement-body-textarea"
+										placeholder="要件本文（Markdown 可）"
+									/>
+								</label>
+								<AppRequirementStatusField />
+							</form>
+							<div className="task-actions task-dialog-footer">
+								<button
+									type="submit"
+									form="requirement-create-form"
+									className="primary"
+								>
+									追加
+								</button>
+							</div>
+						</>
 					) : null}
 				</div>
 			</dialog>

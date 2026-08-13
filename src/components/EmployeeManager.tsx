@@ -7,6 +7,7 @@ import {
 	useRef,
 	useState,
 	type DragEvent,
+	type FormEvent,
 	type MouseEvent,
 } from "react";
 import {
@@ -15,17 +16,66 @@ import {
 	reorderEmployees,
 	updateEmployee,
 } from "@/app/actions";
-import { colorInputValue } from "@/lib/colors";
+import { StatusIcon } from "@/components/StatusIcon";
+import { colorInputValue, employeeTintStyle, normalizeColor } from "@/lib/colors";
 import type { Employee } from "@/lib/types";
 
 type Props = {
 	employees: Employee[];
 };
 
+function EmployeeColorFields({
+	bgDefault = "",
+	textDefault = "",
+	controlled = false,
+	onInput,
+	onChange,
+}: {
+	bgDefault?: string;
+	textDefault?: string;
+	controlled?: boolean;
+	onInput?: (event: FormEvent<HTMLInputElement>) => void;
+	onChange?: (event: FormEvent<HTMLInputElement>) => void;
+}) {
+	const bgValue = colorInputValue(bgDefault);
+	const textValue = colorInputValue(textDefault || bgDefault);
+	return (
+		<div className="app-master-color-fields">
+			<label className="color-field">
+				<span className="color-field-label">背景</span>
+				<input
+					type="color"
+					name="color"
+					onInput={onInput}
+					onChange={onChange}
+					{...(controlled
+						? { value: bgValue }
+						: { defaultValue: bgValue })}
+				/>
+			</label>
+			<label className="color-field">
+				<span className="color-field-label">文字</span>
+				<input
+					type="color"
+					name="text_color"
+					onInput={onInput}
+					onChange={onChange}
+					{...(controlled
+						? { value: textValue }
+						: { defaultValue: textValue })}
+				/>
+			</label>
+		</div>
+	);
+}
+
 export function EmployeeManager({ employees: initialEmployees }: Props) {
 	const router = useRouter();
 	const createDialogRef = useRef<HTMLDialogElement>(null);
 	const editDialogRef = useRef<HTMLDialogElement>(null);
+	const colorSaveTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+		new Map(),
+	);
 	const [employees, setEmployees] = useState(initialEmployees);
 	const [draggingId, setDraggingId] = useState<string | null>(null);
 	const [dropTargetId, setDropTargetId] = useState<string | null>(null);
@@ -112,21 +162,95 @@ export function EmployeeManager({ employees: initialEmployees }: Props) {
 		router.refresh();
 	}
 
-	async function handleUpdate(formData: FormData) {
-		await updateEmployee(formData);
-		closeEditDialog();
-		router.refresh();
-	}
+	const handleUpdate = useCallback(
+		async (formData: FormData) => {
+			await updateEmployee(formData);
+			closeEditDialog();
+			router.refresh();
+		},
+		[closeEditDialog, router],
+	);
+
+	const handleDelete = useCallback(
+		async (formData: FormData) => {
+			await deleteEmployee(formData);
+			closeEditDialog();
+			router.refresh();
+		},
+		[closeEditDialog, router],
+	);
 
 	function stopCardActivate(event: MouseEvent) {
 		event.stopPropagation();
 	}
 
-	async function handleColorUpdate(form: HTMLFormElement) {
-		const formData = new FormData(form);
-		await updateEmployee(formData);
-		router.refresh();
-	}
+	const saveCardColor = useCallback(
+		async (form: HTMLFormElement, employeeId: string) => {
+			const formData = new FormData(form);
+			const color = normalizeColor(formData.get("color"));
+			const text_color = normalizeColor(formData.get("text_color"));
+			const snapshot = employees;
+
+			setEmployees((current) =>
+				current.map((employee) =>
+					employee.id === employeeId ? { ...employee, color, text_color } : employee,
+				),
+			);
+
+			try {
+				await updateEmployee(formData);
+			} catch (error) {
+				setEmployees(snapshot);
+				throw error;
+			}
+		},
+		[employees],
+	);
+
+	const scheduleCardColorSave = useCallback(
+		(form: HTMLFormElement, employeeId: string) => {
+			const timers = colorSaveTimersRef.current;
+			const pending = timers.get(employeeId);
+			if (pending) clearTimeout(pending);
+
+			const colorInput = form.querySelector<HTMLInputElement>('input[name="color"]');
+			const textColorInput = form.querySelector<HTMLInputElement>(
+				'input[name="text_color"]',
+			);
+			const nextColor = colorInput?.value;
+			const nextTextColor = textColorInput?.value;
+			if (nextColor || nextTextColor) {
+				setEmployees((current) =>
+					current.map((employee) =>
+						employee.id === employeeId
+							? {
+									...employee,
+									...(nextColor ? { color: nextColor } : {}),
+									...(nextTextColor ? { text_color: nextTextColor } : {}),
+								}
+							: employee,
+					),
+				);
+			}
+
+			timers.set(
+				employeeId,
+				setTimeout(() => {
+					timers.delete(employeeId);
+					void saveCardColor(form, employeeId);
+				}, 250),
+			);
+		},
+		[saveCardColor],
+	);
+
+	useEffect(() => {
+		const timers = colorSaveTimersRef.current;
+		return () => {
+			for (const timer of timers.values()) clearTimeout(timer);
+			timers.clear();
+		};
+	}, []);
 
 	return (
 		<>
@@ -138,7 +262,7 @@ export function EmployeeManager({ employees: initialEmployees }: Props) {
 					</button>
 				</div>
 				<p className="field-hint">
-					「編集」で詳細を変更できます。色はカード上から直接設定できます。左のハンドルをドラッグして表示順を変更できます。タスクが残っている従業員は削除できません。
+					「編集」で詳細の変更や削除ができます。背景色と文字色はカード上から直接設定できます。左のハンドルをドラッグして表示順を変更できます。タスクが残っている従業員は削除できません。
 				</p>
 				{employees.length === 0 ? (
 					<p className="empty">従業員がいません。「新規登録」から追加してください。</p>
@@ -160,6 +284,7 @@ export function EmployeeManager({ employees: initialEmployees }: Props) {
 									]
 										.filter(Boolean)
 										.join(" ")}
+									style={employeeTintStyle(employee.color, employee.text_color)}
 									onDragOver={(event) => onDragOver(event, employee.id)}
 									onDrop={(event) => void onDrop(event, employee.id)}
 									onDragLeave={() => {
@@ -182,25 +307,35 @@ export function EmployeeManager({ employees: initialEmployees }: Props) {
 										<form
 											className="employee-card-color-form"
 											onClick={stopCardActivate}
-											onChange={(event) => {
-												void handleColorUpdate(event.currentTarget);
-											}}
 										>
 											<input type="hidden" name="id" value={employee.id} />
 											<input type="hidden" name="name" value={employee.name} />
 											<input type="hidden" name="role" value={employee.role} />
 											<input type="hidden" name="area" value={employee.area} />
 											<input type="hidden" name="authority" value={employee.authority} />
-											<label className="color-field">
-												<span className="sr-only">{employee.name} の色</span>
-												<input
-													type="color"
-													name="color"
-													defaultValue={colorInputValue(employee.color)}
-													aria-label={`${employee.name} の色`}
-													title="色を変更"
-												/>
-											</label>
+											<EmployeeColorFields
+												bgDefault={employee.color}
+												textDefault={employee.text_color}
+												controlled
+												onInput={(event) => {
+													scheduleCardColorSave(
+														event.currentTarget.form!,
+														employee.id,
+													);
+												}}
+												onChange={(event) => {
+													const timers = colorSaveTimersRef.current;
+													const pending = timers.get(employee.id);
+													if (pending) {
+														clearTimeout(pending);
+														timers.delete(employee.id);
+													}
+													void saveCardColor(
+														event.currentTarget.form!,
+														employee.id,
+													);
+												}}
+											/>
 										</form>
 									</div>
 									<div className="employee-card-body">
@@ -225,17 +360,18 @@ export function EmployeeManager({ employees: initialEmployees }: Props) {
 									<div className="employee-card-actions" onClick={stopCardActivate}>
 										<button
 											type="button"
-											className="ghost"
+											className="x-schedule-action-btn x-action-edit"
 											onClick={() => openEditDialog(employee)}
+											aria-label={`${employee.name} を編集`}
 										>
-											編集
+											<span className="x-schedule-action-icon">
+												<StatusIcon
+													status="draft"
+													className="x-schedule-action-svg"
+												/>
+											</span>
+											<span>編集</span>
 										</button>
-										<form action={deleteEmployee}>
-											<input type="hidden" name="id" value={employee.id} />
-											<button type="submit" className="ghost">
-												削除
-											</button>
-										</form>
 									</div>
 								</li>
 							);
@@ -296,10 +432,7 @@ export function EmployeeManager({ employees: initialEmployees }: Props) {
 								placeholder="例: 優先度の提案、議事起案、他部署への依頼調整"
 							/>
 						</label>
-						<label className="color-field">
-							<span>色</span>
-							<input type="color" name="color" defaultValue={colorInputValue("")} />
-						</label>
+						<EmployeeColorFields />
 						<button type="submit" className="primary">
 							追加
 						</button>
@@ -314,7 +447,7 @@ export function EmployeeManager({ employees: initialEmployees }: Props) {
 					if (event.target === editDialogRef.current) closeEditDialog();
 				}}
 			>
-				<div className="task-dialog-panel">
+				<div className="task-dialog-panel requirement-edit-dialog-panel">
 					<div className="task-dialog-head">
 						<h2>従業員を編集</h2>
 						<button type="button" className="ghost" onClick={closeEditDialog}>
@@ -322,59 +455,110 @@ export function EmployeeManager({ employees: initialEmployees }: Props) {
 						</button>
 					</div>
 					{editing ? (
-						<form
-							key={editFormKey}
-							action={handleUpdate}
-							className="employee-edit-form employee-dialog-form"
-						>
-							<input type="hidden" name="id" value={editing.id} />
-							<label>
-								<span>名前</span>
-								<input name="name" required defaultValue={editing.name} />
-							</label>
-							<label>
-								<span>役割</span>
-								<textarea
-									name="role"
-									required
-									rows={6}
-									className="employee-role-textarea"
-									defaultValue={editing.role}
+						<>
+							<form
+								id={`employee-edit-form-${editing.id}`}
+								key={editFormKey}
+								action={handleUpdate}
+								className="employee-edit-form employee-dialog-form"
+							>
+								<input type="hidden" name="id" value={editing.id} />
+								<label>
+									<span>名前</span>
+									<input name="name" required defaultValue={editing.name} />
+								</label>
+								<label>
+									<span>役割</span>
+									<textarea
+										name="role"
+										required
+										rows={6}
+										className="employee-role-textarea"
+										defaultValue={editing.role}
+									/>
+								</label>
+								<label>
+									<span>担当領域</span>
+									<textarea
+										name="area"
+										rows={4}
+										className="employee-role-textarea"
+										defaultValue={editing.area}
+									/>
+								</label>
+								<label>
+									<span>職務権限</span>
+									<textarea
+										name="authority"
+										rows={4}
+										className="employee-role-textarea"
+										defaultValue={editing.authority}
+									/>
+								</label>
+								<EmployeeColorFields
+									bgDefault={editing.color}
+									textDefault={editing.text_color}
 								/>
-							</label>
-							<label>
-								<span>担当領域</span>
-								<textarea
-									name="area"
-									rows={4}
-									className="employee-role-textarea"
-									defaultValue={editing.area}
-								/>
-							</label>
-							<label>
-								<span>職務権限</span>
-								<textarea
-									name="authority"
-									rows={4}
-									className="employee-role-textarea"
-									defaultValue={editing.authority}
-								/>
-							</label>
-							<label className="color-field">
-								<span>色</span>
-								<input
-									type="color"
-									name="color"
-									defaultValue={colorInputValue(editing.color)}
-								/>
-							</label>
-							<button type="submit" className="primary">
-								保存
-							</button>
-						</form>
+							</form>
+							<div className="task-actions task-dialog-footer requirement-edit-dialog-footer">
+								<form
+									className="requirement-edit-delete-form"
+									onSubmit={(event) => {
+										event.preventDefault();
+										void handleDelete(new FormData(event.currentTarget));
+									}}
+								>
+									<input type="hidden" name="id" value={editing.id} />
+									<button
+										type="submit"
+										className="x-schedule-action-btn x-action-delete requirement-edit-footer-btn"
+									>
+										<span className="x-schedule-action-icon">
+											<DeleteIcon />
+										</span>
+										<span>削除</span>
+									</button>
+								</form>
+								<button
+									type="submit"
+									form={`employee-edit-form-${editing.id}`}
+									className="x-schedule-action-btn x-action-complete requirement-edit-footer-btn"
+								>
+									<span className="x-schedule-action-icon">
+										<StatusIcon
+											status="done"
+											className="x-schedule-action-svg"
+										/>
+									</span>
+									<span>保存</span>
+								</button>
+							</div>
+						</>
 					) : null}
 				</div>
 			</dialog>
 		</>
+	);
+}
+
+function DeleteIcon() {
+	return (
+		<svg
+			className="x-schedule-action-svg"
+			width={14}
+			height={14}
+			viewBox="0 0 16 16"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth={1.75}
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden
+		>
+			<path d="M3.5 4.5h9" />
+			<path d="M6.2 4.5V3.2a.7.7 0 0 1 .7-.7h2.2a.7.7 0 0 1 .7.7v1.3" />
+			<path d="M5.2 4.5v8.3a1 1 0 0 0 1 1h3.6a1 1 0 0 0 1-1V4.5" />
+			<path d="M6.8 7v4.8M9.2 7v4.8" />
+		</svg>
 	);
 }

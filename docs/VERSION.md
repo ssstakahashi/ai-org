@@ -2,6 +2,12 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.22 (2026-08-14)
+
+- 従業員に文字色（text_color）を追加し、タスク・担当選択 UI の表示を統一
+- Apps ナビのタブ記憶（apps-tabs）とデプロイスクリプト（check-build-env / deploy.sh）を追加
+- NEXT_SERVER_ACTIONS_ENCRYPTION_KEY を本番ビルド必須にし README のデプロイ手順を更新
+
 ## 0.0.21 (2026-08-11)
 
 - App 要件定義画面をマスタ詳細レイアウトに刷新（App 一覧・DnD 並び替え・ステータス UI）

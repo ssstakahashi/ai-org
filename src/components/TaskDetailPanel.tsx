@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { StatusIcon } from "@/components/StatusIcon";
 import { deleteTask, updateTaskStatus } from "@/app/actions";
-import { masterTintStyle, tintStyle } from "@/lib/colors";
+import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
 import { mediaUrl } from "@/lib/media-upload";
 import { formatPeriodLabel } from "@/lib/task-views";
 import { TASK_STATUS_LABEL, type TaskWithEmployee } from "@/lib/types";
@@ -91,7 +91,7 @@ export function TaskDetailPanel({
 						{task.task_group_name}
 					</span>
 				) : null}
-				<span className="employee" style={tintStyle(task.employee_color)}>
+				<span className="employee" style={employeeTintStyle(task.employee_color, task.employee_text_color)}>
 					{task.employee_name}
 				</span>
 				{periodLabel ? <span className="when">{periodLabel}</span> : <span className="when">期間なし</span>}

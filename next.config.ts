@@ -36,10 +36,8 @@ function getAppVersion(): string {
 }
 
 if (process.env.NODE_ENV === "production" && !process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY) {
-	console.warn(
-		"[ai-org] NEXT_SERVER_ACTIONS_ENCRYPTION_KEY が未設定です。" +
-			"デプロイごとに Server Action ID が変わり、開きっぱなしのタブでエラーになりやすくなります。" +
-			"本番ビルド前に固定キーを設定してください（README 参照）。",
+	throw new Error(
+		"[ai-org] NEXT_SERVER_ACTIONS_ENCRYPTION_KEY が未設定です。README のデプロイ手順を参照してください。",
 	);
 }
 

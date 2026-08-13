@@ -2,21 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const TABS = [
-	{ href: "/apps", label: "リスト", match: "exact" as const },
-	{ href: "/apps/names", label: "App", match: "prefix" as const },
-	{ href: "/apps/groups", label: "AppGroup", match: "prefix" as const },
-	{ href: "/apps/types", label: "AppType", match: "prefix" as const },
-	{ href: "/apps/requirements", label: "要件定義", match: "prefix" as const },
-];
+import { useEffect } from "react";
+import { APPS_TABS, saveAppsTab } from "@/lib/apps-tabs";
 
 export function AppsTabs() {
 	const pathname = usePathname();
 
+	useEffect(() => {
+		saveAppsTab(pathname);
+	}, [pathname]);
+
 	return (
 		<div className="view-tabs apps-tabs" role="tablist" aria-label="App管理の表示切替">
-			{TABS.map((tab) => {
+			{APPS_TABS.map((tab) => {
 				const active =
 					tab.match === "exact"
 						? pathname === tab.href

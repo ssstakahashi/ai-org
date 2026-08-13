@@ -178,12 +178,15 @@ D1 `ai-org` と R2 `ai-org-media` は作成済みです。リモートへ出す�
 ```bash
 npx wrangler d1 migrations apply ai-org --remote   # 未適用時のみ
 
-# Server Action ID をデプロイ間で安定させる（ビルド時に必須）
-export NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(openssl rand -base64 32)"
-# 以降のデプロイでも同じ値を使うこと
+# 初回のみ: Server Action ID をデプロイ間で安定させる（ビルド時に必須）
+openssl rand -base64 32
+# → .dev.vars に追記（値はパスワードマネージャー等に保管。git には入れない）
+# NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=...
 
-npm run deploy
+bun run deploy   # 未設定なら scripts/check-build-env.sh で失敗
 ```
+
+`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` は **ビルド時のみ** 使います。Workers の runtime secret（`wrangler secret put`）には不要です。
 
 ### Server Action エラー（`Failed to find Server Action`）
 
@@ -192,20 +195,18 @@ npm run deploy
 | 対策 | 内容 |
 |---|---|
 | 即時 | ページを再読み込み（Cmd+Shift+R） |
-| ビルド | 上記 `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` を毎回同じ値で設定 |
-| 恒久（推奨） | Skew Protection を有効化（下記） |
+| ビルド | `.dev.vars` の `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` を固定値で維持 |
+| 恒久（任意） | Skew Protection を有効化（下記） |
 
 Skew Protection（OpenNext）を有効にすると、デプロイ直後も古いタブから Server Action を呼べます。
 
 ```bash
-# Cloudflare API トークン（Workers Scripts: Read 権限）を発行し、
-# ダッシュボードの workers.dev URL からプレビュードメインを確認
-export CF_PREVIEW_DOMAIN="ai-org.<account-subdomain>.workers.dev"
-export CF_WORKERS_SCRIPTS_API_TOKEN="..."
-export ENABLE_SKEW_PROTECTION=1
-export NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="..."   # 固定キー
+# .dev.vars に追記（Cloudflare API トークンは Workers Scripts: Read 権限）
+# ENABLE_SKEW_PROTECTION=1
+# CF_PREVIEW_DOMAIN=ai-org.<account-subdomain>.workers.dev
+# CF_WORKERS_SCRIPTS_API_TOKEN=...
 
-npm run deploy
+bun run deploy
 ```
 
 `CF_WORKER_NAME` と `CF_ACCOUNT_ID` は `wrangler.jsonc` に設定済みです。

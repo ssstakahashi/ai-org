@@ -482,6 +482,24 @@ a.logout-button:hover {
 	outline-offset: 2px;
 }
 
+.field-grid .choice-option.employee-choice-option {
+	border-style: solid;
+	border-width: 1px;
+}
+
+.field-grid .choice-option.employee-choice-option:has(input:checked) {
+	box-shadow: none;
+	font-weight: 600;
+	border-width: 2px;
+	padding: calc(0.45rem - 1px) calc(0.95rem - 1px);
+	border-color: color-mix(in srgb, var(--employee-border, currentColor) 80%, black);
+}
+
+.field-grid .choice-option.employee-choice-option:has(input:focus-visible) {
+	outline: 2px solid color-mix(in srgb, var(--employee-border, currentColor) 55%, transparent);
+	outline-offset: 2px;
+}
+
 .field-grid .status-option,
 .status-options .status-option {
 	display: inline-flex;
@@ -1067,18 +1085,19 @@ a.logout-button:hover {
 	margin-top: auto;
 }
 
-.employee-card-actions .ghost,
-.employee-card-actions form {
-	flex: 1;
-	min-width: 0;
-}
-
-.employee-card-actions form {
-	display: flex;
-}
-
-.employee-card-actions .ghost {
+.employee-card-actions .x-schedule-action-btn {
 	width: 100%;
+	padding: 0.8rem 1.1rem;
+	font-size: 0.95rem;
+	line-height: 1.35;
+	border-radius: 10px;
+	gap: 0.5rem;
+	min-height: 2.75rem;
+}
+
+.employee-card-actions .x-schedule-action-svg {
+	width: 18px;
+	height: 18px;
 }
 
 .field-hint code {
@@ -2308,6 +2327,10 @@ button.ghost {
 
 .task-dialog-docked {
 	width: min(48rem, calc(100% - 2rem));
+}
+
+.task-dialog-docked-wide {
+	width: min(90rem, calc(100vw - 2rem));
 }
 
 .task-dialog-panel-docked {

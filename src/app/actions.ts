@@ -50,7 +50,7 @@ export async function listEmployees(): Promise<Employee[]> {
 	const db = await getDb();
 	const { results } = await db
 		.prepare(
-			`SELECT id, name, role, area, authority, color, sort_order, created_at
+			`SELECT id, name, role, area, authority, color, text_color, sort_order, created_at
 			 FROM employees
 			 ORDER BY sort_order ASC, name ASC`,
 		)
@@ -65,6 +65,7 @@ export async function createEmployee(formData: FormData) {
 	const area = String(formData.get("area") ?? "").trim();
 	const authority = String(formData.get("authority") ?? "").trim();
 	const color = normalizeColor(formData.get("color"));
+	const textColor = normalizeColor(formData.get("text_color"));
 
 	if (!name || !role) {
 		throw new Error("名前と役割は必須です");
@@ -77,9 +78,9 @@ export async function createEmployee(formData: FormData) {
 	const id = newId("emp");
 	await db
 		.prepare(
-			"INSERT INTO employees (id, name, role, area, authority, color, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			"INSERT INTO employees (id, name, role, area, authority, color, text_color, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 		)
-		.bind(id, name, role, area, authority, color, (maxSort?.max_sort ?? 0) + 10)
+		.bind(id, name, role, area, authority, color, textColor, (maxSort?.max_sort ?? 0) + 10)
 		.run();
 
 	revalidateTaskPages();
@@ -93,6 +94,7 @@ export async function updateEmployee(formData: FormData) {
 	const area = String(formData.get("area") ?? "").trim();
 	const authority = String(formData.get("authority") ?? "").trim();
 	const color = normalizeColor(formData.get("color"));
+	const textColor = normalizeColor(formData.get("text_color"));
 
 	if (!id || !name || !role) {
 		throw new Error("id・名前・役割が必要です");
@@ -108,9 +110,9 @@ export async function updateEmployee(formData: FormData) {
 
 	await db
 		.prepare(
-			"UPDATE employees SET name = ?, role = ?, area = ?, authority = ?, color = ? WHERE id = ?",
+			"UPDATE employees SET name = ?, role = ?, area = ?, authority = ?, color = ?, text_color = ? WHERE id = ?",
 		)
-		.bind(name, role, area, authority, color, id)
+		.bind(name, role, area, authority, color, textColor, id)
 		.run();
 
 	revalidateTaskPages();
@@ -281,6 +283,7 @@ const TASK_SELECT = `SELECT
 				t.start_at, t.end_at, t.notes, t.category_id, t.task_group_id,
 				t.created_at, t.updated_at,
 				e.name AS employee_name, e.role AS employee_role, e.color AS employee_color,
+				e.text_color AS employee_text_color,
 				c.name AS category_name, c.color AS category_color,
 				g.name AS task_group_name, g.color AS task_group_color
 			 FROM tasks t

@@ -10,6 +10,8 @@ export type Employee = {
 	authority: string;
 	/** #rrggbb。空文字はデフォルト表示 */
 	color: string;
+	/** #rrggbb。空文字は color と同じ */
+	text_color: string;
 	sort_order: number;
 	created_at: string;
 };
@@ -98,6 +100,7 @@ export type TaskWithEmployee = Task & {
 	employee_name: string;
 	employee_role: string;
 	employee_color: string;
+	employee_text_color: string;
 	category_name: string | null;
 	category_color: string | null;
 	task_group_name: string | null;

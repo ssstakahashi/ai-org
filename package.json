@@ -1,14 +1,14 @@
 {
   "name": "ai-org",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "deploy": "bash scripts/deploy.sh deploy",
+    "upload": "bash scripts/deploy.sh upload",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
     "db:pull": "bash scripts/db-pull-prod.sh",

@@ -1,5 +1,5 @@
 import { deleteTask, updateTaskStatus } from "@/app/actions";
-import { masterTintStyle, tintStyle } from "@/lib/colors";
+import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
 import { formatInAppTz } from "@/lib/timezone";
 import { TASK_STATUS_LABEL, type TaskStatus, type TaskWithEmployee } from "@/lib/types";
 
@@ -47,7 +47,7 @@ export function TaskList({ tasks }: Props) {
 										{task.category_name}
 									</span>
 								) : null}
-								<span className="employee" style={tintStyle(task.employee_color)}>
+								<span className="employee" style={employeeTintStyle(task.employee_color, task.employee_text_color)}>
 									{task.employee_name}
 								</span>
 								<span className="when">{formatWhen(task.start_at)}</span>

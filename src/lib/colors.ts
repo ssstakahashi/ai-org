@@ -48,6 +48,32 @@ export function masterTintStyle(
 	return style;
 }
 
+/** 社員カラー：内側の背景色を主に反映し、枠は背景を濃くした色 */
+export function employeeTintStyle(
+	backgroundColor: string | null | undefined,
+	textColor?: string | null,
+): CSSProperties | undefined {
+	const bg = String(backgroundColor ?? "").trim();
+	const fg = String(textColor ?? "").trim();
+	if (!bg && !fg) return undefined;
+
+	const style: CSSProperties = {};
+	if (bg) {
+		const fill = `color-mix(in srgb, ${bg} 70%, white)`;
+		const border = `color-mix(in srgb, ${fill} 90%, black)`;
+		style.background = fill;
+		style.borderColor = border;
+		(style as CSSProperties & Record<string, string>)["--employee-fill"] = fill;
+		(style as CSSProperties & Record<string, string>)["--employee-border"] = border;
+	}
+	if (fg) {
+		style.color = fg;
+	} else if (bg) {
+		style.color = bg;
+	}
+	return style;
+}
+
 export function colorInputValue(color: string | null | undefined): string {
 	return color && /^#[0-9a-fA-F]{6}$/i.test(color) ? color : COLOR_INPUT_FALLBACK;
 }
