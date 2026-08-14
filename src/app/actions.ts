@@ -312,7 +312,7 @@ const X_POST_SELECT = `SELECT
 				x_post_id, last_error, created_at, updated_at
 			 FROM x_posts`;
 
-const X_POST_ORDER = `ORDER BY COALESCE(scheduled_at, created_at) ASC`;
+const X_POST_ORDER = `ORDER BY COALESCE(scheduled_at, created_at) DESC`;
 
 function revalidateTaskPages() {
 	revalidatePath("/");
@@ -1182,6 +1182,7 @@ export async function updateXPost(
 				     status = ?,
 				     scheduled_at = ?,
 				     notes = ?,
+				     last_error = '',
 				     updated_at = datetime('now')
 				 WHERE id = ?`,
 			)
@@ -1725,7 +1726,7 @@ export async function updateXPostStatus(formData: FormData) {
 	await db
 		.prepare(
 			`UPDATE x_posts
-			 SET status = ?, updated_at = datetime('now')
+			 SET status = ?, last_error = '', updated_at = datetime('now')
 			 WHERE id = ?`,
 		)
 		.bind(status, id)

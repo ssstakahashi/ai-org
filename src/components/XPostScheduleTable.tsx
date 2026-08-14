@@ -202,7 +202,7 @@ export function XPostScheduleTable({ posts }: Props) {
 													</a>
 												</p>
 											) : null}
-											{post.last_error ? (
+											{post.status === "failed" && post.last_error ? (
 												<p className="last-error" title={post.last_error}>
 													{truncate(post.last_error, 60)}
 												</p>

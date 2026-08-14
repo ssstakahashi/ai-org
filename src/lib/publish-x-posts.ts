@@ -137,6 +137,13 @@ export async function publishXPostNow(env: PublishEnv, postId: string): Promise<
 		throw new Error("承認済・予約・失敗の投稿のみ投稿できます");
 	}
 
+	await env.DB
+		.prepare(
+			`UPDATE x_posts SET last_error = '', updated_at = datetime('now') WHERE id = ?`,
+		)
+		.bind(postId)
+		.run();
+
 	try {
 		await publishOne(env, post);
 	} catch (error) {
