@@ -40,6 +40,10 @@
 			"bucket_name": "ai-org-media"
 		}
 	],
+	"ai": {
+		"binding": "AI",
+		"remote": true
+	},
 	// @automation id: x-due-cron — 詳細は worker.ts の scheduled
 	"triggers": {
 		"crons": [

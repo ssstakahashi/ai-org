@@ -38,6 +38,15 @@ npm run dev
 
 http://localhost:3000
 
+音声入力（タスク登録・編集）をローカルで試す場合は、Cloudflare Access 経由の AI バインディングではなく REST API を使います。`.dev.vars` に次を追加してください（`CF_ACCOUNT_ID` は `wrangler.jsonc` に設定済み）。
+
+```bash
+# Cloudflare ダッシュボード > Workers AI > Use REST API で作成
+CF_API_TOKEN=...
+```
+
+本番 Worker では `AI` バインディングをそのまま利用します（トークン不要）。
+
 本番 D1 をローカルへ上書きコピー（Cloudflare ログイン必須）:
 
 ```bash

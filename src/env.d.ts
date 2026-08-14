@@ -8,4 +8,6 @@ interface CloudflareEnv {
 	GOOGLE_SERVICE_ACCOUNT_EMAIL?: string;
 	GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?: string;
 	APP_PUBLIC_URL?: string;
+	CF_API_TOKEN?: string;
+	CLOUDFLARE_API_TOKEN?: string;
 }

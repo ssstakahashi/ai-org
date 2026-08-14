@@ -946,6 +946,66 @@ a.logout-button:hover {
 	color: var(--muted);
 }
 
+.voice-input-field .voice-input-label {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+
+.voice-input-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	width: auto;
+	padding: 0.3rem 0.65rem;
+	font-size: 0.75rem;
+	color: var(--muted);
+	position: relative;
+}
+
+.voice-input-btn.is-recording {
+	border-color: color-mix(in srgb, #d64545 55%, var(--line));
+	color: #b42318;
+}
+
+.voice-input-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.voice-input-icon {
+	flex: 0 0 auto;
+}
+
+.voice-input-pulse {
+	position: absolute;
+	inset: -2px;
+	border-radius: inherit;
+	border: 1px solid color-mix(in srgb, #d64545 45%, transparent);
+	animation: voice-input-pulse 1.2s ease-out infinite;
+	pointer-events: none;
+}
+
+.voice-input-hint {
+	color: color-mix(in srgb, #b42318 75%, var(--muted));
+}
+
+.voice-input-error {
+	color: #b42318;
+}
+
+@keyframes voice-input-pulse {
+	0% {
+		opacity: 0.9;
+		transform: scale(1);
+	}
+	100% {
+		opacity: 0;
+		transform: scale(1.08);
+	}
+}
+
 .badge-category {
 	background: color-mix(in srgb, var(--line) 55%, white);
 	color: var(--foreground);
@@ -2547,6 +2607,30 @@ button.ghost {
 .task-detail-actions .task-detail-delete:disabled {
 	opacity: 0.72;
 	cursor: not-allowed;
+}
+
+.task-delete-confirm-dialog {
+	width: min(28rem, calc(100% - 2rem));
+}
+
+.task-delete-confirm-message {
+	margin: 0 0 0.75rem;
+	line-height: 1.5;
+}
+
+.task-delete-confirm-actions {
+	justify-content: flex-end;
+	margin-top: 0.25rem;
+}
+
+.task-delete-confirm-actions .danger {
+	background: var(--danger);
+	border-color: var(--danger);
+	color: #fff;
+}
+
+.task-delete-confirm-actions .danger:hover:not(:disabled) {
+	filter: brightness(1.06);
 }
 
 .task-dialog-docked {

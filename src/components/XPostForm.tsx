@@ -37,6 +37,8 @@ export function XPostForm({
 	const [imageFileName, setImageFileName] = useState<string | null>(null);
 	const [clearImage, setClearImage] = useState(false);
 	const [converting, setConverting] = useState(false);
+	const [analyzing, setAnalyzing] = useState(false);
+	const [body, setBody] = useState(post?.body ?? "");
 	const [state, formAction, pending] = useActionState(
 		isEdit ? updateXPostFormAction : createXPostFormAction,
 		initialState,
@@ -59,10 +61,54 @@ export function XPostForm({
 	}, [state.ok, onSuccess]);
 
 	useEffect(() => {
+		setBody(post?.body ?? "");
+	}, [post?.body]);
+
+	useEffect(() => {
 		return () => {
 			if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
 		};
 	}, [localPreviewUrl]);
+
+	async function suggestBodyFromImage(
+		image: File,
+		form: HTMLFormElement | null | undefined,
+	) {
+		const titleInput = form?.elements.namedItem("title");
+		const notesInput = form?.elements.namedItem("notes");
+		const title =
+			titleInput instanceof HTMLInputElement ? titleInput.value.trim() : "";
+		const notes =
+			notesInput instanceof HTMLTextAreaElement ? notesInput.value.trim() : "";
+
+		const payload = new FormData();
+		payload.set("image", image);
+		if (title) payload.set("title", title);
+		if (notes) payload.set("notes", notes);
+
+		setAnalyzing(true);
+		setClientError(null);
+		try {
+			const response = await fetch("/api/x-post/analyze-image", {
+				method: "POST",
+				body: payload,
+			});
+			const data = (await response.json()) as { body?: string; error?: string };
+			if (!response.ok) {
+				throw new Error(data.error ?? "投稿文の生成に失敗しました");
+			}
+			if (!data.body?.trim()) {
+				throw new Error("投稿文を生成できませんでした");
+			}
+			setBody(data.body.trim());
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "投稿文の生成に失敗しました";
+			setClientError(message);
+		} finally {
+			setAnalyzing(false);
+		}
+	}
 
 	async function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
 		const input = event.target;
@@ -97,6 +143,7 @@ export function XPostForm({
 			setClearImage(false);
 			setLocalPreviewUrl(URL.createObjectURL(webp));
 			setImageFileName(webp.name);
+			await suggestBodyFromImage(webp, input.form);
 		} catch {
 			setClientError("画像を WebP に変換できませんでした");
 			setLocalPreviewUrl(null);
@@ -160,8 +207,13 @@ export function XPostForm({
 						name="body"
 						rows={isEdit ? 10 : 4}
 						placeholder="X に投稿する本文（280文字以内）"
-						defaultValue={post?.body ?? ""}
+						value={body}
+						onChange={(event) => setBody(event.target.value)}
+						disabled={analyzing}
 					/>
+					{analyzing ? (
+						<p className="field-hint">画像を解析して投稿文を生成中…</p>
+					) : null}
 				</label>
 				<label className="full">
 					<span>画像</span>
@@ -170,12 +222,14 @@ export function XPostForm({
 						name="image"
 						accept="image/*"
 						onChange={handleImageChange}
-						disabled={converting || pending}
+						disabled={converting || analyzing || pending}
 					/>
 					<p className="field-hint">
 						{converting
 							? "WebP に変換中…"
-							: "選択後に WebP へ変換して保存します（最大 8MB）"}
+							: analyzing
+								? "過去の投稿を参考に AI が投稿文を作成中…"
+								: "選択後に WebP へ変換し、AI が投稿文を提案します（最大 8MB）"}
 					</p>
 					{previewUrl ? (
 						<figure className="image-preview">
@@ -227,7 +281,7 @@ export function XPostForm({
 					/>
 				</label>
 			</div>
-			<button type="submit" className="primary" disabled={pending || converting}>
+			<button type="submit" className="primary" disabled={pending || converting || analyzing}>
 				{pending ? "保存中…" : isEdit ? "変更を保存" : "投稿を追加"}
 			</button>
 		</form>

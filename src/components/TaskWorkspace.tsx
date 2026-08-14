@@ -226,12 +226,12 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 
 			<dialog
 				ref={editDialogRef}
-				className="task-dialog"
+				className="task-dialog task-dialog-docked"
 				onClick={(event) => {
 					if (event.target === editDialogRef.current) closeEditDialog();
 				}}
 			>
-				<div className="task-dialog-panel">
+				<div className="task-dialog-panel task-dialog-panel-docked requirement-edit-dialog-panel">
 					<div className="task-dialog-head">
 						<h2>タスクを編集</h2>
 						<button type="button" className="ghost" onClick={closeEditDialog}>

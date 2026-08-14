@@ -1,6 +1,6 @@
 {
   "name": "ai-org",
-  "version": "0.0.26",
+  "version": "0.0.27",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,7 @@
     "lint": "next lint",
     "deploy": "bash scripts/deploy.sh deploy",
     "upload": "bash scripts/deploy.sh upload",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "preview": "bash scripts/preview.sh",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
     "db:pull": "bash scripts/db-pull-prod.sh",
     "db:push": "bash scripts/db-push-local.sh"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { RecurrenceEditScopeFields } from "@/components/RecurrenceEditScopeFields";
 import { StatusIcon } from "@/components/StatusIcon";
 import { TaskLinkList } from "@/components/TaskLinkList";
@@ -9,7 +9,6 @@ import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
 import { mediaUrl } from "@/lib/media-upload";
 import { formatPeriodLabel } from "@/lib/task-views";
 import {
-	RECURRENCE_EDIT_SCOPE_LABEL,
 	TASK_STATUS_LABEL,
 	type RecurrenceEditScope,
 	type TaskWithEmployee,
@@ -39,6 +38,8 @@ export function TaskDetailPanel({
 	const [pending, startTransition] = useTransition();
 	const [error, setError] = useState<string | null>(null);
 	const [deleteScope, setDeleteScope] = useState<RecurrenceEditScope>("this");
+	const [deleteDialogKey, setDeleteDialogKey] = useState(0);
+	const deleteDialogRef = useRef<HTMLDialogElement>(null);
 	const periodLabel = formatPeriodLabel(task);
 	const isDone = task.status === "done";
 	const isDraft = task.status === "draft";
@@ -76,13 +77,20 @@ export function TaskDetailPanel({
 		});
 	}
 
-	function handleDelete() {
+	function openDeleteDialog() {
 		if (pending) return;
-		const scopeLabel = isSeries ? RECURRENCE_EDIT_SCOPE_LABEL[deleteScope] : "このタスク";
-		const count =
-			deleteScope === "all" ? seriesCount : deleteScope === "future" ? futureCount : 1;
-		const countHint = isSeries && count > 1 ? `（${count}件）` : "";
-		if (!window.confirm(`「${task.title}」を${scopeLabel}${countHint}削除しますか？`)) return;
+		setDeleteScope("this");
+		setDeleteDialogKey((key) => key + 1);
+		deleteDialogRef.current?.showModal();
+	}
+
+	function closeDeleteDialog() {
+		deleteDialogRef.current?.close();
+	}
+
+	function handleDeleteConfirm() {
+		if (pending) return;
+		closeDeleteDialog();
 		setError(null);
 		startTransition(async () => {
 			try {
@@ -143,22 +151,13 @@ export function TaskDetailPanel({
 				</a>
 			) : null}
 			{error ? <p className="form-error">{error}</p> : null}
-			{isSeries ? (
-				<RecurrenceEditScopeFields
-					name="delete_scope"
-					mode="delete"
-					seriesCount={seriesCount}
-					futureCount={futureCount}
-					onScopeChange={setDeleteScope}
-				/>
-			) : null}
 			<div className="task-actions task-detail-actions">
 				<div className="task-detail-actions-start">
 					<button
 						type="button"
 						className="danger task-detail-btn task-detail-delete"
 						disabled={pending}
-						onClick={handleDelete}
+						onClick={openDeleteDialog}
 					>
 						<DeleteIcon />
 						<span>{pending ? "処理中…" : "削除"}</span>
@@ -212,6 +211,48 @@ export function TaskDetailPanel({
 					</button>
 				</div>
 			</div>
+
+			<dialog
+				ref={deleteDialogRef}
+				className="task-dialog task-delete-confirm-dialog"
+				onClick={(event) => {
+					if (event.target === deleteDialogRef.current) closeDeleteDialog();
+				}}
+			>
+				<div className="task-dialog-panel">
+					<div className="task-dialog-head">
+						<h2>タスクを削除</h2>
+					</div>
+					<p className="task-delete-confirm-message">
+						「{task.title}」を削除しますか？
+						{isSeries ? null : " この操作は取り消せません。"}
+					</p>
+					{isSeries ? (
+						<RecurrenceEditScopeFields
+							key={deleteDialogKey}
+							name="delete_scope"
+							mode="delete"
+							seriesCount={seriesCount}
+							futureCount={futureCount}
+							defaultScope="this"
+							onScopeChange={setDeleteScope}
+						/>
+					) : null}
+					<div className="task-actions task-delete-confirm-actions">
+						<button type="button" className="ghost" disabled={pending} onClick={closeDeleteDialog}>
+							キャンセル
+						</button>
+						<button
+							type="button"
+							className="danger"
+							disabled={pending}
+							onClick={handleDeleteConfirm}
+						>
+							{pending ? "処理中…" : "削除する"}
+						</button>
+					</div>
+				</div>
+			</dialog>
 		</div>
 	);
 }
