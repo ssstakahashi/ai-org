@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { StatusIcon } from "@/components/StatusIcon";
+import { TaskLinkList } from "@/components/TaskLinkList";
 import { deleteTask, updateTaskStatus } from "@/app/actions";
 import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
 import { mediaUrl } from "@/lib/media-upload";
@@ -11,6 +12,7 @@ import { TASK_STATUS_LABEL, type TaskWithEmployee } from "@/lib/types";
 type Props = {
 	task: TaskWithEmployee;
 	onEdit: () => void;
+	onDuplicate: () => void;
 	onApproveSuccess: () => void;
 	onCompleteSuccess: () => void;
 	onDeleteSuccess: () => void;
@@ -19,6 +21,7 @@ type Props = {
 export function TaskDetailPanel({
 	task,
 	onEdit,
+	onDuplicate,
 	onApproveSuccess,
 	onCompleteSuccess,
 	onDeleteSuccess,
@@ -107,6 +110,7 @@ export function TaskDetailPanel({
 			) : null}
 			<h3 className="task-detail-title">{task.title}</h3>
 			{task.body ? <p className="body">{task.body}</p> : null}
+			<TaskLinkList links={task.links} />
 			{task.notes ? <p className="notes">メモ: {task.notes}</p> : null}
 			{task.image_key ? (
 				<a
@@ -122,53 +126,86 @@ export function TaskDetailPanel({
 			) : null}
 			{error ? <p className="form-error">{error}</p> : null}
 			<div className="task-actions task-detail-actions">
-				{isDraft ? (
+				<div className="task-detail-actions-start">
 					<button
 						type="button"
-						className="primary task-detail-btn task-detail-btn-approve"
+						className="danger task-detail-btn task-detail-delete"
 						disabled={pending}
-						onClick={handleApprove}
+						onClick={handleDelete}
 					>
-						<StatusIcon status="approved" className="task-detail-btn-icon" />
-						<span>{pending ? "保存中…" : "承認済にする"}</span>
+						<DeleteIcon />
+						<span>{pending ? "処理中…" : "削除"}</span>
 					</button>
-				) : null}
-				{!isDone ? (
+				</div>
+				<div className="task-detail-actions-end">
+					{isDraft ? (
+						<button
+							type="button"
+							className="primary task-detail-btn task-detail-btn-approve"
+							disabled={pending}
+							onClick={handleApprove}
+						>
+							<StatusIcon status="approved" className="task-detail-btn-icon" />
+							<span>{pending ? "保存中…" : "承認済にする"}</span>
+						</button>
+					) : null}
 					<button
 						type="button"
-						className="primary task-detail-btn task-detail-btn-complete"
+						className="task-detail-btn task-detail-btn-duplicate"
 						disabled={pending}
-						onClick={handleComplete}
+						onClick={onDuplicate}
 					>
-						<StatusIcon status="done" className="task-detail-btn-icon" />
-						<span>{pending ? "保存中…" : "完了にする"}</span>
+						<DuplicateIcon />
+						<span>複製</span>
 					</button>
-				) : (
-					<span className="badge status-done task-detail-done-badge">
-						<StatusIcon status="done" className="task-detail-btn-icon" />
-						完了
-					</span>
-				)}
-				<button
-					type="button"
-					className="task-detail-btn task-detail-btn-edit"
-					disabled={pending}
-					onClick={onEdit}
-				>
-					<StatusIcon status="draft" className="task-detail-btn-icon" />
-					<span>編集</span>
-				</button>
-				<button
-					type="button"
-					className="danger task-detail-btn task-detail-delete"
-					disabled={pending}
-					onClick={handleDelete}
-				>
-					<DeleteIcon />
-					<span>{pending ? "処理中…" : "削除"}</span>
-				</button>
+					{!isDone ? (
+						<button
+							type="button"
+							className="primary task-detail-btn task-detail-btn-complete"
+							disabled={pending}
+							onClick={handleComplete}
+						>
+							<StatusIcon status="done" className="task-detail-btn-icon" />
+							<span>{pending ? "保存中…" : "完了"}</span>
+						</button>
+					) : (
+						<span className="badge status-done task-detail-done-badge">
+							<StatusIcon status="done" className="task-detail-btn-icon" />
+							完了
+						</span>
+					)}
+					<button
+						type="button"
+						className="task-detail-btn task-detail-btn-edit"
+						disabled={pending}
+						onClick={onEdit}
+					>
+						<StatusIcon status="draft" className="task-detail-btn-icon" />
+						<span>編集</span>
+					</button>
+				</div>
 			</div>
 		</div>
+	);
+}
+
+function DuplicateIcon() {
+	return (
+		<svg
+			className="task-detail-btn-icon"
+			width={14}
+			height={14}
+			viewBox="0 0 16 16"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth={1.75}
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden
+		>
+			<rect x="5.5" y="5.5" width="7.5" height="7.5" rx="1.2" />
+			<path d="M10.5 5.5V4.2a1.2 1.2 0 0 0-1.2-1.2H3.7a1.2 1.2 0 0 0-1.2 1.2v5.6a1.2 1.2 0 0 0 1.2 1.2H5.5" />
+		</svg>
 	);
 }
 

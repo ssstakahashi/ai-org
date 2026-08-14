@@ -8,6 +8,7 @@ import { createTask } from "@/app/actions";
 import { TaskBoard } from "@/components/TaskBoard";
 import { TaskDetailPanel } from "@/components/TaskDetailPanel";
 import { TaskForm } from "@/components/TaskForm";
+import { toAppDateTimeLocal } from "@/lib/timezone";
 import type { Category, Employee, Tag, TaskGroup, TaskWithEmployee } from "@/lib/types";
 
 type Props = {
@@ -31,6 +32,7 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 	const [editFormKey, setEditFormKey] = useState(0);
 	const [defaultStartAt, setDefaultStartAt] = useState("");
 	const [defaultEndAt, setDefaultEndAt] = useState("");
+	const [prefillTask, setPrefillTask] = useState<TaskWithEmployee | null>(null);
 	const [detailing, setDetailing] = useState<TaskWithEmployee | null>(null);
 	const [editing, setEditing] = useState<TaskWithEmployee | null>(null);
 
@@ -38,16 +40,30 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 		if (dateKey) {
 			setDefaultStartAt(toDateTimeLocal(dateKey, "09:00"));
 			setDefaultEndAt(toDateTimeLocal(dateKey, "18:00"));
+			setPrefillTask(null);
 		} else {
 			setDefaultStartAt("");
 			setDefaultEndAt("");
+			setPrefillTask(null);
 		}
 		setCreateFormKey((value) => value + 1);
 		createDialogRef.current?.showModal();
 	}
 
+	function openDuplicateDialog(task: TaskWithEmployee) {
+		closeDetailDialog();
+		flushSync(() => {
+			setPrefillTask(task);
+			setDefaultStartAt(toAppDateTimeLocal(task.start_at));
+			setDefaultEndAt(toAppDateTimeLocal(task.end_at));
+			setCreateFormKey((value) => value + 1);
+		});
+		createDialogRef.current?.showModal();
+	}
+
 	function closeCreateDialog() {
 		createDialogRef.current?.close();
+		setPrefillTask(null);
 	}
 
 	const closeDetailDialog = useCallback(() => {
@@ -137,7 +153,7 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 			>
 				<div className="task-dialog-panel">
 					<div className="task-dialog-head">
-						<h2>新規タスク</h2>
+						<h2>{prefillTask ? "タスクを複製" : "新規タスク"}</h2>
 						<button type="button" className="ghost" onClick={closeCreateDialog}>
 							閉じる
 						</button>
@@ -148,6 +164,7 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 						categories={categories}
 						taskGroups={taskGroups}
 						tags={tags}
+						prefillFrom={prefillTask ?? undefined}
 						action={handleCreate}
 						defaultStartAt={defaultStartAt}
 						defaultEndAt={defaultEndAt}
@@ -173,6 +190,7 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 						<TaskDetailPanel
 							task={detailing}
 							onEdit={openEditFromDetail}
+							onDuplicate={() => openDuplicateDialog(detailing)}
 							onApproveSuccess={handleApproveSuccess}
 							onCompleteSuccess={handleCompleteSuccess}
 							onDeleteSuccess={handleDeleteSuccess}

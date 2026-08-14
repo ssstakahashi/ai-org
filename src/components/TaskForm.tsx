@@ -4,6 +4,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { createTask, updateTask } from "@/app/actions";
 import { RecurrenceFields } from "@/components/RecurrenceFields";
 import { StatusIcon } from "@/components/StatusIcon";
+import { TaskLinkFields } from "@/components/TaskLinkFields";
 import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
 import { mediaUrl } from "@/lib/media-upload";
 import { toAppDateTimeLocal } from "@/lib/timezone";
@@ -29,6 +30,7 @@ type Props = {
 	taskGroups: TaskGroup[];
 	tags: Tag[];
 	task?: TaskWithEmployee;
+	prefillFrom?: TaskWithEmployee;
 	action?: (formData: FormData) => void | Promise<void>;
 	defaultEmployeeId?: string;
 	defaultCategoryId?: string;
@@ -44,6 +46,7 @@ export function TaskForm({
 	taskGroups,
 	tags,
 	task,
+	prefillFrom,
 	action,
 	defaultEmployeeId,
 	defaultCategoryId = "",
@@ -53,32 +56,48 @@ export function TaskForm({
 	onSuccess,
 }: Props) {
 	const isEdit = Boolean(task);
+	const source = task ?? prefillFrom;
 	const statuses = isEdit ? EDIT_STATUSES : CREATE_STATUSES;
 	const [pending, setPending] = useState(false);
 	const [clientError, setClientError] = useState<string | null>(null);
 	const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
 	const [imageFileName, setImageFileName] = useState<string | null>(null);
 	const [clearImage, setClearImage] = useState(false);
+	const [clearDuplicateImage, setClearDuplicateImage] = useState(false);
 	const [converting, setConverting] = useState(false);
+	const [taskLinks, setTaskLinks] = useState<{ url: string; label: string }[]>(
+		source?.links.map((link) => ({ url: link.url, label: link.label })) ?? [],
+	);
 
 	const selectedEmployeeId =
-		task?.employee_id ??
+		source?.employee_id ??
 		(defaultEmployeeId && employees.some((employee) => employee.id === defaultEmployeeId)
 			? defaultEmployeeId
 			: (employees[0]?.id ?? ""));
-	const selectedCategoryId = task?.category_id ?? defaultCategoryId;
-	const selectedTaskGroupId = task?.task_group_id ?? "";
-	const selectedStatus = task?.status ?? defaultStatus;
-	const selectedTagIds = new Set(task?.tags.map((tag) => tag.id) ?? []);
-	const startAtDefault = task ? toAppDateTimeLocal(task.start_at) : defaultStartAt;
-	const endAtDefault = task ? toAppDateTimeLocal(task.end_at) : defaultEndAt;
+	const selectedCategoryId = source?.category_id ?? defaultCategoryId;
+	const selectedTaskGroupId = source?.task_group_id ?? "";
+	const selectedStatus = source?.status ?? defaultStatus;
+	const selectedTagIds = new Set(source?.tags.map((tag) => tag.id) ?? []);
+	const startAtDefault = source
+		? toAppDateTimeLocal(source.start_at)
+		: defaultStartAt;
+	const endAtDefault = source ? toAppDateTimeLocal(source.end_at) : defaultEndAt;
 
-	const storedImageUrl = task?.image_key ? mediaUrl(task.image_key) : null;
-	const previewUrl = localPreviewUrl ?? (!clearImage ? storedImageUrl : null);
+	const duplicateImageKey =
+		!isEdit && prefillFrom?.image_key && !clearDuplicateImage ? prefillFrom.image_key : null;
+	const storedImageUrl = task?.image_key
+		? mediaUrl(task.image_key)
+		: duplicateImageKey
+			? mediaUrl(duplicateImageKey)
+			: null;
+	const previewUrl =
+		localPreviewUrl ?? (!clearImage && !clearDuplicateImage ? storedImageUrl : null);
 	const previewCaption = localPreviewUrl
 		? imageFileName
-		: storedImageUrl && !clearImage
-			? "現在の画像"
+		: storedImageUrl && (!clearImage || duplicateImageKey)
+			? isEdit
+				? "現在の画像"
+				: "複製元の画像"
 			: null;
 
 	useEffect(() => {
@@ -137,6 +156,7 @@ export function TaskForm({
 		setPending(true);
 		try {
 			const formData = new FormData(form);
+			formData.set("task_links_json", JSON.stringify(taskLinks));
 			if (action) {
 				await action(formData);
 			} else if (isEdit) {
@@ -144,7 +164,11 @@ export function TaskForm({
 			} else {
 				await createTask(formData);
 			}
-			if (!isEdit) form.reset();
+			if (!isEdit) {
+				form.reset();
+				setTaskLinks([]);
+				setClearDuplicateImage(false);
+			}
 			onSuccess?.();
 		} catch (error) {
 			if (recoverFromStaleServerAction(error)) return;
@@ -158,6 +182,9 @@ export function TaskForm({
 	return (
 		<form onSubmit={handleSubmit} className="task-form" encType="multipart/form-data">
 			{task ? <input type="hidden" name="id" value={task.id} /> : null}
+			{duplicateImageKey ? (
+				<input type="hidden" name="duplicate_image_key" value={duplicateImageKey} />
+			) : null}
 			{clientError ? <p className="form-error">{clientError}</p> : null}
 			<div className="field-grid">
 				<div className="choice-field full">
@@ -286,7 +313,7 @@ export function TaskForm({
 						name="title"
 						required
 						placeholder="例: 週次リサーチまとめ"
-						defaultValue={task?.title ?? ""}
+						defaultValue={source?.title ?? ""}
 					/>
 				</label>
 				<label className="full">
@@ -295,7 +322,7 @@ export function TaskForm({
 						name="body"
 						rows={4}
 						placeholder="作業内容・成果物の要件など"
-						defaultValue={task?.body ?? ""}
+						defaultValue={source?.body ?? ""}
 					/>
 				</label>
 				{!isEdit ? <RecurrenceFields /> : null}
@@ -353,6 +380,27 @@ export function TaskForm({
 					{task?.image_key && !localPreviewUrl && !clearImage ? (
 						<p className="field-hint">新しいファイルを選ぶと差し替えます。</p>
 					) : null}
+					{prefillFrom?.image_key && !task && !localPreviewUrl ? (
+						<label className="inline-check">
+							<input
+								type="checkbox"
+								checked={clearDuplicateImage}
+								onChange={(event) => {
+									const checked = event.target.checked;
+									setClearDuplicateImage(checked);
+									if (checked) {
+										const imageInput = event.target.form?.elements.namedItem("image");
+										if (imageInput instanceof HTMLInputElement) {
+											imageInput.value = "";
+										}
+										setLocalPreviewUrl(null);
+										setImageFileName(null);
+									}
+								}}
+							/>
+							<span>画像を含めない</span>
+						</label>
+					) : null}
 					{task?.image_key ? (
 						<label className="inline-check">
 							<input
@@ -377,13 +425,14 @@ export function TaskForm({
 						</label>
 					) : null}
 				</label>
+				<TaskLinkFields links={source?.links} onChange={setTaskLinks} />
 				<label className="full">
 					<span>メモ（AI／人間の相談用）</span>
 					<textarea
 						name="notes"
 						rows={2}
-						placeholder="トーン、禁止事項、参考リンクなど"
-						defaultValue={task?.notes ?? ""}
+						placeholder="トーン、禁止事項など"
+						defaultValue={source?.notes ?? ""}
 					/>
 				</label>
 			</div>

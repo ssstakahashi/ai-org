@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getDb, getMediaBucket, newId } from "@/lib/db";
-import { getUploadFile, putTaskImage, putXPostImage } from "@/lib/media-upload";
+import { copyTaskImage, getUploadFile, putTaskImage, putXPostImage } from "@/lib/media-upload";
 import { LOCAL_SOURCE, recordAutomationRun } from "@/lib/automation-ingest";
 import { publishDueXPosts, publishXPostNow, type PublishResult } from "@/lib/publish-x-posts";
 import {
@@ -21,6 +21,7 @@ import {
 	shiftDateKeepingDuration,
 } from "@/lib/recurrence";
 import { normalizeColor } from "@/lib/colors";
+import { isValidPreviewUrl } from "@/lib/link-preview";
 import { parseAppDateTime } from "@/lib/timezone";
 import {
 	normalizeAppMasterIcon,
@@ -39,12 +40,15 @@ import {
 	type PageWithCategory,
 	type Tag,
 	type TaskGroup,
+	type TaskLink,
 	type TaskStatus,
 	type TaskWithEmployee,
 	type XPost,
 } from "@/lib/types";
 
-type TaskRow = Omit<TaskWithEmployee, "tags">;
+type TaskRow = Omit<TaskWithEmployee, "tags" | "links">;
+type TaskWithTags = Omit<TaskWithEmployee, "links">;
+type TaskLinkInput = { url: string; label: string };
 
 export async function listEmployees(): Promise<Employee[]> {
 	const db = await getDb();
@@ -490,7 +494,7 @@ function formText(formData: FormData, key: string) {
 	return String(formData.get(key) ?? "").trim();
 }
 
-async function attachTags(rows: TaskRow[]): Promise<TaskWithEmployee[]> {
+async function attachTags(rows: TaskRow[]): Promise<TaskWithTags[]> {
 	if (rows.length === 0) return [];
 
 	const db = await getDb();
@@ -525,10 +529,90 @@ async function attachTags(rows: TaskRow[]): Promise<TaskWithEmployee[]> {
 	}));
 }
 
+async function attachLinks(rows: TaskWithTags[]): Promise<TaskWithEmployee[]> {
+	if (rows.length === 0) return [];
+
+	const db = await getDb();
+	const placeholders = rows.map(() => "?").join(", ");
+	const { results } = await db
+		.prepare(
+			`SELECT id, task_id, url, label, sort_order, created_at
+			 FROM task_links
+			 WHERE task_id IN (${placeholders})
+			 ORDER BY sort_order ASC, created_at ASC`,
+		)
+		.bind(...rows.map((row) => row.id))
+		.all<TaskLink>();
+
+	const byTask = new Map<string, TaskLink[]>();
+	for (const row of results ?? []) {
+		const list = byTask.get(row.task_id) ?? [];
+		list.push(row);
+		byTask.set(row.task_id, list);
+	}
+
+	return rows.map((row) => ({
+		...row,
+		links: byTask.get(row.id) ?? [],
+	}));
+}
+
+function parseTaskLinksFromForm(formData: FormData): TaskLinkInput[] {
+	const raw = String(formData.get("task_links_json") ?? "").trim();
+	if (!raw) return [];
+
+	try {
+		const parsed: unknown = JSON.parse(raw);
+		if (!Array.isArray(parsed)) return [];
+
+		const links: TaskLinkInput[] = [];
+		for (const item of parsed) {
+			if (!item || typeof item !== "object") continue;
+			const url = String((item as { url?: unknown }).url ?? "").trim();
+			const label = String((item as { label?: unknown }).label ?? "").trim();
+			if (!url) continue;
+			links.push({ url, label });
+		}
+		return links;
+	} catch {
+		return [];
+	}
+}
+
+function validateTaskLinks(links: TaskLinkInput[]) {
+	if (links.length > 20) {
+		throw new Error("リンクは 20 件までです");
+	}
+	for (const link of links) {
+		if (!isValidPreviewUrl(link.url)) {
+			throw new Error(`リンク URL が不正です: ${link.url}`);
+		}
+	}
+}
+
+async function replaceTaskLinks(
+	db: Awaited<ReturnType<typeof getDb>>,
+	taskId: string,
+	links: TaskLinkInput[],
+) {
+	await db.prepare("DELETE FROM task_links WHERE task_id = ?").bind(taskId).run();
+	if (links.length === 0) return;
+
+	const insert = db.prepare(
+		`INSERT INTO task_links (id, task_id, url, label, sort_order)
+		 VALUES (?, ?, ?, ?, ?)`,
+	);
+	const statements = links.map((link, index) =>
+		insert.bind(newId("tlink"), taskId, link.url, link.label, (index + 1) * 10),
+	);
+	await db.batch(statements);
+}
+
 export async function listTasks(): Promise<TaskWithEmployee[]> {
 	const db = await getDb();
 	const { results } = await db.prepare(`${TASK_SELECT} ${TASK_ORDER}`).all<TaskRow>();
-	return attachTags(results ?? []);
+	const withTags = await attachTags(results ?? []);
+	return attachLinks(withTags);
 }
 
 /** X投稿一覧（スケジュール管理用） */
@@ -633,6 +717,15 @@ export async function createTask(formData: FormData) {
 			throw new Error(stored.error);
 		}
 		imageKey = stored.key;
+	} else {
+		const duplicateImageKey = String(formData.get("duplicate_image_key") ?? "").trim();
+		if (duplicateImageKey) {
+			const copied = await copyTaskImage(duplicateImageKey);
+			if ("error" in copied) {
+				throw new Error(copied.error);
+			}
+			imageKey = copied.key;
+		}
 	}
 
 	let startAt: Date | null = null;
@@ -665,6 +758,8 @@ export async function createTask(formData: FormData) {
 	});
 
 	const tagIds = await resolveTagIds(db, selectedTagIds, newTagNames);
+	const taskLinks = parseTaskLinksFromForm(formData);
+	validateTaskLinks(taskLinks);
 	const insert = db.prepare(
 		`INSERT INTO tasks
 			(id, employee_id, title, body, image_key, status, start_at, end_at, notes, category_id, task_group_id)
@@ -673,10 +768,12 @@ export async function createTask(formData: FormData) {
 	const tagInsert = db.prepare("INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)");
 
 	const statements: D1PreparedStatement[] = [];
+	let firstTaskId: string | null = null;
 	for (let index = 0; index < occurrences.length; index++) {
 		const occurrence = occurrences[index];
 		const { start, end } = shiftDateKeepingDuration(baseStart, baseEnd, occurrence);
 		const id = newId("task");
+		if (index === 0) firstTaskId = id;
 
 		statements.push(
 			insert.bind(
@@ -700,6 +797,9 @@ export async function createTask(formData: FormData) {
 	}
 
 	await db.batch(statements);
+	if (firstTaskId && taskLinks.length > 0) {
+		await replaceTaskLinks(db, firstTaskId, taskLinks);
+	}
 	revalidateTaskPages();
 }
 
@@ -809,6 +909,8 @@ export async function updateTask(formData: FormData) {
 	}
 
 	const tagIds = await resolveTagIds(db, selectedTagIds, newTagNames);
+	const taskLinks = parseTaskLinksFromForm(formData);
+	validateTaskLinks(taskLinks);
 	const statements: D1PreparedStatement[] = [
 		db
 			.prepare(
@@ -848,6 +950,7 @@ export async function updateTask(formData: FormData) {
 	}
 
 	await db.batch(statements);
+	await replaceTaskLinks(db, id, taskLinks);
 	revalidateTaskPages();
 }
 

@@ -96,6 +96,15 @@ export type Task = {
 	updated_at: string;
 };
 
+export type TaskLink = {
+	id: string;
+	task_id: string;
+	url: string;
+	label: string;
+	sort_order: number;
+	created_at: string;
+};
+
 export type TaskWithEmployee = Task & {
 	employee_name: string;
 	employee_role: string;
@@ -106,6 +115,7 @@ export type TaskWithEmployee = Task & {
 	task_group_name: string | null;
 	task_group_color: string | null;
 	tags: Tag[];
+	links: TaskLink[];
 };
 
 /** X投稿（業務タスクとは別テーブル） */

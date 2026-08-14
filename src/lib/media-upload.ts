@@ -65,3 +65,30 @@ export async function putXPostImage(file: File): Promise<{ key: string } | { err
 export async function putTaskImage(file: File): Promise<{ key: string } | { error: string }> {
 	return putWebpImage("tasks", file);
 }
+
+/** 既存タスク画像を複製して新しい R2 キーを返す */
+export async function copyTaskImage(
+	sourceKey: string,
+): Promise<{ key: string } | { error: string }> {
+	if (!sourceKey.startsWith("tasks/") || !isAllowedMediaKey(sourceKey)) {
+		return { error: "複製元の画像が不正です" };
+	}
+
+	try {
+		const media = await getMediaBucket();
+		const object = await media.get(sourceKey);
+		if (!object) {
+			return { error: "複製元の画像が見つかりません" };
+		}
+
+		const baseName = sourceKey.split("/").pop()?.replace(/\.webp$/i, "") ?? "image";
+		const key = `tasks/${crypto.randomUUID()}-${baseName}.webp`;
+		await media.put(key, object.body, {
+			httpMetadata: object.httpMetadata ?? { contentType: "image/webp" },
+		});
+		return { key };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { error: `画像の複製に失敗しました: ${message}` };
+	}
+}
