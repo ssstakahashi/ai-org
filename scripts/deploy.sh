@@ -21,7 +21,7 @@ case "$mode" in
 		;;
 	upload)
 		"$OPENNEXT" build
-		OPEN_NEXT_DEPLOY=true "$ROOT/node_modules/.bin/wrangler" deploy --dry-run
+		"$OPENNEXT" upload
 		;;
 	*)
 		echo "用法: scripts/deploy.sh [deploy|upload]" >&2
