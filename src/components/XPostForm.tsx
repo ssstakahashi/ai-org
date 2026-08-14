@@ -39,6 +39,7 @@ export function XPostForm({
 	const [clearImage, setClearImage] = useState(false);
 	const [converting, setConverting] = useState(false);
 	const [analyzing, setAnalyzing] = useState(false);
+	const [analysis, setAnalysis] = useState<string | null>(null);
 	const [title, setTitle] = useState(post?.title ?? "");
 	const [body, setBody] = useState(post?.body ?? "");
 	const [state, formAction, pending] = useActionState(
@@ -91,6 +92,7 @@ export function XPostForm({
 
 		setAnalyzing(true);
 		setClientError(null);
+		setAnalysis(null);
 		try {
 			const response = await fetch("/api/x-post/analyze-image", {
 				method: "POST",
@@ -99,6 +101,7 @@ export function XPostForm({
 			const data = (await response.json()) as {
 				title?: string;
 				body?: string;
+				analysis?: string;
 				error?: string;
 			};
 			if (!response.ok) {
@@ -109,6 +112,7 @@ export function XPostForm({
 			}
 			if (data.title?.trim()) setTitle(data.title.trim());
 			if (data.body?.trim()) setBody(data.body.trim());
+			if (data.analysis?.trim()) setAnalysis(data.analysis.trim());
 		} catch (error) {
 			const message =
 				error instanceof Error ? error.message : "投稿文の生成に失敗しました";
@@ -222,6 +226,14 @@ export function XPostForm({
 						disabled={imageBusy}
 					/>
 				</label>
+				{analysis ? (
+					<div className="full">
+						<details>
+							<summary>AI分析・投稿案（3パターン）</summary>
+							<pre className="field-hint x-post-analysis">{analysis}</pre>
+						</details>
+					</div>
+				) : null}
 				<label className="full">
 					<span>画像</span>
 					<input
@@ -235,7 +247,7 @@ export function XPostForm({
 						<LoadingSpinner label={imageBusyLabel} />
 					) : (
 						<p className="field-hint">
-							選択後に WebP へ変換し、AI がタイトルと投稿文を提案します（最大 8MB）
+							選択後に WebP へ変換し、AI がテーマ・投稿文・3パターン案を提案します（最大 8MB）
 						</p>
 					)}
 					{previewUrl ? (

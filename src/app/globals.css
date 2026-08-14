@@ -968,6 +968,11 @@ a.logout-button:hover {
 	color: var(--muted);
 }
 
+.x-post-analysis {
+	white-space: pre-wrap;
+	margin-top: 0.5rem;
+}
+
 .field-loading {
 	display: inline-flex;
 	align-items: center;

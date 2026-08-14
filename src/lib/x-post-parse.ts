@@ -5,7 +5,14 @@ export type ParsedXPostDraft = {
 	body: string;
 };
 
+export type ParsedXPostAnalysis = ParsedXPostDraft & {
+	analysis: string;
+};
+
 const PLACEHOLDER_LINE = /^[（(].*[）)]$/u;
+
+const VISUAL_TITLE_PATTERN =
+	/^(日本の?)?(漫画|イラスト|写真|画像|4コマ|スクリーンショット|グラフィック|ポスター)/u;
 
 function normalizeLine(line: string): string {
 	return line.trim().replace(/^\*+|\*+$/g, "").trim();
@@ -130,5 +137,86 @@ export function parseGeneratedPost(raw: string): ParsedXPostDraft {
 	return {
 		title: truncateXPostText(title, 60),
 		body: truncateXPostText(body, X_POST_MAX_WEIGHT),
+	};
+}
+
+function parseMarkdownSections(raw: string): Map<string, string> {
+	const sections = new Map<string, string>();
+	const lines = raw.split(/\r?\n/);
+	let currentKey = "";
+	let currentLines: string[] = [];
+
+	const flush = () => {
+		if (currentKey) {
+			sections.set(currentKey, currentLines.join("\n").trim());
+		}
+	};
+
+	for (const line of lines) {
+		const heading = line.match(/^##\s+(.+?)\s*$/);
+		if (heading) {
+			flush();
+			currentKey = heading[1].trim();
+			currentLines = [];
+			continue;
+		}
+		if (currentKey) {
+			currentLines.push(line);
+		}
+	}
+	flush();
+	return sections;
+}
+
+function extractThemeFromComment(comment: string): string {
+	const match = comment.match(/テーマは[「『]([^」』]+)[」』]/u);
+	return match?.[1]?.trim() ?? "";
+}
+
+function extractPattern1(postSuggestions: string): string {
+	const match = postSuggestions.match(
+		/###\s*パターン1[^\n]*\n+([\s\S]*?)(?=\n###\s*パターン2|$)/u,
+	);
+	return match?.[1]?.trim() ?? "";
+}
+
+function isWeakTitle(title: string): boolean {
+	const trimmed = title.trim();
+	if (!trimmed) return true;
+	if (VISUAL_TITLE_PATTERN.test(trimmed)) return true;
+	if (/^(漫画|イラスト|画像)の/u.test(trimmed)) return true;
+	return false;
+}
+
+/** Gemini の構造化出力からテーマ・おすすめ投稿文・全文分析を抽出 */
+export function parseXPostAnalysis(raw: string): ParsedXPostAnalysis {
+	const sections = parseMarkdownSections(raw);
+	const comment = sections.get("分析コメント") ?? "";
+
+	let title = cleanField(sections.get("テーマ") ?? "");
+	if (isWeakTitle(title)) {
+		const fromComment = extractThemeFromComment(comment);
+		if (fromComment) title = fromComment;
+	}
+
+	let body = cleanField(sections.get("おすすめ投稿文") ?? "");
+	if (!body) {
+		body = cleanField(extractPattern1(sections.get("投稿文案") ?? ""));
+	}
+
+	if (!title || !body) {
+		const legacy = parseGeneratedPost(raw);
+		if (!title || isWeakTitle(title)) title = legacy.title;
+		if (!body) body = legacy.body;
+	}
+
+	if (isWeakTitle(title)) {
+		title = "";
+	}
+
+	return {
+		title: truncateXPostText(title, 60),
+		body: body.trim(),
+		analysis: raw.trim(),
 	};
 }
