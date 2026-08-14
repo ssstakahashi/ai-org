@@ -8,6 +8,7 @@
 - ローカル開発では Workers AI REST API（CF_API_TOKEN）を利用するよう対応
 - X 投稿フォームで画像選択時に AI が投稿文を提案
 - タスク詳細の削除を確認ダイアログに変更、編集ダイアログをドック形式に統一
+- 本番ビルド時に initOpenNextCloudflareForDev を実行しないよう修正（deploy 失敗の解消）
 
 ## 0.0.26 (2026-08-14)
 
