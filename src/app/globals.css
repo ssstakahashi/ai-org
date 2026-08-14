@@ -381,6 +381,7 @@ a.logout-button:hover {
 }
 
 .task-link-fieldset {
+	grid-column: 1 / -1;
 	border: 1px solid var(--line);
 	border-radius: 10px;
 	padding: 0.75rem;
@@ -397,30 +398,94 @@ a.logout-button:hover {
 	margin: 0;
 	padding: 0;
 	display: grid;
-	gap: 0.75rem;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	overflow: hidden;
+	background: #fff;
+}
+
+.task-link-editor-header,
+.task-link-editor-item {
+	display: grid;
+	grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+	gap: 0.65rem;
+	align-items: center;
+	padding: 0.55rem 0.65rem;
+}
+
+.task-link-editor-header {
+	font-size: 0.85rem;
+	color: var(--muted);
+	background: color-mix(in srgb, var(--line) 18%, white);
+	border-bottom: 1px solid var(--line);
+}
+
+.task-link-editor-header-action {
+	text-align: center;
 }
 
 .task-link-editor-item {
-	display: grid;
-	gap: 0.55rem;
-	padding: 0.65rem;
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	background: color-mix(in srgb, var(--line) 12%, white);
+	border-bottom: 1px solid var(--line);
+	background: color-mix(in srgb, var(--line) 8%, white);
+}
+
+.task-link-editor-item:last-child {
+	border-bottom: none;
 }
 
 .task-link-editor-item label {
-	display: grid;
-	gap: 0.25rem;
+	display: block;
+	min-width: 0;
+}
+
+.task-link-editor-label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
 }
 
 .task-link-remove {
-	justify-self: start;
+	flex-shrink: 0;
 	font-size: 0.85rem;
+	white-space: nowrap;
 }
 
 .task-link-add {
 	margin-top: 0.65rem;
+}
+
+@media (max-width: 640px) {
+	.task-link-editor-header {
+		display: none;
+	}
+
+	.task-link-editor-item {
+		grid-template-columns: 1fr;
+		gap: 0.45rem;
+	}
+
+	.task-link-editor-item label {
+		display: grid;
+		gap: 0.25rem;
+	}
+
+	.task-link-editor-label {
+		position: static;
+		width: auto;
+		height: auto;
+		margin: 0;
+		overflow: visible;
+		clip: auto;
+		white-space: normal;
+		font-size: 0.85rem;
+		color: var(--muted);
+	}
 }
 
 .task-link-section {

@@ -58,10 +58,15 @@ export function TaskLinkFields({ links = [], onChange }: Props) {
 				<p className="field-hint">参考 URL を複数登録できます。保存後にプレビューが表示されます。</p>
 			) : (
 				<ul className="task-link-editor-list">
+					<li className="task-link-editor-header">
+						<span>URL</span>
+						<span>表示名（任意）</span>
+						<span className="task-link-editor-header-action">操作</span>
+					</li>
 					{entries.map((entry, index) => (
 						<li key={entry.key} className="task-link-editor-item">
 							<label>
-								<span>URL {index + 1}</span>
+								<span className="task-link-editor-label">URL {index + 1}</span>
 								<input
 									type="url"
 									inputMode="url"
@@ -71,7 +76,7 @@ export function TaskLinkFields({ links = [], onChange }: Props) {
 								/>
 							</label>
 							<label>
-								<span>表示名（任意）</span>
+								<span className="task-link-editor-label">表示名（任意）</span>
 								<input
 									type="text"
 									placeholder="例: 仕様書"

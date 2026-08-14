@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.26 (2026-08-14)
+
+- タスク編集のリンク欄を全幅・1行1データの表形式レイアウトに変更
+
 ## 0.0.25 (2026-08-14)
 
 - 繰り返しタスクに recurrence_series_id を付与し、シリーズ単位の一括編集・削除を追加
