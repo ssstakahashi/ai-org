@@ -17,11 +17,11 @@ mode="${1:-deploy}"
 case "$mode" in
 	deploy)
 		"$OPENNEXT" build
-		"$OPENNEXT" deploy
+		OPEN_NEXT_DEPLOY=true "$ROOT/node_modules/.bin/wrangler" deploy
 		;;
 	upload)
 		"$OPENNEXT" build
-		"$OPENNEXT" upload
+		OPEN_NEXT_DEPLOY=true "$ROOT/node_modules/.bin/wrangler" deploy --dry-run
 		;;
 	*)
 		echo "用法: scripts/deploy.sh [deploy|upload]" >&2
