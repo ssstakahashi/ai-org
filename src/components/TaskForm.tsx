@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { createTask, updateTask } from "@/app/actions";
+import { RecurrenceEditScopeFields } from "@/components/RecurrenceEditScopeFields";
 import { RecurrenceFields } from "@/components/RecurrenceFields";
 import { StatusIcon } from "@/components/StatusIcon";
 import { TaskLinkFields } from "@/components/TaskLinkFields";
@@ -14,6 +15,7 @@ import {
 	TASK_STATUS_LABEL,
 	type Category,
 	type Employee,
+	type RecurrenceEditScope,
 	type Tag,
 	type TaskGroup,
 	type TaskStatus,
@@ -31,6 +33,8 @@ type Props = {
 	tags: Tag[];
 	task?: TaskWithEmployee;
 	prefillFrom?: TaskWithEmployee;
+	seriesCount?: number;
+	futureCount?: number;
 	action?: (formData: FormData) => void | Promise<void>;
 	defaultEmployeeId?: string;
 	defaultCategoryId?: string;
@@ -47,6 +51,8 @@ export function TaskForm({
 	tags,
 	task,
 	prefillFrom,
+	seriesCount = 1,
+	futureCount = 1,
 	action,
 	defaultEmployeeId,
 	defaultCategoryId = "",
@@ -68,6 +74,9 @@ export function TaskForm({
 	const [taskLinks, setTaskLinks] = useState<{ url: string; label: string }[]>(
 		source?.links.map((link) => ({ url: link.url, label: link.label })) ?? [],
 	);
+	const [editScope, setEditScope] = useState<RecurrenceEditScope>("this");
+	const isSeriesEdit = isEdit && seriesCount > 1;
+	const applyDatesAndImage = !isSeriesEdit || editScope === "this";
 
 	const selectedEmployeeId =
 		source?.employee_id ??
@@ -280,16 +289,29 @@ export function TaskForm({
 						))}
 					</div>
 				</div>
-				<div className="task-period-row">
-					<label>
-						<span>開始</span>
-						<input type="datetime-local" name="start_at" defaultValue={startAtDefault} />
-					</label>
-					<label>
-						<span>終了</span>
-						<input type="datetime-local" name="end_at" defaultValue={endAtDefault} />
-					</label>
-				</div>
+				{isSeriesEdit ? (
+					<RecurrenceEditScopeFields
+						seriesCount={seriesCount}
+						futureCount={futureCount}
+						onScopeChange={setEditScope}
+					/>
+				) : null}
+				{applyDatesAndImage ? (
+					<div className="task-period-row">
+						<label>
+							<span>開始</span>
+							<input type="datetime-local" name="start_at" defaultValue={startAtDefault} />
+						</label>
+						<label>
+							<span>終了</span>
+							<input type="datetime-local" name="end_at" defaultValue={endAtDefault} />
+						</label>
+					</div>
+				) : (
+					<p className="field-hint full">
+						各タスクの開始・終了日時は個別のままです（{formatPeriodHint(source)}）。
+					</p>
+				)}
 				<div className="status-field full">
 					<span>ステータス</span>
 					<div className="status-options" role="radiogroup" aria-label="ステータス">
@@ -356,18 +378,24 @@ export function TaskForm({
 				</fieldset>
 				<label className="full">
 					<span>画像</span>
-					<input
-						type="file"
-						name="image"
-						accept="image/*"
-						onChange={handleImageChange}
-						disabled={pending || converting}
-					/>
-					<p className="field-hint">
-						{converting
-							? "WebP に変換中…"
-							: "選択後に WebP へ変換して保存します（最大 8MB）"}
-					</p>
+					{applyDatesAndImage ? (
+						<>
+							<input
+								type="file"
+								name="image"
+								accept="image/*"
+								onChange={handleImageChange}
+								disabled={pending || converting}
+							/>
+							<p className="field-hint">
+								{converting
+									? "WebP に変換中…"
+									: "選択後に WebP へ変換して保存します（最大 8MB）"}
+							</p>
+						</>
+					) : (
+						<p className="field-hint">画像の変更は「このタスクのみ」を選んだときだけ可能です。</p>
+					)}
 					{previewUrl ? (
 						<figure className="image-preview">
 							{/* eslint-disable-next-line @next/next/no-img-element -- blob / R2 配信プレビュー */}
@@ -377,7 +405,7 @@ export function TaskForm({
 							) : null}
 						</figure>
 					) : null}
-					{task?.image_key && !localPreviewUrl && !clearImage ? (
+					{task?.image_key && !localPreviewUrl && !clearImage && applyDatesAndImage ? (
 						<p className="field-hint">新しいファイルを選ぶと差し替えます。</p>
 					) : null}
 					{prefillFrom?.image_key && !task && !localPreviewUrl ? (
@@ -401,7 +429,7 @@ export function TaskForm({
 							<span>画像を含めない</span>
 						</label>
 					) : null}
-					{task?.image_key ? (
+					{task?.image_key && applyDatesAndImage ? (
 						<label className="inline-check">
 							<input
 								type="checkbox"
@@ -425,7 +453,13 @@ export function TaskForm({
 						</label>
 					) : null}
 				</label>
-				<TaskLinkFields links={source?.links} onChange={setTaskLinks} />
+				{applyDatesAndImage ? (
+					<TaskLinkFields links={source?.links} onChange={setTaskLinks} />
+				) : (
+					<p className="field-hint full">
+						リンクの変更は「このタスクのみ」を選んだときだけ可能です。
+					</p>
+				)}
 				<label className="full">
 					<span>メモ（AI／人間の相談用）</span>
 					<textarea
@@ -437,8 +471,32 @@ export function TaskForm({
 				</label>
 			</div>
 			<button type="submit" className="primary" disabled={pending || converting}>
-				{pending ? "保存中…" : isEdit ? "変更を保存" : "タスクを追加"}
+				{pending
+					? "保存中…"
+					: isEdit
+						? isSeriesEdit && editScope !== "this"
+							? `変更を保存（${targetCountLabel(editScope, seriesCount, futureCount)}）`
+							: "変更を保存"
+						: "タスクを追加"}
 			</button>
 		</form>
 	);
+}
+
+function formatPeriodHint(task?: TaskWithEmployee) {
+	if (!task?.start_at && !task?.end_at) return "期間なし";
+	if (task.start_at && task.end_at) {
+		return `${toAppDateTimeLocal(task.start_at)} 〜 ${toAppDateTimeLocal(task.end_at)}`;
+	}
+	return toAppDateTimeLocal(task.start_at ?? task.end_at);
+}
+
+function targetCountLabel(
+	scope: RecurrenceEditScope,
+	seriesCount: number,
+	futureCount: number,
+) {
+	if (scope === "all") return `${seriesCount}件`;
+	if (scope === "future") return `${futureCount}件`;
+	return "1件";
 }

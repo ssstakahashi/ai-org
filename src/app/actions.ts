@@ -18,6 +18,7 @@ import {
 	parseOptionalDate,
 	parseRecurrenceKind,
 	parseWeekdays,
+	parseRecurrenceEditScope,
 	shiftDateKeepingDuration,
 } from "@/lib/recurrence";
 import { normalizeColor } from "@/lib/colors";
@@ -42,6 +43,7 @@ import {
 	type TaskGroup,
 	type TaskLink,
 	type TaskStatus,
+	type RecurrenceEditScope,
 	type TaskWithEmployee,
 	type XPost,
 } from "@/lib/types";
@@ -285,7 +287,7 @@ function revalidateOrgRulesPage() {
 const TASK_SELECT = `SELECT
 				t.id, t.employee_id, t.title, t.body, t.image_key, t.status,
 				t.start_at, t.end_at, t.notes, t.category_id, t.task_group_id,
-				t.created_at, t.updated_at,
+				t.recurrence_series_id, t.created_at, t.updated_at,
 				e.name AS employee_name, e.role AS employee_role, e.color AS employee_color,
 				e.text_color AS employee_text_color,
 				c.name AS category_name, c.color AS category_color,
@@ -615,6 +617,44 @@ export async function listTasks(): Promise<TaskWithEmployee[]> {
 	return attachLinks(withTags);
 }
 
+async function resolveSeriesTaskIds(
+	db: D1Database,
+	taskId: string,
+	scope: RecurrenceEditScope,
+): Promise<string[]> {
+	if (scope === "this") return [taskId];
+
+	const task = await db
+		.prepare("SELECT recurrence_series_id, start_at FROM tasks WHERE id = ?")
+		.bind(taskId)
+		.first<{ recurrence_series_id: string | null; start_at: string | null }>();
+
+	if (!task?.recurrence_series_id) return [taskId];
+
+	let query =
+		"SELECT id FROM tasks WHERE recurrence_series_id = ?";
+	const binds: string[] = [task.recurrence_series_id];
+
+	if (scope === "future") {
+		if (task.start_at) {
+			query += " AND (start_at IS NULL OR start_at >= ?)";
+			binds.push(task.start_at);
+		} else {
+			query += " AND created_at >= (SELECT created_at FROM tasks WHERE id = ?)";
+			binds.push(taskId);
+		}
+	}
+
+	query += " ORDER BY COALESCE(start_at, created_at) ASC, id ASC";
+
+	const { results } = await db
+		.prepare(query)
+		.bind(...binds)
+		.all<{ id: string }>();
+
+	return results?.map((row) => row.id) ?? [taskId];
+}
+
 /** X投稿一覧（スケジュール管理用） */
 export async function listXPosts(): Promise<XPost[]> {
 	const db = await getDb();
@@ -760,10 +800,11 @@ export async function createTask(formData: FormData) {
 	const tagIds = await resolveTagIds(db, selectedTagIds, newTagNames);
 	const taskLinks = parseTaskLinksFromForm(formData);
 	validateTaskLinks(taskLinks);
+	const recurrenceSeriesId = recurrence !== "none" && occurrences.length > 1 ? newId("rser") : null;
 	const insert = db.prepare(
 		`INSERT INTO tasks
-			(id, employee_id, title, body, image_key, status, start_at, end_at, notes, category_id, task_group_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			(id, employee_id, title, body, image_key, status, start_at, end_at, notes, category_id, task_group_id, recurrence_series_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	);
 	const tagInsert = db.prepare("INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)");
 
@@ -788,6 +829,7 @@ export async function createTask(formData: FormData) {
 				notes,
 				categoryId,
 				taskGroupId,
+				recurrenceSeriesId,
 			),
 		);
 
@@ -819,6 +861,7 @@ export async function updateTask(formData: FormData) {
 	const selectedTagIds = formData.getAll("tag_ids").map((value) => String(value).trim());
 	const newTagNames = parseNewTagNames(String(formData.get("new_tags") ?? ""));
 	const clearImage = String(formData.get("clear_image") ?? "") === "1";
+	const editScope = parseRecurrenceEditScope(String(formData.get("edit_scope") ?? "this"));
 
 	if (!id) {
 		throw new Error("id が必要です");
@@ -826,6 +869,9 @@ export async function updateTask(formData: FormData) {
 	if (!title || !employeeId) {
 		throw new Error("タイトルと担当従業員は必須です");
 	}
+
+	const targetIds = await resolveSeriesTaskIds(db, id, editScope);
+	const applyDatesAndImage = editScope === "this";
 
 	const existing = await db
 		.prepare("SELECT image_key FROM tasks WHERE id = ?")
@@ -866,91 +912,131 @@ export async function updateTask(formData: FormData) {
 	}
 
 	let imageKey = existing.image_key;
-	if (clearImage && imageKey) {
-		try {
-			const media = await getMediaBucket();
-			await media.delete(imageKey);
-		} catch {
-			// 削除失敗でもレコード更新は続行
-		}
-		imageKey = null;
-	}
-
-	const upload = getUploadFile(formData, "image");
-	if (upload) {
-		const stored = await putTaskImage(upload);
-		if ("error" in stored) {
-			throw new Error(stored.error);
-		}
-		if (imageKey && imageKey !== stored.key) {
+	if (applyDatesAndImage) {
+		if (clearImage && imageKey) {
 			try {
 				const media = await getMediaBucket();
 				await media.delete(imageKey);
 			} catch {
-				// 旧画像の削除失敗は無視
+				// 削除失敗でもレコード更新は続行
 			}
+			imageKey = null;
 		}
-		imageKey = stored.key;
+
+		const upload = getUploadFile(formData, "image");
+		if (upload) {
+			const stored = await putTaskImage(upload);
+			if ("error" in stored) {
+				throw new Error(stored.error);
+			}
+			if (imageKey && imageKey !== stored.key) {
+				try {
+					const media = await getMediaBucket();
+					await media.delete(imageKey);
+				} catch {
+					// 旧画像の削除失敗は無視
+				}
+			}
+			imageKey = stored.key;
+		}
 	}
 
 	let startAt: Date | null = null;
 	let endAt: Date | null = null;
-	try {
-		if (startAtRaw) startAt = parseAppDateTime(startAtRaw);
-		if (endAtRaw) endAt = parseAppDateTime(endAtRaw);
-	} catch {
-		throw new Error("日時の形式が不正です");
-	}
+	if (applyDatesAndImage) {
+		try {
+			if (startAtRaw) startAt = parseAppDateTime(startAtRaw);
+			if (endAtRaw) endAt = parseAppDateTime(endAtRaw);
+		} catch {
+			throw new Error("日時の形式が不正です");
+		}
 
-	if (startAt && !endAt) endAt = new Date(startAt);
-	if (endAt && !startAt) startAt = new Date(endAt);
-	if (startAt && endAt && startAt.getTime() > endAt.getTime()) {
-		throw new Error("終了は開始以降にしてください");
+		if (startAt && !endAt) endAt = new Date(startAt);
+		if (endAt && !startAt) startAt = new Date(endAt);
+		if (startAt && endAt && startAt.getTime() > endAt.getTime()) {
+			throw new Error("終了は開始以降にしてください");
+		}
 	}
 
 	const tagIds = await resolveTagIds(db, selectedTagIds, newTagNames);
 	const taskLinks = parseTaskLinksFromForm(formData);
 	validateTaskLinks(taskLinks);
-	const statements: D1PreparedStatement[] = [
-		db
-			.prepare(
-				`UPDATE tasks
-				 SET employee_id = ?,
-				     title = ?,
-				     body = ?,
-				     image_key = ?,
-				     status = ?,
-				     start_at = ?,
-				     end_at = ?,
-				     notes = ?,
-				     category_id = ?,
-				     task_group_id = ?,
-				     updated_at = datetime('now')
-				 WHERE id = ?`,
-			)
-			.bind(
-				employeeId,
-				title,
-				body,
-				imageKey,
-				status,
-				startAt ? startAt.toISOString() : null,
-				endAt ? endAt.toISOString() : null,
-				notes,
-				categoryId,
-				taskGroupId,
-				id,
-			),
-		db.prepare("DELETE FROM task_tags WHERE task_id = ?").bind(id),
-	];
+	const statements: D1PreparedStatement[] = [];
 
+	if (applyDatesAndImage) {
+		statements.push(
+			db
+				.prepare(
+					`UPDATE tasks
+					 SET employee_id = ?,
+					     title = ?,
+					     body = ?,
+					     image_key = ?,
+					     status = ?,
+					     start_at = ?,
+					     end_at = ?,
+					     notes = ?,
+					     category_id = ?,
+					     task_group_id = ?,
+					     updated_at = datetime('now')
+					 WHERE id = ?`,
+				)
+				.bind(
+					employeeId,
+					title,
+					body,
+					imageKey,
+					status,
+					startAt ? startAt.toISOString() : null,
+					endAt ? endAt.toISOString() : null,
+					notes,
+					categoryId,
+					taskGroupId,
+					id,
+				),
+		);
+	} else {
+		const bulkUpdate = db.prepare(
+			`UPDATE tasks
+			 SET employee_id = ?,
+			     title = ?,
+			     body = ?,
+			     status = ?,
+			     notes = ?,
+			     category_id = ?,
+			     task_group_id = ?,
+			     updated_at = datetime('now')
+			 WHERE id = ?`,
+		);
+		for (const taskId of targetIds) {
+			statements.push(
+				bulkUpdate.bind(
+					employeeId,
+					title,
+					body,
+					status,
+					notes,
+					categoryId,
+					taskGroupId,
+					taskId,
+				),
+			);
+		}
+	}
+
+	const tagDelete = db.prepare("DELETE FROM task_tags WHERE task_id = ?");
 	const tagInsert = db.prepare("INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)");
-	for (const tagId of tagIds) {
-		statements.push(tagInsert.bind(id, tagId));
+	for (const taskId of applyDatesAndImage ? [id] : targetIds) {
+		statements.push(tagDelete.bind(taskId));
+		for (const tagId of tagIds) {
+			statements.push(tagInsert.bind(taskId, tagId));
+		}
 	}
 
 	await db.batch(statements);
-	await replaceTaskLinks(db, id, taskLinks);
+	if (applyDatesAndImage) {
+		await replaceTaskLinks(db, id, taskLinks);
+	}
 	revalidateTaskPages();
 }
 
@@ -1599,18 +1685,39 @@ export async function deleteTask(formData: FormData) {
 	const id = String(formData.get("id") ?? "").trim();
 	if (!id) return;
 
-	const row = await db
-		.prepare("SELECT image_key FROM tasks WHERE id = ?")
-		.bind(id)
-		.first<{ image_key: string | null }>();
+	const editScope = parseRecurrenceEditScope(String(formData.get("edit_scope") ?? "this"));
+	const targetIds = await resolveSeriesTaskIds(db, id, editScope);
 
-	if (row?.image_key) {
+	const imageRows = await db
+		.prepare(
+			`SELECT image_key FROM tasks
+			 WHERE id IN (${targetIds.map(() => "?").join(", ")})
+			   AND image_key IS NOT NULL`,
+		)
+		.bind(...targetIds)
+		.all<{ image_key: string }>();
+
+	if (imageRows.results?.length) {
 		const media = await getMediaBucket();
-		await media.delete(row.image_key);
+		for (const row of imageRows.results) {
+			try {
+				await media.delete(row.image_key);
+			} catch {
+				// 削除失敗でもレコード削除は続行
+			}
+		}
 	}
 
-	await db.prepare("DELETE FROM task_tags WHERE task_id = ?").bind(id).run();
-	await db.prepare("DELETE FROM tasks WHERE id = ?").bind(id).run();
+	const statements: D1PreparedStatement[] = [];
+	for (const taskId of targetIds) {
+		statements.push(db.prepare("DELETE FROM task_tags WHERE task_id = ?").bind(taskId));
+		statements.push(db.prepare("DELETE FROM task_links WHERE task_id = ?").bind(taskId));
+		statements.push(db.prepare("DELETE FROM tasks WHERE id = ?").bind(taskId));
+	}
+
+	if (statements.length > 0) {
+		await db.batch(statements);
+	}
 	revalidateTaskPages();
 }
 

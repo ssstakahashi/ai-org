@@ -19,6 +19,22 @@ type Props = {
 	tasks: TaskWithEmployee[];
 };
 
+function countSeriesTasks(tasks: TaskWithEmployee[], seriesId: string | null) {
+	if (!seriesId) return 1;
+	return tasks.filter((task) => task.recurrence_series_id === seriesId).length;
+}
+
+function countFutureSeriesTasks(tasks: TaskWithEmployee[], task: TaskWithEmployee) {
+	if (!task.recurrence_series_id) return 1;
+	return tasks.filter((candidate) => {
+		if (candidate.recurrence_series_id !== task.recurrence_series_id) return false;
+		if (task.start_at && candidate.start_at) return candidate.start_at >= task.start_at;
+		if (task.start_at && !candidate.start_at) return false;
+		if (!task.start_at) return candidate.created_at >= task.created_at;
+		return true;
+	}).length;
+}
+
 function toDateTimeLocal(dateKey: string, time: string) {
 	return `${dateKey}T${time}`;
 }
@@ -120,6 +136,13 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 		router.refresh();
 	}, [closeDetailDialog, router]);
 
+	const detailingSeriesCount = detailing
+		? countSeriesTasks(tasks, detailing.recurrence_series_id)
+		: 1;
+	const detailingFutureCount = detailing ? countFutureSeriesTasks(tasks, detailing) : 1;
+	const editingSeriesCount = editing ? countSeriesTasks(tasks, editing.recurrence_series_id) : 1;
+	const editingFutureCount = editing ? countFutureSeriesTasks(tasks, editing) : 1;
+
 	return (
 		<>
 			<section className="panel">
@@ -189,6 +212,8 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 					{detailing ? (
 						<TaskDetailPanel
 							task={detailing}
+							seriesCount={detailingSeriesCount}
+							futureCount={detailingFutureCount}
 							onEdit={openEditFromDetail}
 							onDuplicate={() => openDuplicateDialog(detailing)}
 							onApproveSuccess={handleApproveSuccess}
@@ -221,6 +246,8 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 							taskGroups={taskGroups}
 							tags={tags}
 							task={editing}
+							seriesCount={editingSeriesCount}
+							futureCount={editingFutureCount}
 							onSuccess={handleEditSuccess}
 						/>
 					) : null}

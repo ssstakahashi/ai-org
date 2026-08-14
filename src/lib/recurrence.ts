@@ -8,6 +8,7 @@ import {
 	parseAppDateTime,
 	startOfAppDay,
 } from "@/lib/timezone";
+import type { RecurrenceEditScope } from "@/lib/types";
 
 export type RecurrenceKind = "none" | "daily" | "weekly" | "monthly";
 
@@ -98,6 +99,11 @@ export function shiftDateKeepingDuration(
 export function parseRecurrenceKind(raw: string): RecurrenceKind {
 	if (raw === "daily" || raw === "weekly" || raw === "monthly") return raw;
 	return "none";
+}
+
+export function parseRecurrenceEditScope(raw: string): RecurrenceEditScope {
+	if (raw === "future" || raw === "all") return raw;
+	return "this";
 }
 
 export function parseWeekdays(values: string[]): number[] {

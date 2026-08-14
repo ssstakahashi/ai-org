@@ -92,8 +92,18 @@ export type Task = {
 	notes: string;
 	category_id: string | null;
 	task_group_id: string | null;
+	recurrence_series_id: string | null;
 	created_at: string;
 	updated_at: string;
+};
+
+/** 繰り返しタスクの編集・削除の適用範囲 */
+export type RecurrenceEditScope = "this" | "future" | "all";
+
+export const RECURRENCE_EDIT_SCOPE_LABEL: Record<RecurrenceEditScope, string> = {
+	this: "このタスクのみ",
+	future: "これ以降のすべて",
+	all: "シリーズ全体",
 };
 
 export type TaskLink = {

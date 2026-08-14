@@ -1,16 +1,24 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { RecurrenceEditScopeFields } from "@/components/RecurrenceEditScopeFields";
 import { StatusIcon } from "@/components/StatusIcon";
 import { TaskLinkList } from "@/components/TaskLinkList";
 import { deleteTask, updateTaskStatus } from "@/app/actions";
 import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
 import { mediaUrl } from "@/lib/media-upload";
 import { formatPeriodLabel } from "@/lib/task-views";
-import { TASK_STATUS_LABEL, type TaskWithEmployee } from "@/lib/types";
+import {
+	RECURRENCE_EDIT_SCOPE_LABEL,
+	TASK_STATUS_LABEL,
+	type RecurrenceEditScope,
+	type TaskWithEmployee,
+} from "@/lib/types";
 
 type Props = {
 	task: TaskWithEmployee;
+	seriesCount: number;
+	futureCount: number;
 	onEdit: () => void;
 	onDuplicate: () => void;
 	onApproveSuccess: () => void;
@@ -20,6 +28,8 @@ type Props = {
 
 export function TaskDetailPanel({
 	task,
+	seriesCount,
+	futureCount,
 	onEdit,
 	onDuplicate,
 	onApproveSuccess,
@@ -28,9 +38,11 @@ export function TaskDetailPanel({
 }: Props) {
 	const [pending, startTransition] = useTransition();
 	const [error, setError] = useState<string | null>(null);
+	const [deleteScope, setDeleteScope] = useState<RecurrenceEditScope>("this");
 	const periodLabel = formatPeriodLabel(task);
 	const isDone = task.status === "done";
 	const isDraft = task.status === "draft";
+	const isSeries = seriesCount > 1;
 
 	function handleApprove() {
 		if (!isDraft || pending) return;
@@ -66,12 +78,17 @@ export function TaskDetailPanel({
 
 	function handleDelete() {
 		if (pending) return;
-		if (!window.confirm(`「${task.title}」を削除しますか？`)) return;
+		const scopeLabel = isSeries ? RECURRENCE_EDIT_SCOPE_LABEL[deleteScope] : "このタスク";
+		const count =
+			deleteScope === "all" ? seriesCount : deleteScope === "future" ? futureCount : 1;
+		const countHint = isSeries && count > 1 ? `（${count}件）` : "";
+		if (!window.confirm(`「${task.title}」を${scopeLabel}${countHint}削除しますか？`)) return;
 		setError(null);
 		startTransition(async () => {
 			try {
 				const formData = new FormData();
 				formData.set("id", task.id);
+				formData.set("edit_scope", deleteScope);
 				await deleteTask(formData);
 				onDeleteSuccess();
 			} catch (err) {
@@ -84,6 +101,7 @@ export function TaskDetailPanel({
 		<div className="task-detail">
 			<div className="task-meta">
 				<span className={`badge status-${task.status}`}>{TASK_STATUS_LABEL[task.status]}</span>
+				{isSeries ? <span className="badge">繰り返し {seriesCount}件</span> : null}
 				{task.category_name ? (
 					<span className="badge badge-category" style={tintStyle(task.category_color)}>
 						{task.category_name}
@@ -125,6 +143,15 @@ export function TaskDetailPanel({
 				</a>
 			) : null}
 			{error ? <p className="form-error">{error}</p> : null}
+			{isSeries ? (
+				<RecurrenceEditScopeFields
+					name="delete_scope"
+					mode="delete"
+					seriesCount={seriesCount}
+					futureCount={futureCount}
+					onScopeChange={setDeleteScope}
+				/>
+			) : null}
 			<div className="task-actions task-detail-actions">
 				<div className="task-detail-actions-start">
 					<button

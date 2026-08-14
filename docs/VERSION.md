@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.25 (2026-08-14)
+
+- 繰り返しタスクに recurrence_series_id を付与し、シリーズ単位の一括編集・削除を追加
+
 ## 0.0.24 (2026-08-14)
 
 - 業務台帳タスクに複数リンク登録と OG プレビュー表示を追加
