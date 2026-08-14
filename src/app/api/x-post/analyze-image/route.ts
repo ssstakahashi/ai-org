@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { suggestXPostBodyFromImage } from "@/lib/x-post-ai";
+import { suggestXPostFromImage } from "@/lib/x-post-ai";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,6 @@ const ALLOWED_MIME_PREFIXES = ["image/"];
 export async function POST(request: NextRequest) {
 	const formData = await request.formData();
 	const image = formData.get("image");
-	const title = String(formData.get("title") ?? "").trim();
 	const notes = String(formData.get("notes") ?? "").trim();
 
 	if (!(image instanceof File) || image.size === 0) {
@@ -27,11 +26,11 @@ export async function POST(request: NextRequest) {
 
 	try {
 		const buffer = await image.arrayBuffer();
-		const body = await suggestXPostBodyFromImage(buffer, {
-			title: title || undefined,
+		const result = await suggestXPostFromImage(buffer, {
 			notes: notes || undefined,
+			mimeType,
 		});
-		return NextResponse.json({ body });
+		return NextResponse.json(result);
 	} catch (error) {
 		console.error("x-post analyze-image failed", error);
 		const message = error instanceof Error ? error.message : "投稿文の生成に失敗しました";

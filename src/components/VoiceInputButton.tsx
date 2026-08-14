@@ -22,6 +22,7 @@ export function VoiceInputButton({ state, onClick, disabled = false }: Props) {
 			type="button"
 			className={`voice-input-btn${state === "recording" ? " is-recording" : ""}`}
 			onClick={onClick}
+			onMouseDown={(event) => event.preventDefault()}
 			disabled={disabled || state === "transcribing"}
 			aria-pressed={state === "recording"}
 			aria-label={label}

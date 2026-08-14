@@ -312,15 +312,7 @@ const X_POST_SELECT = `SELECT
 				x_post_id, last_error, created_at, updated_at
 			 FROM x_posts`;
 
-const X_POST_ORDER = `ORDER BY
-				CASE status
-					WHEN 'scheduled' THEN 0
-					WHEN 'approved' THEN 1
-					WHEN 'draft' THEN 2
-					WHEN 'failed' THEN 3
-					ELSE 4
-				END,
-				COALESCE(scheduled_at, created_at) ASC`;
+const X_POST_ORDER = `ORDER BY COALESCE(scheduled_at, created_at) ASC`;
 
 function revalidateTaskPages() {
 	revalidatePath("/");

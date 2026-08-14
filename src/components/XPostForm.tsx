@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState, type ChangeEvent } from "react";
 import { createXPostFormAction, updateXPostFormAction } from "@/app/actions";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { StatusIcon } from "@/components/StatusIcon";
 import { mediaUrl } from "@/lib/media-upload";
 import { toAppDateTimeLocal } from "@/lib/timezone";
@@ -38,6 +39,7 @@ export function XPostForm({
 	const [clearImage, setClearImage] = useState(false);
 	const [converting, setConverting] = useState(false);
 	const [analyzing, setAnalyzing] = useState(false);
+	const [title, setTitle] = useState(post?.title ?? "");
 	const [body, setBody] = useState(post?.body ?? "");
 	const [state, formAction, pending] = useActionState(
 		isEdit ? updateXPostFormAction : createXPostFormAction,
@@ -48,6 +50,10 @@ export function XPostForm({
 		? toAppDateTimeLocal(post.scheduled_at)
 		: defaultScheduledAt;
 	const error = clientError ?? state.error;
+	const imageBusy = converting || analyzing;
+	const imageBusyLabel = converting
+		? "WebP に変換中…"
+		: "画像を解析してタイトルと投稿文を作成中…";
 	const storedImageUrl = post?.image_key ? mediaUrl(post.image_key) : null;
 	const previewUrl = localPreviewUrl ?? (!clearImage ? storedImageUrl : null);
 	const previewCaption = localPreviewUrl
@@ -61,8 +67,9 @@ export function XPostForm({
 	}, [state.ok, onSuccess]);
 
 	useEffect(() => {
+		setTitle(post?.title ?? "");
 		setBody(post?.body ?? "");
-	}, [post?.body]);
+	}, [post?.title, post?.body]);
 
 	useEffect(() => {
 		return () => {
@@ -70,20 +77,16 @@ export function XPostForm({
 		};
 	}, [localPreviewUrl]);
 
-	async function suggestBodyFromImage(
+	async function suggestFromImage(
 		image: File,
 		form: HTMLFormElement | null | undefined,
 	) {
-		const titleInput = form?.elements.namedItem("title");
 		const notesInput = form?.elements.namedItem("notes");
-		const title =
-			titleInput instanceof HTMLInputElement ? titleInput.value.trim() : "";
 		const notes =
 			notesInput instanceof HTMLTextAreaElement ? notesInput.value.trim() : "";
 
 		const payload = new FormData();
 		payload.set("image", image);
-		if (title) payload.set("title", title);
 		if (notes) payload.set("notes", notes);
 
 		setAnalyzing(true);
@@ -93,14 +96,19 @@ export function XPostForm({
 				method: "POST",
 				body: payload,
 			});
-			const data = (await response.json()) as { body?: string; error?: string };
+			const data = (await response.json()) as {
+				title?: string;
+				body?: string;
+				error?: string;
+			};
 			if (!response.ok) {
 				throw new Error(data.error ?? "投稿文の生成に失敗しました");
 			}
-			if (!data.body?.trim()) {
+			if (!data.body?.trim() && !data.title?.trim()) {
 				throw new Error("投稿文を生成できませんでした");
 			}
-			setBody(data.body.trim());
+			if (data.title?.trim()) setTitle(data.title.trim());
+			if (data.body?.trim()) setBody(data.body.trim());
 		} catch (error) {
 			const message =
 				error instanceof Error ? error.message : "投稿文の生成に失敗しました";
@@ -143,7 +151,7 @@ export function XPostForm({
 			setClearImage(false);
 			setLocalPreviewUrl(URL.createObjectURL(webp));
 			setImageFileName(webp.name);
-			await suggestBodyFromImage(webp, input.form);
+			await suggestFromImage(webp, input.form);
 		} catch {
 			setClientError("画像を WebP に変換できませんでした");
 			setLocalPreviewUrl(null);
@@ -198,7 +206,9 @@ export function XPostForm({
 						name="title"
 						required
 						placeholder="例: 今週の畑便り"
-						defaultValue={post?.title ?? ""}
+						value={title}
+						onChange={(event) => setTitle(event.target.value)}
+						disabled={imageBusy}
 					/>
 				</label>
 				<label className="full">
@@ -206,14 +216,11 @@ export function XPostForm({
 					<textarea
 						name="body"
 						rows={isEdit ? 10 : 4}
-						placeholder="X に投稿する本文（280文字以内）"
+						placeholder="X に投稿する本文（全角140文字以内）"
 						value={body}
 						onChange={(event) => setBody(event.target.value)}
-						disabled={analyzing}
+						disabled={imageBusy}
 					/>
-					{analyzing ? (
-						<p className="field-hint">画像を解析して投稿文を生成中…</p>
-					) : null}
 				</label>
 				<label className="full">
 					<span>画像</span>
@@ -222,15 +229,15 @@ export function XPostForm({
 						name="image"
 						accept="image/*"
 						onChange={handleImageChange}
-						disabled={converting || analyzing || pending}
+						disabled={imageBusy || pending}
 					/>
-					<p className="field-hint">
-						{converting
-							? "WebP に変換中…"
-							: analyzing
-								? "過去の投稿を参考に AI が投稿文を作成中…"
-								: "選択後に WebP へ変換し、AI が投稿文を提案します（最大 8MB）"}
-					</p>
+					{imageBusy ? (
+						<LoadingSpinner label={imageBusyLabel} />
+					) : (
+						<p className="field-hint">
+							選択後に WebP へ変換し、AI がタイトルと投稿文を提案します（最大 8MB）
+						</p>
+					)}
 					{previewUrl ? (
 						<figure className="image-preview">
 							{/* eslint-disable-next-line @next/next/no-img-element -- blob / R2 配信プレビュー */}
@@ -238,6 +245,11 @@ export function XPostForm({
 								src={previewUrl}
 								alt={previewCaption ?? "画像プレビュー"}
 							/>
+							{imageBusy ? (
+								<div className="image-preview-overlay">
+									<LoadingSpinner label={imageBusyLabel} />
+								</div>
+							) : null}
 							{previewCaption ? (
 								<figcaption className="field-hint">{previewCaption}</figcaption>
 							) : null}
@@ -281,7 +293,7 @@ export function XPostForm({
 					/>
 				</label>
 			</div>
-			<button type="submit" className="primary" disabled={pending || converting || analyzing}>
+			<button type="submit" className="primary" disabled={pending || imageBusy}>
 				{pending ? "保存中…" : isEdit ? "変更を保存" : "投稿を追加"}
 			</button>
 		</form>

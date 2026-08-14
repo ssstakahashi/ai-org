@@ -10,4 +10,5 @@ interface CloudflareEnv {
 	APP_PUBLIC_URL?: string;
 	CF_API_TOKEN?: string;
 	CLOUDFLARE_API_TOKEN?: string;
+	GEMINI_API_KEY?: string;
 }

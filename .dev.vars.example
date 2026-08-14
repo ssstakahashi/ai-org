@@ -22,3 +22,7 @@
 # GOOGLE_SERVICE_ACCOUNT_EMAIL=
 # GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=
 # APP_PUBLIC_URL=https://your-ai-org.example.com
+
+# X投稿の画像解析（Google AI Studio / Gemini API）
+# https://aistudio.google.com/apikey
+# GEMINI_API_KEY=

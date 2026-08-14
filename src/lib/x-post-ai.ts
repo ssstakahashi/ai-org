@@ -1,102 +1,123 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getDb } from "@/lib/db";
+import { geminiGenerateContent, getGeminiApiKey } from "@/lib/gemini";
+import { parseGeneratedPost } from "@/lib/x-post-parse";
+import {
+	getWorkersAiAccountId,
+	getWorkersAiApiToken,
+	runWorkersAiRestApi,
+	shouldUseWorkersAiRestApi,
+} from "@/lib/workers-ai-rest";
 
-const VISION_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct" as const;
+const TEXT_MODEL = "@cf/meta/llama-3.1-8b-instruct" as const;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const PAST_POSTS_LIMIT = 10;
-const PAST_BODY_SNIPPET_CHARS = 200;
-const X_POST_MAX_CHARS = 280;
+const PAST_POSTS_LIMIT = 5;
 
 type PastPost = {
 	title: string;
 	body: string;
-	notes: string;
 };
 
-type VisionResult = {
+type AiTextResult = {
 	response?: string;
+	description?: string;
+	text?: string;
 };
 
-type CloudflareApiResponse = {
-	success?: boolean;
-	result?: VisionResult;
-	errors?: { message?: string }[];
-};
+function extractAiText(result: AiTextResult | null | undefined): string {
+	if (!result) return "";
+	if (typeof result.response === "string" && result.response.trim()) return result.response.trim();
+	if (typeof result.description === "string" && result.description.trim()) {
+		return result.description.trim();
+	}
+	if (typeof result.text === "string" && result.text.trim()) return result.text.trim();
+	return "";
+}
 
 export type SuggestXPostOptions = {
-	title?: string;
 	notes?: string;
+	mimeType?: string;
 };
 
-function getApiToken(env: CloudflareEnv): string | undefined {
-	return (
-		env.CF_API_TOKEN ??
-		env.CLOUDFLARE_API_TOKEN ??
-		process.env.CF_API_TOKEN ??
-		process.env.CLOUDFLARE_API_TOKEN
-	);
+export type SuggestXPostResult = {
+	title: string;
+	body: string;
+};
+
+function summarizePastStyle(pastPosts: PastPost[]): string {
+	if (pastPosts.length === 0) {
+		return "親しみやすい農家アカウントのカジュアルな口調";
+	}
+
+	const lengths = pastPosts.map((post) => post.body.trim().length).filter(Boolean);
+	const avgLength =
+		lengths.length > 0
+			? Math.round(lengths.reduce((sum, length) => sum + length, 0) / lengths.length)
+			: 80;
+	const usesEmoji = pastPosts.some((post) => /[\u{1F300}-\u{1FAFF}]/u.test(post.body));
+	const usesHashtag = pastPosts.some((post) => /#[\w\u3040-\u30FF\u4E00-\u9FFF]+/u.test(post.body));
+
+	return [
+		"口調: カジュアルで親しみやすい",
+		`本文の長さ目安: ${avgLength}文字前後`,
+		usesEmoji ? "絵文字: たまに使う" : "絵文字: ほぼ使わない",
+		usesHashtag ? "ハッシュタグ: たまに使う" : "ハッシュタグ: ほぼ使わない",
+	].join("、");
 }
 
-function shouldUseRestApi(env: CloudflareEnv) {
-	return env.NEXTJS_ENV === "development" && Boolean(getApiToken(env) && env.CF_ACCOUNT_ID);
+function buildImageDescriptionPrompt(): string {
+	return `この画像を注意深く観察し、日本語で見えている内容だけを具体的に描写してください。
+
+次の観点を箇条書きで書いてください:
+- 主な被写体（作物名、道具、人物、動物など。名前が分かれば書く）
+- 色・大きさ・量・熟れ具合などの状態
+- 行われている作業や状況
+- 場所の手がかり（屋内/屋外、畑、ハウス、厨房など）
+
+ルール:
+- 推測や一般知識で補わない
+- 確信が持てない場合は「判別困難」と書く
+- 投稿文やタイトルは書かない。描写のみ。`;
 }
 
-function trimSnippet(text: string, max = PAST_BODY_SNIPPET_CHARS): string {
-	const trimmed = text.trim();
-	if (!trimmed) return "";
-	return trimmed.length <= max ? trimmed : `${trimmed.slice(0, max)}…`;
-}
-
-function buildPrompt(pastPosts: PastPost[], options?: SuggestXPostOptions): string {
-	const pastSection =
-		pastPosts.length > 0
-			? pastPosts
-					.map(
-						(post, index) =>
-							`${index + 1}. タイトル: ${post.title.trim() || "（なし）"}
-   本文: ${trimSnippet(post.body)}
-   ${post.notes.trim() ? `メモ: ${trimSnippet(post.notes, 120)}` : ""}`.trimEnd(),
-					)
-					.join("\n\n")
-			: "（まだ投稿実績がありません。親しみやすい農家アカウントのトーンで書いてください）";
-
-	const titleLine = options?.title?.trim()
-		? `\n## 今回のタイトル（参考）\n${options.title.trim()}`
-		: "";
+function buildPostDraftPrompt(
+	imageDescription: string,
+	styleHint: string,
+	options?: SuggestXPostOptions,
+): string {
 	const notesLine = options?.notes?.trim()
 		? `\n## 追加の指示（メモ）\n${options.notes.trim()}`
 		: "";
 
-	return `あなたは農家のX（Twitter）アカウントの投稿文を書くアシスタントです。
-添付画像の内容を見て、X用の投稿文を日本語で1つ作成してください。
+	return `あなたは農家のX（Twitter）アカウントの投稿を書くアシスタントです。
+以下の「画像の描写」だけを根拠に、タイトルと投稿文を作成してください。
 
-## 過去の投稿（文体・長さ・絵文字の使い方の参考）
-${pastSection}
-${titleLine}${notesLine}
+## 画像の描写
+${imageDescription}
 
-## 制約
-- ${X_POST_MAX_CHARS}文字以内（厳守）
-- 画像の内容を具体的に伝える
-- 過去の投稿と同じようなトーン・文体に合わせる
-- ハッシュタグは0〜2個まで（無理に付けない）
-- 投稿文の本文だけを出力する（説明・前置き・引用符は不要）`;
-}
+## 文体の参考（トーンのみ。過去の題材・文言は使わない）
+${styleHint}
+${notesLine}
 
-function normalizeGeneratedBody(text: string): string {
-	let body = text.trim();
-	body = body.replace(/^["「『]|["」』]$/g, "").trim();
-	body = body.replace(/^(投稿文|本文)[:：]\s*/u, "").trim();
-	if (body.length > X_POST_MAX_CHARS) {
-		body = body.slice(0, X_POST_MAX_CHARS).trimEnd();
-	}
-	return body;
+## 重要
+- 画像の描写にない内容は書かない
+- 過去の投稿と同じ題材・フレーズをコピーしない
+- 投稿文は全角換算140文字以内
+
+## 出力形式（厳守。見本のように書く）
+
+**タイトル**
+収穫の様子
+
+**投稿文**
+今日はハウスでトマトを収穫しました。`;
 }
 
 async function listPastXPostsForAi(): Promise<PastPost[]> {
 	const db = await getDb();
 	const { results } = await db
 		.prepare(
-			`SELECT title, body, notes
+			`SELECT title, body
 			 FROM x_posts
 			 WHERE status = 'done' AND TRIM(body) != ''
 			 ORDER BY COALESCE(scheduled_at, created_at) DESC
@@ -107,57 +128,107 @@ async function listPastXPostsForAi(): Promise<PastPost[]> {
 	return results ?? [];
 }
 
-async function suggestViaBinding(
+type RestCredentials = { accountId: string; apiToken: string };
+
+async function runTextModel(
 	env: CloudflareEnv,
-	base64: string,
 	prompt: string,
-): Promise<VisionResult> {
-	return (await env.AI.run(VISION_MODEL, {
-		image: base64,
+	rest?: RestCredentials,
+): Promise<AiTextResult> {
+	const input = {
 		prompt,
 		max_tokens: 512,
-		temperature: 0.4,
-	})) as VisionResult;
+		temperature: 0.5,
+	};
+
+	if (rest) {
+		return runWorkersAiRestApi<AiTextResult>(rest.accountId, rest.apiToken, TEXT_MODEL, input);
+	}
+	return (await env.AI.run(TEXT_MODEL, input)) as AiTextResult;
 }
 
-async function suggestViaRestApi(
-	accountId: string,
-	apiToken: string,
+async function describeImage(
+	geminiApiKey: string,
 	base64: string,
-	prompt: string,
-): Promise<VisionResult> {
-	const response = await fetch(
-		`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${encodeURIComponent(VISION_MODEL)}`,
-		{
-			method: "POST",
-			headers: {
-				Authorization: `Bearer ${apiToken}`,
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				image: base64,
-				prompt,
-				max_tokens: 512,
-				temperature: 0.4,
-			}),
-		},
-	);
+	mimeType: string,
+): Promise<string> {
+	const description = await geminiGenerateContent(geminiApiKey, buildImageDescriptionPrompt(), {
+		temperature: 0.2,
+		image: { base64, mimeType },
+	});
+	if (!description) {
+		throw new Error("画像の内容を読み取れませんでした");
+	}
+	return description;
+}
 
-	const payload = (await response.json()) as CloudflareApiResponse;
-	if (!response.ok || payload.success === false) {
-		const message =
-			payload.errors?.map((error) => error.message).filter(Boolean).join("; ") ||
-			`Workers AI API error (${response.status})`;
-		throw new Error(message);
+async function draftPostFromDescription(
+	env: CloudflareEnv,
+	imageDescription: string,
+	pastPosts: PastPost[],
+	options: SuggestXPostOptions | undefined,
+	rest: RestCredentials | undefined,
+	geminiApiKey: string,
+	base64: string,
+	mimeType: string,
+): Promise<SuggestXPostResult> {
+	const prompt = buildPostDraftPrompt(imageDescription, summarizePastStyle(pastPosts), options);
+	let parsed: SuggestXPostResult = { title: "", body: "" };
+
+	try {
+		const result = await runTextModel(env, prompt, rest);
+		const raw = extractAiText(result);
+		parsed = parseGeneratedPost(raw);
+		if (!parsed.title && !parsed.body && raw) {
+			console.warn("x-post-ai: text model output could not be parsed", raw.slice(0, 500));
+		}
+	} catch (error) {
+		console.warn("x-post-ai: text model failed, falling back to Gemini vision", error);
 	}
 
-	return payload.result ?? {};
+	if (!parsed.title && !parsed.body) {
+		parsed = await draftPostViaGemini(
+			geminiApiKey,
+			base64,
+			mimeType,
+			imageDescription,
+			pastPosts,
+			options,
+		);
+	}
+
+	if (!parsed.title && !parsed.body) {
+		throw new Error("投稿文を生成できませんでした");
+	}
+	return parsed;
 }
 
-export async function suggestXPostBodyFromImage(
+async function draftPostViaGemini(
+	geminiApiKey: string,
+	base64: string,
+	mimeType: string,
+	imageDescription: string,
+	pastPosts: PastPost[],
+	options?: SuggestXPostOptions,
+): Promise<SuggestXPostResult> {
+	const prompt = `${buildPostDraftPrompt(imageDescription, summarizePastStyle(pastPosts), options)}
+
+上記の画像の描写と添付画像の両方を見て、出力形式どおりに書いてください。`;
+	const raw = await geminiGenerateContent(geminiApiKey, prompt, {
+		temperature: 0.5,
+		image: { base64, mimeType },
+	});
+	const parsed = parseGeneratedPost(raw);
+	if (!parsed.title && !parsed.body) {
+		console.warn("x-post-ai: Gemini draft fallback could not be parsed", raw.slice(0, 500));
+	}
+	return parsed;
+}
+
+export async function suggestXPostFromImage(
 	image: ArrayBuffer,
 	options?: SuggestXPostOptions,
-): Promise<string> {
+): Promise<SuggestXPostResult> {
 	if (image.byteLength === 0) {
 		throw new Error("画像データが空です");
 	}
@@ -166,39 +237,59 @@ export async function suggestXPostBodyFromImage(
 	}
 
 	const { env } = await getCloudflareContext({ async: true });
-	const pastPosts = await listPastXPostsForAi();
-	const prompt = buildPrompt(pastPosts, options);
-	const base64 = Buffer.from(image).toString("base64");
+	const geminiApiKey = getGeminiApiKey(env);
+	if (!geminiApiKey) {
+		throw new Error(
+			"GEMINI_API_KEY が必要です。Google AI Studio で API キーを作成し、.dev.vars または Workers シークレットに設定してください。",
+		);
+	}
 
-	let result: VisionResult;
-	if (shouldUseRestApi(env)) {
-		const accountId = env.CF_ACCOUNT_ID;
-		const apiToken = getApiToken(env);
+	const pastPosts = await listPastXPostsForAi();
+	const base64 = Buffer.from(image).toString("base64");
+	const mimeType = options?.mimeType?.trim() || "image/jpeg";
+
+	let rest: RestCredentials | undefined;
+	if (shouldUseWorkersAiRestApi(env)) {
+		const accountId = getWorkersAiAccountId(env);
+		const apiToken = getWorkersAiApiToken(env);
 		if (!accountId || !apiToken) {
 			throw new Error("CF_ACCOUNT_ID と CF_API_TOKEN が必要です");
 		}
-		result = await suggestViaRestApi(accountId, apiToken, base64, prompt);
+		rest = { accountId, apiToken };
 	} else if (env.NEXTJS_ENV === "development") {
 		throw new Error(
 			"ローカル開発では CF_API_TOKEN が必要です。Cloudflare ダッシュボード > Workers AI > Use REST API でトークンを作成し、.dev.vars に CF_API_TOKEN=... を追加してください。",
 		);
-	} else {
-		try {
-			result = await suggestViaBinding(env, base64, prompt);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			if (message.includes("Too many redirects")) {
-				throw new Error(
-					"画像解析 API に接続できませんでした。CF_API_TOKEN を .dev.vars に設定して再試行してください。",
-				);
-			}
-			throw error;
-		}
 	}
 
-	const body = normalizeGeneratedBody(result.response?.trim() ?? "");
-	if (!body) {
-		throw new Error("投稿文を生成できませんでした");
+	try {
+		const imageDescription = await describeImage(geminiApiKey, base64, mimeType);
+		return await draftPostFromDescription(
+			env,
+			imageDescription,
+			pastPosts,
+			options,
+			rest,
+			geminiApiKey,
+			base64,
+			mimeType,
+		);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		if (message.includes("Too many redirects")) {
+			throw new Error(
+				"画像解析 API に接続できませんでした。GEMINI_API_KEY と CF_API_TOKEN を .dev.vars に設定して再試行してください。",
+			);
+		}
+		throw error;
 	}
-	return body;
+}
+
+/** @deprecated suggestXPostFromImage を使用 */
+export async function suggestXPostBodyFromImage(
+	image: ArrayBuffer,
+	options?: SuggestXPostOptions,
+): Promise<string> {
+	const result = await suggestXPostFromImage(image, options);
+	return result.body;
 }
