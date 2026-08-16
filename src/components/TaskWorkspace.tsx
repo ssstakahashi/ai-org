@@ -127,6 +127,7 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 	}, [router]);
 
 	const handleCompleteSuccess = useCallback(() => {
+		setDetailing((current) => (current ? { ...current, status: "done" } : null));
 		closeDetailDialog();
 		router.refresh();
 	}, [closeDetailDialog, router]);

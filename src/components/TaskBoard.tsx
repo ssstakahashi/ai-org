@@ -13,7 +13,7 @@ import {
 	getGanttScrollLeft,
 	saveGanttScrollLeft,
 } from "@/lib/gantt-scroll-storage";
-import { updateTaskStatus } from "@/app/actions";
+import { setTaskStatus } from "@/app/actions";
 import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
 import {
 	TASK_STATUS_LABEL,
@@ -561,10 +561,7 @@ function KanbanView({
 	async function moveToStatus(taskId: string, status: TaskStatus) {
 		setPending(true);
 		try {
-			const formData = new FormData();
-			formData.set("id", taskId);
-			formData.set("status", status);
-			await updateTaskStatus(formData);
+			await setTaskStatus(taskId, status);
 		} finally {
 			setPending(false);
 			setDraggingId(null);

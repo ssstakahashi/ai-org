@@ -4,9 +4,10 @@ import { useRef, useState, useTransition } from "react";
 import { RecurrenceEditScopeFields } from "@/components/RecurrenceEditScopeFields";
 import { StatusIcon } from "@/components/StatusIcon";
 import { TaskLinkList } from "@/components/TaskLinkList";
-import { deleteTask, updateTaskStatus } from "@/app/actions";
+import { deleteTask, setTaskStatus } from "@/app/actions";
 import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
 import { mediaUrl } from "@/lib/media-upload";
+import { recoverFromStaleServerAction } from "@/lib/server-action-client";
 import { formatPeriodLabel } from "@/lib/task-views";
 import {
 	TASK_STATUS_LABEL,
@@ -50,12 +51,14 @@ export function TaskDetailPanel({
 		setError(null);
 		startTransition(async () => {
 			try {
-				const formData = new FormData();
-				formData.set("id", task.id);
-				formData.set("status", "approved");
-				await updateTaskStatus(formData);
+				const result = await setTaskStatus(task.id, "approved");
+				if (result.error) {
+					setError(result.error);
+					return;
+				}
 				onApproveSuccess();
 			} catch (err) {
+				if (recoverFromStaleServerAction(err)) return;
 				setError(err instanceof Error ? err.message : "承認の保存に失敗しました");
 			}
 		});
@@ -66,12 +69,14 @@ export function TaskDetailPanel({
 		setError(null);
 		startTransition(async () => {
 			try {
-				const formData = new FormData();
-				formData.set("id", task.id);
-				formData.set("status", "done");
-				await updateTaskStatus(formData);
+				const result = await setTaskStatus(task.id, "done");
+				if (result.error) {
+					setError(result.error);
+					return;
+				}
 				onCompleteSuccess();
 			} catch (err) {
+				if (recoverFromStaleServerAction(err)) return;
 				setError(err instanceof Error ? err.message : "完了の保存に失敗しました");
 			}
 		});
@@ -100,6 +105,7 @@ export function TaskDetailPanel({
 				await deleteTask(formData);
 				onDeleteSuccess();
 			} catch (err) {
+				if (recoverFromStaleServerAction(err)) return;
 				setError(err instanceof Error ? err.message : "削除に失敗しました");
 			}
 		});

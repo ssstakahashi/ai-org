@@ -42,6 +42,7 @@ import {
 	type Tag,
 	type TaskGroup,
 	type TaskLink,
+	TASK_STATUS_LABEL,
 	type TaskStatus,
 	type RecurrenceEditScope,
 	type TaskWithEmployee,
@@ -1652,25 +1653,54 @@ export async function deletePage(formData: FormData) {
 	revalidateTaskPages();
 }
 
-export async function updateTaskStatus(formData: FormData) {
-	const db = await getDb();
-	const id = String(formData.get("id") ?? "").trim();
-	const status = String(formData.get("status") ?? "").trim() as TaskStatus;
+export async function setTaskStatus(
+	id: string,
+	status: TaskStatus,
+): Promise<{ error?: string }> {
+	const taskId = id.trim();
+	const nextStatus = String(status ?? "").trim();
 
-	if (!id || !status) {
-		throw new Error("id と status が必要です");
+	if (!taskId || !nextStatus) {
+		return { error: "id と status が必要です" };
+	}
+	if (!(nextStatus in TASK_STATUS_LABEL)) {
+		return { error: "不正なステータスです" };
 	}
 
-	await db
-		.prepare(
-			`UPDATE tasks
-			 SET status = ?, updated_at = datetime('now')
-			 WHERE id = ?`,
-		)
-		.bind(status, id)
-		.run();
+	try {
+		const db = await getDb();
+		const result = await db
+			.prepare(
+				`UPDATE tasks
+				 SET status = ?, updated_at = datetime('now')
+				 WHERE id = ?`,
+			)
+			.bind(nextStatus, taskId)
+			.run();
+		if (!result.success) {
+			return { error: "完了の保存に失敗しました" };
+		}
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { error: message || "完了の保存に失敗しました" };
+	}
 
-	revalidateTaskPages();
+	try {
+		revalidateTaskPages();
+	} catch {
+		// DB は更新済み。呼び出し側の refresh に任せる
+	}
+	return {};
+}
+
+export async function updateTaskStatus(formData: FormData) {
+	const result = await setTaskStatus(
+		String(formData.get("id") ?? ""),
+		String(formData.get("status") ?? "") as TaskStatus,
+	);
+	if (result.error) {
+		throw new Error(result.error);
+	}
 }
 
 export async function deleteTask(formData: FormData) {
