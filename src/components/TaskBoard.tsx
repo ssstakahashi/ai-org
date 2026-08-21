@@ -66,23 +66,34 @@ const NEXT_STATUS: Partial<Record<TaskStatus, TaskStatus>> = {
 export function TaskBoard({ tasks, onDayClick, onTaskClick }: Props) {
 	const [view, setView] = useState<ViewKey>("calendar");
 	const [month, setMonth] = useState(() => startOfMonth(new Date()));
+	const toolbarRef = useRef<HTMLDivElement>(null);
 
 	useLayoutEffect(() => {
 		if (view !== "gantt") return;
 		const nav = document.querySelector<HTMLElement>(".app-topnav");
-		if (!nav) return;
-		const syncNavHeight = () => {
-			document.documentElement.style.setProperty(
-				"--app-topnav-height",
-				`${nav.offsetHeight}px`,
-			);
+		const toolbar = toolbarRef.current;
+		const syncStickyOffsets = () => {
+			if (nav) {
+				document.documentElement.style.setProperty(
+					"--app-topnav-height",
+					`${nav.offsetHeight}px`,
+				);
+			}
+			if (toolbar) {
+				document.documentElement.style.setProperty(
+					"--gantt-toolbar-height",
+					`${toolbar.offsetHeight}px`,
+				);
+			}
 		};
-		syncNavHeight();
-		const observer = new ResizeObserver(syncNavHeight);
-		observer.observe(nav);
+		syncStickyOffsets();
+		const observer = new ResizeObserver(syncStickyOffsets);
+		if (nav) observer.observe(nav);
+		if (toolbar) observer.observe(toolbar);
 		return () => {
 			observer.disconnect();
 			document.documentElement.style.removeProperty("--app-topnav-height");
+			document.documentElement.style.removeProperty("--gantt-toolbar-height");
 		};
 	}, [view]);
 
@@ -114,7 +125,10 @@ export function TaskBoard({ tasks, onDayClick, onTaskClick }: Props) {
 			</div>
 
 			{(view === "calendar" || view === "gantt") && (
-				<div className={view === "gantt" ? "view-toolbar is-sticky" : "view-toolbar"}>
+				<div
+					ref={view === "gantt" ? toolbarRef : undefined}
+					className={view === "gantt" ? "view-toolbar is-sticky" : "view-toolbar"}
+				>
 					<div className="view-toolbar-side view-toolbar-start">
 						<button type="button" onClick={() => setMonth((m) => addMonths(m, -1))}>
 							前月
@@ -362,6 +376,17 @@ function CalendarView({
 	);
 }
 
+function GanttColgroup({ dayCount }: { dayCount: number }) {
+	return (
+		<colgroup>
+			<col className="gantt-col-label" />
+			{Array.from({ length: dayCount }, (_, index) => (
+				<col key={index} className="gantt-col-day" />
+			))}
+		</colgroup>
+	);
+}
+
 function GanttView({
 	month,
 	tasks,
@@ -377,7 +402,9 @@ function GanttView({
 	const todayKey = toDateKey(new Date());
 	const monthKey = toDateKey(startOfMonth(month)).slice(0, 7);
 	const scrollRef = useRef<HTMLDivElement>(null);
+	const headScrollRef = useRef<HTMLDivElement>(null);
 	const restoringRef = useRef(false);
+	const syncingScrollRef = useRef(false);
 	const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const sorted = useMemo(
 		() =>
@@ -396,11 +423,28 @@ function GanttView({
 		saveGanttScrollLeft(monthKey, el.scrollLeft);
 	}, [monthKey]);
 
-	const handleScroll = useCallback(() => {
+	const syncScrollLeft = useCallback((source: HTMLDivElement, target: HTMLDivElement | null) => {
+		if (!target || syncingScrollRef.current) return;
+		if (target.scrollLeft === source.scrollLeft) return;
+		syncingScrollRef.current = true;
+		target.scrollLeft = source.scrollLeft;
+		requestAnimationFrame(() => {
+			syncingScrollRef.current = false;
+		});
+	}, []);
+
+	const handleBodyScroll = useCallback(() => {
+		const body = scrollRef.current;
+		if (body) syncScrollLeft(body, headScrollRef.current);
 		if (restoringRef.current) return;
 		if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 		saveTimerRef.current = setTimeout(persistScroll, 100);
-	}, [persistScroll]);
+	}, [persistScroll, syncScrollLeft]);
+
+	const handleHeadScroll = useCallback(() => {
+		const head = headScrollRef.current;
+		if (head) syncScrollLeft(head, scrollRef.current);
+	}, [syncScrollLeft]);
 
 	useLayoutEffect(() => {
 		const el = scrollRef.current;
@@ -409,6 +453,7 @@ function GanttView({
 		if (saved == null) return;
 		restoringRef.current = true;
 		el.scrollLeft = saved;
+		if (headScrollRef.current) headScrollRef.current.scrollLeft = saved;
 		requestAnimationFrame(() => {
 			restoringRef.current = false;
 		});
@@ -426,27 +471,40 @@ function GanttView({
 			{sorted.length === 0 ? (
 				<p className="empty">この月に期間のあるタスクはありません。</p>
 			) : (
-				<div className="gantt-scroll" ref={scrollRef} onScroll={handleScroll}>
-					<table className="gantt-table">
-						<thead>
-							<tr>
-								<th className="gantt-label-col">タスク</th>
-								{days.map((day) => {
-									const key = toDateKey(day);
-									const parts = getZonedParts(day);
-									return (
-										<th
-											key={key}
-											className={key === todayKey ? "gantt-day today" : "gantt-day"}
-										>
-											<span>{parts.day}</span>
-											<small>{WEEKDAYS[parts.weekday]}</small>
-										</th>
-									);
-								})}
-							</tr>
-						</thead>
-						<tbody>
+				<div className="gantt-chart">
+					<div className="gantt-head-sticky">
+						<div
+							className="gantt-head-scroll"
+							ref={headScrollRef}
+							onScroll={handleHeadScroll}
+						>
+							<table className="gantt-table">
+								<GanttColgroup dayCount={days.length} />
+								<thead>
+									<tr>
+										<th className="gantt-label-col">タスク</th>
+										{days.map((day) => {
+											const key = toDateKey(day);
+											const parts = getZonedParts(day);
+											return (
+												<th
+													key={key}
+													className={key === todayKey ? "gantt-day today" : "gantt-day"}
+												>
+													<span>{parts.day}</span>
+													<small>{WEEKDAYS[parts.weekday]}</small>
+												</th>
+											);
+										})}
+									</tr>
+								</thead>
+							</table>
+						</div>
+					</div>
+					<div className="gantt-scroll" ref={scrollRef} onScroll={handleBodyScroll}>
+						<table className="gantt-table">
+							<GanttColgroup dayCount={days.length} />
+							<tbody>
 							{sorted.map((task) => {
 								const span = ganttSpanInDays(task, days);
 								const cells: ReactNode[] = [];
@@ -519,7 +577,8 @@ function GanttView({
 								);
 							})}
 						</tbody>
-					</table>
+						</table>
+					</div>
 				</div>
 			)}
 			{unscheduled.length > 0 ? (
