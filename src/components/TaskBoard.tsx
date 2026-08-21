@@ -67,6 +67,25 @@ export function TaskBoard({ tasks, onDayClick, onTaskClick }: Props) {
 	const [view, setView] = useState<ViewKey>("calendar");
 	const [month, setMonth] = useState(() => startOfMonth(new Date()));
 
+	useLayoutEffect(() => {
+		if (view !== "gantt") return;
+		const nav = document.querySelector<HTMLElement>(".app-topnav");
+		if (!nav) return;
+		const syncNavHeight = () => {
+			document.documentElement.style.setProperty(
+				"--app-topnav-height",
+				`${nav.offsetHeight}px`,
+			);
+		};
+		syncNavHeight();
+		const observer = new ResizeObserver(syncNavHeight);
+		observer.observe(nav);
+		return () => {
+			observer.disconnect();
+			document.documentElement.style.removeProperty("--app-topnav-height");
+		};
+	}, [view]);
+
 	const unscheduled = useMemo(
 		() => tasks.filter(showsInUnscheduledList),
 		[tasks],
@@ -95,7 +114,7 @@ export function TaskBoard({ tasks, onDayClick, onTaskClick }: Props) {
 			</div>
 
 			{(view === "calendar" || view === "gantt") && (
-				<div className="view-toolbar">
+				<div className={view === "gantt" ? "view-toolbar is-sticky" : "view-toolbar"}>
 					<div className="view-toolbar-side view-toolbar-start">
 						<button type="button" onClick={() => setMonth((m) => addMonths(m, -1))}>
 							前月

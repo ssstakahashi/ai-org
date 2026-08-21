@@ -2417,6 +2417,13 @@ button.ghost {
 	width: 100%;
 }
 
+.view-toolbar.is-sticky {
+	position: sticky;
+	top: var(--app-topnav-height, 3.5rem);
+	z-index: 40;
+	background: color-mix(in srgb, var(--panel) 92%, white);
+}
+
 .view-toolbar-side {
 	display: flex;
 	align-items: center;

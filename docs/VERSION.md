@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.34 (2026-08-21)
+
+- 業務台帳ガントの年月・前後月ボタンをスクロール時に固定
+
 ## 0.0.33 (2026-08-21)
 
 - X投稿の画像解析モデルを Gemini 3.6 Flash に戻す
