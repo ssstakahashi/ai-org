@@ -1,5 +1,5 @@
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
-const DEFAULT_MODEL = "gemini-3.7-flash";
+const DEFAULT_MODEL = "gemini-3.6-flash";
 
 type GeminiPart = { text: string } | { inline_data: { mime_type: string; data: string } };
 
