@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.32 (2026-08-21)
+
+- X投稿の画像解析モデルを Gemini 3.7 Flash に更新
+
 ## 0.0.31 (2026-08-17)
 
 - 業務台帳のタスク詳細で完了ボタンを押しても更新されない不具合を修正
