@@ -77,3 +77,38 @@ export function employeeTintStyle(
 export function colorInputValue(color: string | null | undefined): string {
 	return color && /^#[0-9a-fA-F]{6}$/i.test(color) ? color : COLOR_INPUT_FALLBACK;
 }
+
+const VALUE_CHIP_PALETTE = [
+	"#0d9488",
+	"#7c3aed",
+	"#2563eb",
+	"#dc2626",
+	"#ca8a04",
+	"#db2777",
+	"#0891b2",
+	"#65a30d",
+	"#ea580c",
+	"#4f46e5",
+	"#059669",
+	"#9333ea",
+	"#0369a1",
+	"#be123c",
+	"#b45309",
+] as const;
+
+export function hashString(value: string): number {
+	let hash = 0;
+	for (let i = 0; i < value.length; i++) {
+		hash = (hash * 31 + value.charCodeAt(i)) | 0;
+	}
+	return Math.abs(hash);
+}
+
+/** 同じ文字列には常に同じ色のチップスタイルを返す */
+export function valueChipStyle(value: string): CSSProperties | undefined {
+	const trimmed = String(value ?? "").trim();
+	if (!trimmed) return undefined;
+	const color =
+		VALUE_CHIP_PALETTE[hashString(trimmed) % VALUE_CHIP_PALETTE.length];
+	return tintStyle(color);
+}

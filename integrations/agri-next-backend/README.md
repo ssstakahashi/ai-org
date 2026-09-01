@@ -9,7 +9,7 @@
 ## 前提（ai-org 側）
 
 1. `AUTOMATION_INGEST_SECRET` を設定してデプロイ済み
-2. Cloudflare Access で `https://<ai-org-host>/api/internal/automation-ingest` を Bypass または Service Auth
+2. `https://<ai-org-host>/api/internal/automation-ingest` へ `AUTOMATION_INGEST_SECRET` で認証して POST
 3. D1 マイグレーション `0007_automation_ingest.sql` 適用済み
 
 ## コピーするファイル

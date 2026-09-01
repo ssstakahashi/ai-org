@@ -79,6 +79,31 @@ body {
 	min-width: 0;
 }
 
+.login-page {
+	min-height: calc(100vh - 3rem);
+	place-content: center;
+}
+
+.login-panel {
+	width: min(28rem, 100%);
+	margin-inline: auto;
+}
+
+.login-panel h1 {
+	margin: 0 0 0.5rem;
+	font-size: 1.35rem;
+}
+
+.login-lede {
+	margin: 0 0 1rem;
+	color: var(--muted);
+	font-size: 0.95rem;
+}
+
+.login-form {
+	margin-top: 0.5rem;
+}
+
 .app-topnav {
 	position: sticky;
 	top: 0;
@@ -256,6 +281,42 @@ a.logout-button:hover {
 .apps-sheet-table tr.is-drop-target td,
 .x-schedule-table tr.is-drop-target td {
 	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.apps-sheet-table tbody tr.apps-sheet-row {
+	cursor: pointer;
+}
+
+.apps-sheet-table tbody tr.apps-sheet-row:hover td {
+	background: color-mix(in srgb, var(--accent) 6%, white);
+}
+
+.apps-sheet-table tbody tr.apps-sheet-row:focus-visible {
+	outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+	outline-offset: -2px;
+}
+
+.apps-sheet-text-preview {
+	font-size: 0.85rem;
+	color: var(--foreground);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 14rem;
+}
+
+.apps-sheet-text-preview.muted {
+	color: var(--muted);
+}
+
+.apps-sheet-link {
+	font-size: 0.85rem;
+	color: var(--accent);
+	text-decoration: none;
+}
+
+.apps-sheet-link:hover {
+	text-decoration: underline;
 }
 
 .hero h1 {
@@ -2373,6 +2434,12 @@ button.ghost {
 }
 
 .dev-policy-filter-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+}
+
+.dev-policy-chip {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.3rem;

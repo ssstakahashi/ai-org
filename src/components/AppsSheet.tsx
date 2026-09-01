@@ -1,13 +1,23 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from "react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type CSSProperties,
+	type DragEvent,
+	type ReactNode,
+} from "react";
 import {
 	createApp,
 	deleteApp,
 	reorderApps,
 	updateApp,
 } from "@/app/actions";
+import { masterTintStyle, valueChipStyle } from "@/lib/colors";
 import {
 	DEV_POLICY_OPTIONS,
 	formatMasterLabel,
@@ -17,7 +27,6 @@ import {
 	type AppName,
 	type AppType,
 } from "@/lib/types";
-import { masterTintStyle } from "@/lib/colors";
 
 type Props = {
 	apps: AppEntry[];
@@ -46,7 +55,6 @@ const APP_HEADERS = [
 	"担当",
 	"最終デプロイ日",
 	"備考",
-	"操作",
 ] as const;
 
 const ALL = "__all__";
@@ -276,7 +284,7 @@ function SheetCell({ children }: { children: ReactNode }) {
 	return <div className="apps-sheet-cell">{children}</div>;
 }
 
-function MasterReadonlyCell({
+function MasterChip({
 	name,
 	icon,
 	color,
@@ -290,15 +298,319 @@ function MasterReadonlyCell({
 	fallback?: string;
 }) {
 	if (!name) {
-		return <span className="apps-master-readonly muted">{fallback}</span>;
+		return <span className="apps-sheet-text-preview muted">{fallback}</span>;
+	}
+	return (
+		<span className="tag-chip" style={masterTintStyle(color, textColor)}>
+			{formatMasterLabel(name, icon)}
+		</span>
+	);
+}
+
+function ValueChip({
+	value,
+	fallback = "—",
+}: {
+	value: string;
+	fallback?: string;
+}) {
+	const trimmed = value.trim();
+	if (!trimmed) {
+		return <span className="apps-sheet-text-preview muted">{fallback}</span>;
+	}
+	return (
+		<span className="tag-chip" style={valueChipStyle(trimmed)}>
+			{trimmed}
+		</span>
+	);
+}
+
+function DevPolicyChip({ value }: { value: string }) {
+	const trimmed = value.trim();
+	if (!trimmed) {
+		return <span className="apps-sheet-text-preview muted">（未設定）</span>;
+	}
+	const meta = getDevPolicyMeta(trimmed);
+	return (
+		<span
+			className="tag-chip dev-policy-chip"
+			style={{
+				color: meta.color,
+				background: meta.background,
+				borderColor: `color-mix(in srgb, ${meta.color} 30%, var(--line))`,
+			}}
+		>
+			<span aria-hidden="true">{meta.icon}</span>
+			{trimmed}
+		</span>
+	);
+}
+
+function TextPreview({
+	value,
+	fallback = "—",
+	className,
+}: {
+	value: string;
+	fallback?: string;
+	className?: string;
+}) {
+	const trimmed = value.trim();
+	if (!trimmed) {
+		return (
+			<span className={["apps-sheet-text-preview muted", className].filter(Boolean).join(" ")}>
+				{fallback}
+			</span>
+		);
 	}
 	return (
 		<span
-			className="apps-master-readonly"
-			style={masterTintStyle(color, textColor)}
+			className={["apps-sheet-text-preview", className].filter(Boolean).join(" ")}
+			title={trimmed}
 		>
-			{formatMasterLabel(name, icon)}
+			{trimmed}
 		</span>
+	);
+}
+
+function UrlPreview({
+	url,
+	onActivate,
+}: {
+	url: string;
+	onActivate?: (event: { stopPropagation: () => void }) => void;
+}) {
+	const trimmed = url.trim();
+	if (!trimmed) {
+		return <span className="apps-sheet-text-preview muted">—</span>;
+	}
+	const href = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+	return (
+		<a
+			href={href}
+			target="_blank"
+			rel="noreferrer"
+			className="apps-sheet-link"
+			title={trimmed}
+			onClick={(event) => {
+				event.stopPropagation();
+				onActivate?.(event);
+			}}
+		>
+			{trimmed}
+		</a>
+	);
+}
+
+type AppEditFormFieldsProps = {
+	app: AppEntry;
+	formId: string;
+	appNames: AppName[];
+	stackSuggestions: Record<AppStackField, string[]>;
+};
+
+function AppEditFormFields({
+	app,
+	formId,
+	appNames,
+	stackSuggestions,
+}: AppEditFormFieldsProps) {
+	return (
+		<>
+			<label>
+				<span>App</span>
+				<AppNameSelect
+					formId={formId}
+					appNames={appNames}
+					defaultValue={app.app_name_id ?? ""}
+					fallbackLabel={app.name || "(不明)"}
+					required
+				/>
+			</label>
+			<label>
+				<span>AppGroup</span>
+				<MasterChip
+					name={app.app_group}
+					icon={app.app_group_icon}
+					color={app.app_group_color}
+					textColor={app.app_group_text_color}
+				/>
+			</label>
+			<label>
+				<span>AppType</span>
+				<MasterChip
+					name={app.app_type}
+					icon={app.app_type_icon}
+					color={app.app_type_color}
+					textColor={app.app_type_text_color}
+				/>
+			</label>
+			<label>
+				<span>開発方針</span>
+				<DevPolicyField formId={formId} defaultValue={app.dev_policy} />
+			</label>
+			<label>
+				<span>開発フォルダ</span>
+				<input
+					form={formId}
+					name="dev_folder"
+					defaultValue={app.dev_folder}
+					aria-label="開発フォルダ"
+				/>
+			</label>
+			<label>
+				<span>フロント</span>
+				<AutocompleteInput
+					formId={formId}
+					name="frontend"
+					defaultValue={app.frontend}
+					suggestions={stackSuggestions.frontend}
+					listId={`${formId}-frontend`}
+					aria-label="フロント"
+				/>
+			</label>
+			<label>
+				<span>css</span>
+				<AutocompleteInput
+					formId={formId}
+					name="css"
+					defaultValue={app.css}
+					suggestions={stackSuggestions.css}
+					listId={`${formId}-css`}
+					aria-label="css"
+				/>
+			</label>
+			<label>
+				<span>バックエンド</span>
+				<AutocompleteInput
+					formId={formId}
+					name="backend"
+					defaultValue={app.backend}
+					suggestions={stackSuggestions.backend}
+					listId={`${formId}-backend`}
+					aria-label="バックエンド"
+				/>
+			</label>
+			<label>
+				<span>DB</span>
+				<AutocompleteInput
+					formId={formId}
+					name="db"
+					defaultValue={app.db}
+					suggestions={stackSuggestions.db}
+					listId={`${formId}-db`}
+					aria-label="DB"
+				/>
+			</label>
+			<label>
+				<span>Storage</span>
+				<AutocompleteInput
+					formId={formId}
+					name="storage"
+					defaultValue={app.storage}
+					suggestions={stackSuggestions.storage}
+					listId={`${formId}-storage`}
+					aria-label="Storage"
+				/>
+			</label>
+			<label>
+				<span>PORT</span>
+				<AutocompleteInput
+					formId={formId}
+					name="port"
+					className="apps-sheet-narrow"
+					defaultValue={app.port}
+					suggestions={stackSuggestions.port}
+					listId={`${formId}-port`}
+					aria-label="PORT"
+				/>
+			</label>
+			<label>
+				<span>認証</span>
+				<AutocompleteInput
+					formId={formId}
+					name="auth"
+					defaultValue={app.auth}
+					suggestions={stackSuggestions.auth}
+					listId={`${formId}-auth`}
+					aria-label="認証"
+				/>
+			</label>
+			<label>
+				<span>ステージングURL</span>
+				<input
+					form={formId}
+					name="staging_url"
+					defaultValue={app.staging_url}
+					aria-label="ステージングURL"
+				/>
+			</label>
+			<label>
+				<span>Hosting</span>
+				<AutocompleteInput
+					formId={formId}
+					name="hosting"
+					defaultValue={app.hosting}
+					suggestions={stackSuggestions.hosting}
+					listId={`${formId}-hosting`}
+					aria-label="Hosting"
+				/>
+			</label>
+			<label>
+				<span>本番URL</span>
+				<input
+					form={formId}
+					name="production_url"
+					defaultValue={app.production_url}
+					aria-label="本番URL"
+				/>
+			</label>
+			<label>
+				<span>担当</span>
+				<input
+					form={formId}
+					name="owner"
+					defaultValue={app.owner}
+					aria-label="担当"
+				/>
+			</label>
+			<label>
+				<span>最終デプロイ日</span>
+				<input
+					form={formId}
+					name="last_deployed_at"
+					defaultValue={app.last_deployed_at}
+					aria-label="最終デプロイ日"
+				/>
+			</label>
+			<label>
+				<span>備考</span>
+				<input
+					form={formId}
+					name="notes"
+					defaultValue={app.notes}
+					aria-label="備考"
+				/>
+			</label>
+			<p className="field-hint">
+				AppGroup と AppType は「App」タブで設定します。
+			</p>
+		</>
+	);
+}
+
+function DeleteIcon() {
+	return (
+		<svg
+			className="x-schedule-action-svg"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			aria-hidden="true"
+		>
+			<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+		</svg>
 	);
 }
 
@@ -310,6 +622,7 @@ export function AppsSheet({
 }: Props) {
 	const router = useRouter();
 	const createDialogRef = useRef<HTMLDialogElement>(null);
+	const editDialogRef = useRef<HTMLDialogElement>(null);
 	const [apps, setApps] = useState(initialApps);
 	const [draggingAppId, setDraggingAppId] = useState<string | null>(null);
 	const [dropTargetAppId, setDropTargetAppId] = useState<string | null>(null);
@@ -318,6 +631,8 @@ export function AppsSheet({
 	const [appTypeFilter, setAppTypeFilter] = useState(ALL);
 	const [devPolicyFilter, setDevPolicyFilter] = useState(ALL);
 	const [createFormKey, setCreateFormKey] = useState(0);
+	const [editingApp, setEditingApp] = useState<AppEntry | null>(null);
+	const [editFormKey, setEditFormKey] = useState(0);
 
 	useEffect(() => {
 		setApps(initialApps);
@@ -458,6 +773,10 @@ export function AppsSheet({
 		setDropTargetAppId(null);
 	}
 
+	function stopRowActivate(event: { stopPropagation: () => void }) {
+		event.stopPropagation();
+	}
+
 	function openCreateDialog() {
 		setCreateFormKey((value) => value + 1);
 		createDialogRef.current?.showModal();
@@ -467,6 +786,17 @@ export function AppsSheet({
 		createDialogRef.current?.close();
 	}
 
+	function openEditDialog(app: AppEntry) {
+		setEditingApp(app);
+		setEditFormKey((value) => value + 1);
+		editDialogRef.current?.showModal();
+	}
+
+	const closeEditDialog = useCallback(() => {
+		editDialogRef.current?.close();
+		setEditingApp(null);
+	}, []);
+
 	const handleCreate = useCallback(
 		async (formData: FormData) => {
 			await createApp(formData);
@@ -475,6 +805,26 @@ export function AppsSheet({
 		},
 		[router],
 	);
+
+	const handleUpdate = useCallback(
+		async (formData: FormData) => {
+			await updateApp(formData);
+			closeEditDialog();
+			router.refresh();
+		},
+		[closeEditDialog, router],
+	);
+
+	const handleDelete = useCallback(
+		async (formData: FormData) => {
+			await deleteApp(formData);
+			closeEditDialog();
+			router.refresh();
+		},
+		[closeEditDialog, router],
+	);
+
+	const editingFormId = editingApp ? `app-edit-${editingApp.id}` : "";
 
 	return (
 		<>
@@ -561,7 +911,7 @@ export function AppsSheet({
 				) : (
 					<div className="x-schedule-scroll">
 						<p className="field-hint apps-sheet-hint">
-							左のハンドルをドラッグして表示順を変更できます。
+							行をクリックして編集できます。左のハンドルをドラッグして表示順を変更できます。
 						</p>
 						<table className="x-schedule-table apps-sheet-table">
 							<thead>
@@ -573,46 +923,53 @@ export function AppsSheet({
 							</thead>
 							<tbody>
 								{visibleApps.map((app) => {
-									const formId = `app-edit-${app.id}`;
 									const isDragging = draggingAppId === app.id;
 									const isDropTarget =
 										dropTargetAppId === app.id && draggingAppId !== app.id;
+									const label = app.name || "アプリ";
 									return (
 										<tr
 											key={app.id}
 											className={[
+												"apps-sheet-row",
 												isDragging ? "is-dragging" : "",
 												isDropTarget ? "is-drop-target" : "",
 											]
 												.filter(Boolean)
 												.join(" ")}
+											onClick={() => openEditDialog(app)}
+											onKeyDown={(event) => {
+												if (event.key === "Enter" || event.key === " ") {
+													event.preventDefault();
+													openEditDialog(app);
+												}
+											}}
+											tabIndex={0}
+											aria-label={`${label} を編集`}
 											onDragOver={(event) => onAppDragOver(event, app.id)}
 											onDrop={(event) => void onAppDrop(event, app.id)}
 											onDragLeave={() => {
 												if (dropTargetAppId === app.id) setDropTargetAppId(null);
 											}}
 										>
-											<td>
+											<td onClick={stopRowActivate}>
 												<SheetCell>
 													<button
 														type="button"
 														className="apps-sheet-drag-handle"
 														draggable={!reorderingApps}
-														aria-label={`${app.name || "アプリ"} を並び替え`}
+														aria-label={`${label} を並び替え`}
 														title="ドラッグして並び替え"
 														onDragStart={(event) => onAppDragStart(event, app.id)}
 														onDragEnd={onAppDragEnd}
 													>
 														<span aria-hidden="true">⋮⋮</span>
 													</button>
-													<form id={formId} action={updateApp}>
-														<input type="hidden" name="id" value={app.id} />
-													</form>
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<MasterReadonlyCell
+													<MasterChip
 														name={app.app_group}
 														icon={app.app_group_icon}
 														color={app.app_group_color}
@@ -622,19 +979,18 @@ export function AppsSheet({
 											</td>
 											<td>
 												<SheetCell>
-													<AppNameSelect
-														formId={formId}
-														appNames={appNames}
-														defaultValue={app.app_name_id ?? ""}
-														fallbackLabel={app.name || "(不明)"}
-														required
-														placeholder="選択してください"
+													<MasterChip
+														name={app.name}
+														icon={app.name_icon}
+														color={app.name_color}
+														textColor={app.name_text_color}
+														fallback="（未選択）"
 													/>
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<MasterReadonlyCell
+													<MasterChip
 														name={app.app_type}
 														icon={app.app_type_icon}
 														color={app.app_type_color}
@@ -644,187 +1000,77 @@ export function AppsSheet({
 											</td>
 											<td>
 												<SheetCell>
-													<DevPolicyField
-														formId={formId}
-														defaultValue={app.dev_policy}
-													/>
+													<DevPolicyChip value={app.dev_policy} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
-														name="dev_folder"
-														className="apps-sheet-wide"
-														defaultValue={app.dev_folder}
-														aria-label="開発フォルダ"
-													/>
+													<TextPreview value={app.dev_folder} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<AutocompleteInput
-														formId={formId}
-														name="frontend"
-														defaultValue={app.frontend}
-														suggestions={stackSuggestions.frontend}
-														listId={`${formId}-frontend`}
-														aria-label="フロント"
-													/>
+													<ValueChip value={app.frontend} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<AutocompleteInput
-														formId={formId}
-														name="css"
-														defaultValue={app.css}
-														suggestions={stackSuggestions.css}
-														listId={`${formId}-css`}
-														aria-label="css"
-													/>
+													<ValueChip value={app.css} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<AutocompleteInput
-														formId={formId}
-														name="backend"
-														defaultValue={app.backend}
-														suggestions={stackSuggestions.backend}
-														listId={`${formId}-backend`}
-														aria-label="バックエンド"
-													/>
+													<ValueChip value={app.backend} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<AutocompleteInput
-														formId={formId}
-														name="db"
-														defaultValue={app.db}
-														suggestions={stackSuggestions.db}
-														listId={`${formId}-db`}
-														aria-label="DB"
-													/>
+													<ValueChip value={app.db} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<AutocompleteInput
-														formId={formId}
-														name="storage"
-														defaultValue={app.storage}
-														suggestions={stackSuggestions.storage}
-														listId={`${formId}-storage`}
-														aria-label="Storage"
-													/>
+													<ValueChip value={app.storage} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<AutocompleteInput
-														formId={formId}
-														name="port"
-														className="apps-sheet-narrow"
-														defaultValue={app.port}
-														suggestions={stackSuggestions.port}
-														listId={`${formId}-port`}
-														aria-label="PORT"
-													/>
+													<ValueChip value={app.port} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<AutocompleteInput
-														formId={formId}
-														name="auth"
-														defaultValue={app.auth}
-														suggestions={stackSuggestions.auth}
-														listId={`${formId}-auth`}
-														aria-label="認証"
-													/>
+													<ValueChip value={app.auth} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
-														name="staging_url"
-														className="apps-sheet-wide"
-														defaultValue={app.staging_url}
-														aria-label="ステージングURL"
-													/>
+													<UrlPreview url={app.staging_url} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<AutocompleteInput
-														formId={formId}
-														name="hosting"
-														defaultValue={app.hosting}
-														suggestions={stackSuggestions.hosting}
-														listId={`${formId}-hosting`}
-														aria-label="Hosting"
-													/>
+													<ValueChip value={app.hosting} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
-														name="production_url"
-														className="apps-sheet-wide"
-														defaultValue={app.production_url}
-														aria-label="本番URL"
-													/>
+													<UrlPreview url={app.production_url} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
-														name="owner"
-														className="apps-sheet-narrow"
-														defaultValue={app.owner}
-														aria-label="担当"
-													/>
+													<ValueChip value={app.owner} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
-														name="last_deployed_at"
-														defaultValue={app.last_deployed_at}
-														aria-label="最終デプロイ日"
-													/>
+													<TextPreview value={app.last_deployed_at} />
 												</SheetCell>
 											</td>
 											<td>
 												<SheetCell>
-													<input
-														form={formId}
-														name="notes"
-														className="apps-sheet-wide"
-														defaultValue={app.notes}
-														aria-label="備考"
-													/>
-												</SheetCell>
-											</td>
-											<td>
-												<SheetCell>
-													<div className="task-actions">
-														<button form={formId} type="submit">
-															保存
-														</button>
-														<form action={deleteApp}>
-															<input type="hidden" name="id" value={app.id} />
-															<button type="submit" className="ghost">
-																削除
-															</button>
-														</form>
-													</div>
+													<TextPreview value={app.notes} className="apps-sheet-notes" />
 												</SheetCell>
 											</td>
 										</tr>
@@ -868,6 +1114,74 @@ export function AppsSheet({
 							追加
 						</button>
 					</form>
+				</div>
+			</dialog>
+
+			<dialog
+				ref={editDialogRef}
+				className="task-dialog task-dialog-docked"
+				onClick={(event) => {
+					if (event.target === editDialogRef.current) closeEditDialog();
+				}}
+			>
+				<div className="task-dialog-panel task-dialog-panel-docked requirement-edit-dialog-panel">
+					<div className="task-dialog-head">
+						<h2>
+							{editingApp
+								? `${formatMasterLabel(editingApp.name, editingApp.name_icon)} を編集`
+								: "アプリを編集"}
+						</h2>
+						<button type="button" className="ghost" onClick={closeEditDialog}>
+							閉じる
+						</button>
+					</div>
+					{editingApp ? (
+						<>
+							<form
+								id={editingFormId}
+								key={editFormKey}
+								action={handleUpdate}
+								className="employee-edit-form employee-dialog-form task-dialog-form-docked"
+							>
+								<input type="hidden" name="id" value={editingApp.id} />
+								<div className="task-dialog-scroll requirement-edit-dialog-body">
+									<AppEditFormFields
+										app={editingApp}
+										formId={editingFormId}
+										appNames={appNames}
+										stackSuggestions={stackSuggestions}
+									/>
+								</div>
+							</form>
+							<div className="task-actions task-dialog-footer requirement-edit-dialog-footer">
+								<form
+									className="requirement-edit-delete-form"
+									onSubmit={(event) => {
+										event.preventDefault();
+										void handleDelete(new FormData(event.currentTarget));
+									}}
+								>
+									<input type="hidden" name="id" value={editingApp.id} />
+									<button
+										type="submit"
+										className="x-schedule-action-btn x-action-delete requirement-edit-footer-btn"
+									>
+										<span className="x-schedule-action-icon">
+											<DeleteIcon />
+										</span>
+										<span>削除</span>
+									</button>
+								</form>
+								<button
+									type="submit"
+									form={editingFormId}
+									className="x-schedule-action-btn x-action-complete requirement-edit-footer-btn"
+								>
+									<span>保存</span>
+								</button>
+							</div>
+						</>
+					) : null}
 				</div>
 			</dialog>
 		</>

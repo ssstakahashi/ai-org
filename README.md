@@ -72,17 +72,23 @@ npm run preview
 
 ## 認証
 
-Cloudflare Access（メールOTP）で保護しています。
+アプリ内のパスワード認証で保護しています（`/login`）。
 
-アプリ側でも `Cf-Access-Jwt-Assertion` を検証します（`src/middleware.ts`）。
-ローカル `npm run dev` では JWT 検証をスキップします。
+`src/middleware.ts` がセッション Cookie（`ai-org-session`）を検証します。ローカル `npm run dev` では認証をスキップします。
 
-ログアウトはヘッダーの「ログアウト」から `TEAM_DOMAIN/cdn-cgi/access/logout` へ遷移します。
+ログアウトはヘッダーの「ログアウト」から `/api/auth/logout` へ遷移します。
 
 | 変数 | 内容 |
 |---|---|
-| `TEAM_DOMAIN` | `https://studiofoods.cloudflareaccess.com` |
-| `POLICY_AUD` | Access アプリの AUD |
+| `APP_AUTH_PASSWORD` | ログインパスワード（wrangler secret） |
+| `APP_AUTH_SECRET` | セッション署名用シークレット（wrangler secret） |
+
+```bash
+npx wrangler secret put APP_AUTH_PASSWORD
+npx wrangler secret put APP_AUTH_SECRET
+```
+
+**Cloudflare Access は外してください。** Zero Trust のアプリ保護を有効のままにすると、Access とアプリ認証が二重になりログインが不安定になります。
 
 ## 自動化の集約（外部 push）
 
@@ -98,7 +104,7 @@ Cloudflare Access（メールOTP）で保護しています。
 npx wrangler secret put AUTOMATION_INGEST_SECRET
 ```
 
-Cloudflare Access ではこのパスを Bypass（または Service Auth）にしてください。アプリ側はシークレットのみ検証します。
+アプリ側は共有シークレットのみ検証します（middleware では認証をスキップ）。
 
 対象パス:
 

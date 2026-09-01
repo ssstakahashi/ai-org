@@ -51,8 +51,6 @@
 		]
 	},
 	"vars": {
-		"POLICY_AUD": "c127cc1ab80df9c6eeb874bc0240638f1d77612df8b7377acfc73f4c67970c7a",
-		"TEAM_DOMAIN": "https://studiofoods.cloudflareaccess.com",
 		"CF_WORKER_NAME": "ai-org",
 		"CF_ACCOUNT_ID": "2416397d79e09c5f8f8afd5b2ed379db"
 	},

@@ -1,4 +1,6 @@
 interface CloudflareEnv {
+	APP_AUTH_PASSWORD?: string;
+	APP_AUTH_SECRET?: string;
 	X_API_KEY?: string;
 	X_API_SECRET?: string;
 	X_ACCESS_TOKEN?: string;

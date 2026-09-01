@@ -10,8 +10,8 @@ interface __BaseEnv_CloudflareEnv {
 	CF_WORKER_NAME: "ai-org";
 	CF_ACCOUNT_ID: "2416397d79e09c5f8f8afd5b2ed379db";
 	NEXTJS_ENV: string;
-	POLICY_AUD: string;
-	TEAM_DOMAIN: string;
+	APP_AUTH_PASSWORD: string;
+	APP_AUTH_SECRET: string;
 	X_API_KEY: string;
 	X_API_SECRET: string;
 	X_ACCESS_TOKEN: string;
@@ -35,7 +35,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "CF_WORKER_NAME" | "CF_ACCOUNT_ID" | "NEXTJS_ENV" | "POLICY_AUD" | "TEAM_DOMAIN" | "X_API_KEY" | "X_API_SECRET" | "X_ACCESS_TOKEN" | "X_ACCESS_TOKEN_SECRET" | "X_BEARER_TOKEN" | "AUTOMATION_INGEST_SECRET" | "GOOGLE_SERVICE_ACCOUNT_EMAIL" | "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY" | "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY" | "CF_API_TOKEN">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "CF_WORKER_NAME" | "CF_ACCOUNT_ID" | "NEXTJS_ENV" | "APP_AUTH_PASSWORD" | "APP_AUTH_SECRET" | "X_API_KEY" | "X_API_SECRET" | "X_ACCESS_TOKEN" | "X_ACCESS_TOKEN_SECRET" | "X_BEARER_TOKEN" | "AUTOMATION_INGEST_SECRET" | "GOOGLE_SERVICE_ACCOUNT_EMAIL" | "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY" | "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY" | "CF_API_TOKEN">> {}
 }
 
 // Begin runtime types

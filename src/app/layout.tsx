@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { M_PLUS_Rounded_1c } from "next/font/google";
 import { AppTopNav } from "@/components/AppTopNav";
-import { resolveAccessLogoutHref } from "@/lib/access";
 import "./globals.css";
 
 const mPlusRounded = M_PLUS_Rounded_1c({
@@ -21,7 +21,9 @@ export default async function RootLayout({
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
-	const logoutHref = await resolveAccessLogoutHref();
+	const headerList = await headers();
+	const pathname = headerList.get("x-pathname") ?? "";
+	const showNav = pathname !== "/login";
 
 	return (
 		<html lang="ja">
@@ -32,7 +34,7 @@ export default async function RootLayout({
 				className={`${mPlusRounded.variable} antialiased`}
 				suppressHydrationWarning
 			>
-				<AppTopNav logoutHref={logoutHref} />
+				{showNav ? <AppTopNav logoutHref="/api/auth/logout" /> : null}
 				{children}
 			</body>
 		</html>

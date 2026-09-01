@@ -7,7 +7,7 @@ App管理の「要件定義」タブで **承認済** にした要件を、Curso
 - ai-org に App マスタと要件が登録されていること
 - App リスト行に `dev_folder` が設定されていること（export に含まれる）
 - 本番 Worker に `AUTOMATION_INGEST_SECRET` が設定されていること
-- Cloudflare Access で `/api/internal/requirements` を Bypass（`automation-ingest` と同様）
+- `/api/internal/requirements` は middleware で認証スキップ（`automation-ingest` と同様）。共有シークレットで保護
 
 ## Export API
 
