@@ -110,10 +110,12 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 		editDialogRef.current?.showModal();
 	}
 
-	async function handleCreate(formData: FormData) {
-		await createTask(formData);
+	async function handleCreate(formData: FormData): Promise<{ error?: string }> {
+		const result = await createTask(formData);
+		if (result.error) return result;
 		closeCreateDialog();
 		router.refresh();
+		return {};
 	}
 
 	const handleEditSuccess = useCallback(() => {

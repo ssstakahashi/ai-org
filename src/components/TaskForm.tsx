@@ -28,6 +28,8 @@ const CREATE_STATUSES: TaskStatus[] = ["draft", "approved", "scheduled", "done"]
 const EDIT_STATUSES: TaskStatus[] = ["draft", "approved", "scheduled", "done", "failed"];
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
+type TaskMutationResult = { error?: string };
+
 type Props = {
 	employees: Employee[];
 	categories: Category[];
@@ -37,7 +39,7 @@ type Props = {
 	prefillFrom?: TaskWithEmployee;
 	seriesCount?: number;
 	futureCount?: number;
-	action?: (formData: FormData) => void | Promise<void>;
+	action?: (formData: FormData) => TaskMutationResult | Promise<TaskMutationResult | void> | void;
 	defaultEmployeeId?: string;
 	defaultCategoryId?: string;
 	defaultStartAt?: string;
@@ -74,7 +76,7 @@ export function TaskForm({
 	const [clearDuplicateImage, setClearDuplicateImage] = useState(false);
 	const [converting, setConverting] = useState(false);
 	const [taskLinks, setTaskLinks] = useState<{ url: string; label: string }[]>(
-		source?.links.map((link) => ({ url: link.url, label: link.label })) ?? [],
+		source?.links?.map((link) => ({ url: link.url, label: link.label })) ?? [],
 	);
 	const [editScope, setEditScope] = useState<RecurrenceEditScope>("this");
 	const [deleteScope, setDeleteScope] = useState<RecurrenceEditScope>("this");
@@ -195,12 +197,17 @@ export function TaskForm({
 		try {
 			const formData = new FormData(form);
 			formData.set("task_links_json", JSON.stringify(taskLinks));
+			let result: TaskMutationResult | void;
 			if (action) {
-				await action(formData);
+				result = await action(formData);
 			} else if (isEdit) {
-				await updateTask(formData);
+				result = await updateTask(formData);
 			} else {
-				await createTask(formData);
+				result = await createTask(formData);
+			}
+			if (result?.error) {
+				setClientError(result.error);
+				return;
 			}
 			if (!isEdit) {
 				form.reset();

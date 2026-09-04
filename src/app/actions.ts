@@ -697,7 +697,7 @@ async function resolveTagIds(
 	return [...ids];
 }
 
-export async function createTask(formData: FormData) {
+export async function createTask(formData: FormData): Promise<{ error?: string }> {
 	const db = await getDb();
 
 	const title = String(formData.get("title") ?? "").trim();
@@ -713,11 +713,26 @@ export async function createTask(formData: FormData) {
 	const newTagNames = parseNewTagNames(String(formData.get("new_tags") ?? ""));
 	const recurrence = parseRecurrenceKind(String(formData.get("recurrence") ?? "none"));
 	const weekdays = parseWeekdays(formData.getAll("weekdays").map((value) => String(value)));
-	const recurUntil = parseOptionalDate(String(formData.get("recur_until") ?? ""));
-	const recurCount = parseOptionalCount(String(formData.get("recur_count") ?? ""));
+	let recurUntil: Date | null = null;
+	let recurCount: number | null = null;
+	try {
+		recurUntil = parseOptionalDate(String(formData.get("recur_until") ?? ""));
+		recurCount = parseOptionalCount(String(formData.get("recur_count") ?? ""));
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { error: message };
+	}
 
 	if (!title || !employeeId) {
-		throw new Error("タイトルと担当従業員は必須です");
+		return { error: "タイトルと担当従業員は必須です" };
+	}
+
+	const employee = await db
+		.prepare("SELECT id FROM employees WHERE id = ?")
+		.bind(employeeId)
+		.first();
+	if (!employee) {
+		return { error: "担当従業員が見つかりません" };
 	}
 
 	const categoryId = categoryIdRaw || null;
@@ -727,7 +742,7 @@ export async function createTask(formData: FormData) {
 			.bind(categoryId)
 			.first();
 		if (!category) {
-			throw new Error("カテゴリが見つかりません");
+			return { error: "カテゴリが見つかりません" };
 		}
 	}
 
@@ -738,7 +753,7 @@ export async function createTask(formData: FormData) {
 			.bind(taskGroupId)
 			.first();
 		if (!taskGroup) {
-			throw new Error("タスクグループが見つかりません");
+			return { error: "タスクグループが見つかりません" };
 		}
 	}
 
@@ -747,7 +762,7 @@ export async function createTask(formData: FormData) {
 	if (upload) {
 		const stored = await putTaskImage(upload);
 		if ("error" in stored) {
-			throw new Error(stored.error);
+			return { error: stored.error };
 		}
 		imageKey = stored.key;
 	} else {
@@ -755,7 +770,7 @@ export async function createTask(formData: FormData) {
 		if (duplicateImageKey) {
 			const copied = await copyTaskImage(duplicateImageKey);
 			if ("error" in copied) {
-				throw new Error(copied.error);
+				return { error: copied.error };
 			}
 			imageKey = copied.key;
 		}
@@ -767,32 +782,43 @@ export async function createTask(formData: FormData) {
 		if (startAtRaw) startAt = parseAppDateTime(startAtRaw);
 		if (endAtRaw) endAt = parseAppDateTime(endAtRaw);
 	} catch {
-		throw new Error("日時の形式が不正です");
+		return { error: "日時の形式が不正です" };
 	}
 
 	if (startAt && !endAt) endAt = new Date(startAt);
 	if (endAt && !startAt) startAt = new Date(endAt);
 	if (startAt && endAt && startAt.getTime() > endAt.getTime()) {
-		throw new Error("終了は開始以降にしてください");
+		return { error: "終了は開始以降にしてください" };
 	}
 
 	if (recurrence !== "none" && !startAt) {
-		throw new Error("繰り返しタスクには開始日時が必要です");
+		return { error: "繰り返しタスクには開始日時が必要です" };
 	}
 
 	const baseStart = startAt ?? new Date();
 	const baseEnd = endAt ?? new Date(baseStart);
-	const occurrences = expandRecurrenceDates({
-		kind: recurrence,
-		anchor: baseStart,
-		weekdays,
-		until: recurUntil,
-		count: recurCount,
-	});
+	let occurrences: Date[];
+	try {
+		occurrences = expandRecurrenceDates({
+			kind: recurrence,
+			anchor: baseStart,
+			weekdays,
+			until: recurUntil,
+			count: recurCount,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { error: message };
+	}
 
 	const tagIds = await resolveTagIds(db, selectedTagIds, newTagNames);
 	const taskLinks = parseTaskLinksFromForm(formData);
-	validateTaskLinks(taskLinks);
+	try {
+		validateTaskLinks(taskLinks);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { error: message };
+	}
 	const recurrenceSeriesId = recurrence !== "none" && occurrences.length > 1 ? newId("rser") : null;
 	const insert = db.prepare(
 		`INSERT INTO tasks
@@ -831,14 +857,25 @@ export async function createTask(formData: FormData) {
 		}
 	}
 
-	await db.batch(statements);
-	if (firstTaskId && taskLinks.length > 0) {
-		await replaceTaskLinks(db, firstTaskId, taskLinks);
+	try {
+		await db.batch(statements);
+		if (firstTaskId && taskLinks.length > 0) {
+			await replaceTaskLinks(db, firstTaskId, taskLinks);
+		}
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { error: `タスクの保存に失敗しました: ${message}` };
 	}
-	revalidateTaskPages();
+
+	try {
+		revalidateTaskPages();
+	} catch (error) {
+		console.error("revalidateTaskPages failed", error);
+	}
+	return {};
 }
 
-export async function updateTask(formData: FormData) {
+export async function updateTask(formData: FormData): Promise<{ error?: string }> {
 	const db = await getDb();
 
 	const id = String(formData.get("id") ?? "").trim();
@@ -857,10 +894,10 @@ export async function updateTask(formData: FormData) {
 	const editScope = parseRecurrenceEditScope(String(formData.get("edit_scope") ?? "this"));
 
 	if (!id) {
-		throw new Error("id が必要です");
+		return { error: "id が必要です" };
 	}
 	if (!title || !employeeId) {
-		throw new Error("タイトルと担当従業員は必須です");
+		return { error: "タイトルと担当従業員は必須です" };
 	}
 
 	const targetIds = await resolveSeriesTaskIds(db, id, editScope);
@@ -871,7 +908,7 @@ export async function updateTask(formData: FormData) {
 		.bind(id)
 		.first<{ image_key: string | null }>();
 	if (!existing) {
-		throw new Error("タスクが見つかりません");
+		return { error: "タスクが見つかりません" };
 	}
 
 	const employee = await db
@@ -879,7 +916,7 @@ export async function updateTask(formData: FormData) {
 		.bind(employeeId)
 		.first();
 	if (!employee) {
-		throw new Error("担当従業員が見つかりません");
+		return { error: "担当従業員が見つかりません" };
 	}
 
 	const categoryId = categoryIdRaw || null;
@@ -889,7 +926,7 @@ export async function updateTask(formData: FormData) {
 			.bind(categoryId)
 			.first();
 		if (!category) {
-			throw new Error("カテゴリが見つかりません");
+			return { error: "カテゴリが見つかりません" };
 		}
 	}
 
@@ -900,7 +937,7 @@ export async function updateTask(formData: FormData) {
 			.bind(taskGroupId)
 			.first();
 		if (!taskGroup) {
-			throw new Error("タスクグループが見つかりません");
+			return { error: "タスクグループが見つかりません" };
 		}
 	}
 
@@ -920,7 +957,7 @@ export async function updateTask(formData: FormData) {
 		if (upload) {
 			const stored = await putTaskImage(upload);
 			if ("error" in stored) {
-				throw new Error(stored.error);
+				return { error: stored.error };
 			}
 			if (imageKey && imageKey !== stored.key) {
 				try {
@@ -941,19 +978,24 @@ export async function updateTask(formData: FormData) {
 			if (startAtRaw) startAt = parseAppDateTime(startAtRaw);
 			if (endAtRaw) endAt = parseAppDateTime(endAtRaw);
 		} catch {
-			throw new Error("日時の形式が不正です");
+			return { error: "日時の形式が不正です" };
 		}
 
 		if (startAt && !endAt) endAt = new Date(startAt);
 		if (endAt && !startAt) startAt = new Date(endAt);
 		if (startAt && endAt && startAt.getTime() > endAt.getTime()) {
-			throw new Error("終了は開始以降にしてください");
+			return { error: "終了は開始以降にしてください" };
 		}
 	}
 
 	const tagIds = await resolveTagIds(db, selectedTagIds, newTagNames);
 	const taskLinks = parseTaskLinksFromForm(formData);
-	validateTaskLinks(taskLinks);
+	try {
+		validateTaskLinks(taskLinks);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { error: message };
+	}
 	const statements: D1PreparedStatement[] = [];
 
 	if (applyDatesAndImage) {
@@ -1026,11 +1068,22 @@ export async function updateTask(formData: FormData) {
 		}
 	}
 
-	await db.batch(statements);
-	if (applyDatesAndImage) {
-		await replaceTaskLinks(db, id, taskLinks);
+	try {
+		await db.batch(statements);
+		if (applyDatesAndImage) {
+			await replaceTaskLinks(db, id, taskLinks);
+		}
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { error: `タスクの更新に失敗しました: ${message}` };
 	}
-	revalidateTaskPages();
+
+	try {
+		revalidateTaskPages();
+	} catch (error) {
+		console.error("revalidateTaskPages failed", error);
+	}
+	return {};
 }
 
 export async function createXPost(

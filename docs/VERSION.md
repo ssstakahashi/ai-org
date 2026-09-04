@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.37 (2026-09-04)
+
+- タスク追加・更新の Server Action エラーを return で返し、本番でも具体的なメッセージを表示
+
 ## 0.0.36 (2026-09-01)
 
 - Cloudflare Access からアプリ内パスワード認証（`/login`）へ移行
