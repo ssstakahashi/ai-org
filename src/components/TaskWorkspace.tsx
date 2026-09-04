@@ -110,34 +110,42 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 		editDialogRef.current?.showModal();
 	}
 
+	const safeRefresh = useCallback(() => {
+		try {
+			router.refresh();
+		} catch {
+			window.location.reload();
+		}
+	}, [router]);
+
 	async function handleCreate(formData: FormData): Promise<{ error?: string }> {
 		const result = await createTask(formData);
 		if (result.error) return result;
 		closeCreateDialog();
-		router.refresh();
+		safeRefresh();
 		return {};
 	}
 
 	const handleEditSuccess = useCallback(() => {
 		closeEditDialog();
-		router.refresh();
-	}, [closeEditDialog, router]);
+		safeRefresh();
+	}, [closeEditDialog, safeRefresh]);
 
 	const handleApproveSuccess = useCallback(() => {
 		setDetailing((current) => (current ? { ...current, status: "approved" } : null));
-		router.refresh();
-	}, [router]);
+		safeRefresh();
+	}, [safeRefresh]);
 
 	const handleCompleteSuccess = useCallback(() => {
 		setDetailing((current) => (current ? { ...current, status: "done" } : null));
 		closeDetailDialog();
-		router.refresh();
-	}, [closeDetailDialog, router]);
+		safeRefresh();
+	}, [closeDetailDialog, safeRefresh]);
 
 	const handleDeleteSuccess = useCallback(() => {
 		closeDetailDialog();
-		router.refresh();
-	}, [closeDetailDialog, router]);
+		safeRefresh();
+	}, [closeDetailDialog, safeRefresh]);
 
 	const detailingSeriesCount = detailing
 		? countSeriesTasks(tasks, detailing.recurrence_series_id)
