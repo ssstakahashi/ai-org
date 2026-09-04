@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { getDb, getMediaBucket, newId } from "@/lib/db";
+import { getDb, getMediaBucket, newId, queryInChunks } from "@/lib/db";
 import { copyTaskImage, getUploadFile, putTaskImage, putXPostImage } from "@/lib/media-upload";
 import { LOCAL_SOURCE, recordAutomationRun } from "@/lib/automation-ingest";
 import { publishDueXPosts, publishXPostNow, type PublishResult } from "@/lib/publish-x-posts";
@@ -213,17 +213,16 @@ async function attachPageTags(rows: PageRow[]): Promise<PageWithCategory[]> {
 	if (rows.length === 0) return [];
 
 	const db = await getDb();
-	const placeholders = rows.map(() => "?").join(", ");
-	const { results } = await db
-		.prepare(
+	const results = await queryInChunks<Tag & { page_id: string }>(
+		db,
+		rows.map((row) => row.id),
+		(placeholders) =>
 			`SELECT pt.page_id, tg.id, tg.name, tg.color, tg.text_color, tg.created_at
 			 FROM page_tags pt
 			 JOIN tags tg ON tg.id = pt.tag_id
 			 WHERE pt.page_id IN (${placeholders})
 			 ORDER BY tg.name ASC`,
-		)
-		.bind(...rows.map((row) => row.id))
-		.all<Tag & { page_id: string }>();
+	);
 
 	const byPage = new Map<string, Tag[]>();
 	for (const row of results ?? []) {
@@ -493,17 +492,16 @@ async function attachTags(rows: TaskRow[]): Promise<TaskWithTags[]> {
 	if (rows.length === 0) return [];
 
 	const db = await getDb();
-	const placeholders = rows.map(() => "?").join(", ");
-	const { results } = await db
-		.prepare(
+	const results = await queryInChunks<Tag & { task_id: string }>(
+		db,
+		rows.map((row) => row.id),
+		(placeholders) =>
 			`SELECT tt.task_id, tg.id, tg.name, tg.color, tg.text_color, tg.created_at
 			 FROM task_tags tt
 			 JOIN tags tg ON tg.id = tt.tag_id
 			 WHERE tt.task_id IN (${placeholders})
 			 ORDER BY tg.name ASC`,
-		)
-		.bind(...rows.map((row) => row.id))
-		.all<Tag & { task_id: string }>();
+	);
 
 	const byTask = new Map<string, Tag[]>();
 	for (const row of results ?? []) {
@@ -528,16 +526,15 @@ async function attachLinks(rows: TaskWithTags[]): Promise<TaskWithEmployee[]> {
 	if (rows.length === 0) return [];
 
 	const db = await getDb();
-	const placeholders = rows.map(() => "?").join(", ");
-	const { results } = await db
-		.prepare(
+	const results = await queryInChunks<TaskLink>(
+		db,
+		rows.map((row) => row.id),
+		(placeholders) =>
 			`SELECT id, task_id, url, label, sort_order, created_at
 			 FROM task_links
 			 WHERE task_id IN (${placeholders})
 			 ORDER BY sort_order ASC, created_at ASC`,
-		)
-		.bind(...rows.map((row) => row.id))
-		.all<TaskLink>();
+	);
 
 	const byTask = new Map<string, TaskLink[]>();
 	for (const row of results ?? []) {

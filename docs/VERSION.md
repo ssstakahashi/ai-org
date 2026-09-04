@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.39 (2026-09-04)
+
+- タスク件数が多いとき `listTasks` の IN 句が D1 の変数上限を超えて落ちる問題を修正（タグ・リンク取得を分割クエリに）
+
 ## 0.0.38 (2026-09-04)
 
 - タスク追加・更新の Server Action エラーを return で返し、本番でも具体的なメッセージを表示
