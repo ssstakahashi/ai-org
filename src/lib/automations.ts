@@ -66,13 +66,13 @@ export const HEALTH_LABEL = {
 export const AUTOMATIONS: AutomationEntry[] = [
 	{
 		id: "x-due-cron",
-		name: "X 予約投稿（期限到来分）",
+		name: "X 予約投稿（API・停止中）",
 		runner: "program",
-		status: "active",
-		trigger: "Cloudflare Cron（毎分: * * * * *）",
+		status: "none",
+		trigger: "Cloudflare Cron（毎分）※API投稿は無効",
 		summary:
-			"status が「予約」かつ scheduled_at を過ぎた x_posts を最大20件、X API へ投稿する。成功で done、失敗で failed。",
-		location: "worker.ts → publishDueXPosts / wrangler.jsonc triggers.crons",
+			"有料X APIを使わない方針のため停止。予約分はスタジオフーズ広報（Grok Bot）がブラウザ経由で投稿する。",
+		location: "worker.ts → scheduled（no-op） / Grok Bot ルーチン「Xブラウザ投稿」",
 		href: "/x-schedule",
 		source: LOCAL_AUTOMATION_SOURCE,
 	},
@@ -82,7 +82,7 @@ export const AUTOMATIONS: AutomationEntry[] = [
 		runner: "manual",
 		status: "manual",
 		trigger: "X投稿スケジュール画面のボタン",
-		summary: "Cron と同じ publishDueXPosts を、人が押したタイミングで即実行する。",
+		summary: "API投稿停止中。押しても X API は呼ばない。予約はブラウザ投稿ルーチンが処理する。",
 		location: "RunDuePostsButton → runDueXPosts",
 		href: "/x-schedule",
 		source: LOCAL_AUTOMATION_SOURCE,
@@ -104,7 +104,7 @@ export const AUTOMATIONS: AutomationEntry[] = [
 		runner: "manual",
 		status: "manual",
 		trigger: "予定一覧の行アクション「Xへ投稿」",
-		summary: "指定の x_posts 1件を予約時刻を待たず投稿する（承認済・予約・失敗が対象）。",
+		summary: "API投稿停止中。予約はブラウザ投稿ルーチンが処理する。",
 		location: "PostXPostNowButton → postXPostNow → publishXPostNow",
 		href: "/x-schedule",
 		source: LOCAL_AUTOMATION_SOURCE,
@@ -120,6 +120,30 @@ export const AUTOMATIONS: AutomationEntry[] = [
 		location:
 			"src/app/api/internal/requirements/route.ts → docs/cursor-automation-app-requirements.md",
 		href: "/apps/requirements",
+		source: LOCAL_AUTOMATION_SOURCE,
+	},
+	/**
+	 * @automation
+	 * id: grokbot-x-browser-post
+	 * name: X 予約投稿（ブラウザ・スタジオフーズ広報）
+	 * runner: cursor
+	 * status: active
+	 * trigger: Grok Bot ルーチン（平日 30分ごと 8:00–19:30）
+	 * summary: ai-org の x_posts で status=予約かつ scheduled_at 到来分を、ブラウザ操作で X に投稿し done にする。X API は使わない。
+	 * location: Grok Bot ルーチン「Xブラウザ投稿」 + skill post-x-via-browser
+	 * href: /x-schedule
+	 */
+	{
+		id: "grokbot-x-browser-post",
+		name: "X 予約投稿（ブラウザ・スタジオフーズ広報）",
+		runner: "cursor",
+		status: "active",
+		trigger: "Grok Bot ルーチン（平日 30分ごと 8:00–19:30）",
+		summary:
+			"ai-org の x_posts で status=予約かつ scheduled_at 到来分を、ブラウザ操作で X に投稿し done にする。X API は使わない。",
+		location:
+			"Grok Bot ルーチン「Xブラウザ投稿」 → skill post-x-via-browser → /x-schedule",
+		href: "/x-schedule",
 		source: LOCAL_AUTOMATION_SOURCE,
 	},
 	/**

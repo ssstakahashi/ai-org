@@ -1,6 +1,18 @@
 import { createXPost, getXCredentials, uploadXMedia } from "@/lib/x-client";
 import { queueXPostSheetSync, type SheetsSyncEnv } from "@/lib/x-post-sheets-sync";
 
+
+/** 有料X APIを使わない方針。投稿実行は Grok Bot のブラウザ操作へ。 */
+const X_API_PUBLISHING_DISABLED = true;
+
+function assertApiPublishingAllowed() {
+	if (X_API_PUBLISHING_DISABLED) {
+		throw new Error(
+			"X API 投稿は停止中です。ai-org の予約台帳に載せ、スタジオフーズ広報（Grok Bot）がブラウザ経由で投稿します。",
+		);
+	}
+}
+
 export type PublishEnv = SheetsSyncEnv & {
 	DB: D1Database;
 	MEDIA: R2Bucket;
@@ -85,6 +97,7 @@ async function publishOne(env: PublishEnv, post: DuePost) {
 
 /** 予約時刻を過ぎた scheduled の x_posts を投稿 */
 export async function publishDueXPosts(env: PublishEnv): Promise<PublishResult> {
+	assertApiPublishingAllowed();
 	const now = new Date().toISOString();
 	const { results } = await env.DB.prepare(
 		`SELECT id, title, body, image_key
@@ -119,6 +132,7 @@ export async function publishDueXPosts(env: PublishEnv): Promise<PublishResult> 
 
 /** 指定の x_posts をいま投稿（予約時刻を待たない） */
 export async function publishXPostNow(env: PublishEnv, postId: string): Promise<void> {
+	assertApiPublishingAllowed();
 	const post = await env.DB.prepare(
 		`SELECT id, title, body, image_key, status
 		 FROM x_posts

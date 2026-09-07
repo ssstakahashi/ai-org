@@ -2,6 +2,11 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.41 (2026-09-08)
+
+- X API の Cron／手動投稿を停止し、ブラウザ投稿（Grok Bot）へ切替
+- 自動化一覧に grokbot-x-browser-post を追加
+
 ## 0.0.40 (2026-09-07)
 
 - 自動化一覧にスタジオフーズ公式ブログ下書き（月水金）を追加
