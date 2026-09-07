@@ -124,6 +124,30 @@ export const AUTOMATIONS: AutomationEntry[] = [
 	},
 	/**
 	 * @automation
+	 * id: grokbot-studiofoods-blog-draft
+	 * name: スタジオフーズ公式ブログ下書き（月水金）
+	 * runner: cursor
+	 * status: active
+	 * trigger: Grok Bot ルーチン（毎週 月・水・金 9:00 JST）
+	 * summary: テーマを5本一巡（AI社員→MIERU→SODATE→農業DX→バックオフィス）で選び、下書きまで進める。公開（コミット／push／デプロイ）前のみ確認。
+	 * location: Grok Bot ルーチン「ブログ下書き（月水金）」 / studiofoods-public
+	 * href: /apps/requirements
+	 */
+	{
+		id: "grokbot-studiofoods-blog-draft",
+		name: "スタジオフーズ公式ブログ下書き（月水金）",
+		runner: "cursor",
+		status: "active",
+		trigger: "Grok Bot ルーチン（毎週 月・水・金 9:00 JST）",
+		summary:
+			"テーマを5本一巡（AI社員→MIERU→SODATE→農業DX→バックオフィス）で選び、下書きまで進める。公開（コミット／push／デプロイ）前のみ確認。次の1本は「AI社員に問い合わせ以外を任せる範囲の決め方」。",
+		location:
+			"Grok Bot ルーチン「ブログ下書き（月水金）」 → /Users/user/developer/01_Static_Site/studiofoods-public",
+		href: "/apps/requirements",
+		source: LOCAL_AUTOMATION_SOURCE,
+	},
+	/**
+	 * @automation
 	 * id: cursor-automations
 	 * name: Cursor Automations
 	 * runner: cursor
