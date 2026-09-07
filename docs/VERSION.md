@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.42 (2026-09-08)
+
+- Xブラウザ投稿の説明を平日6:30・1日1回に更新
+
 ## 0.0.41 (2026-09-08)
 
 - X API の Cron／手動投稿を停止し、ブラウザ投稿（Grok Bot）へ切替

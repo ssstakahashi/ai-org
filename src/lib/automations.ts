@@ -128,7 +128,7 @@ export const AUTOMATIONS: AutomationEntry[] = [
 	 * name: X 予約投稿（ブラウザ・スタジオフーズ広報）
 	 * runner: cursor
 	 * status: active
-	 * trigger: Grok Bot ルーチン（平日 30分ごと 8:00–19:30）
+	 * trigger: Grok Bot ルーチン（平日 6:30・1日1回）
 	 * summary: ai-org の x_posts で status=予約かつ scheduled_at 到来分を、ブラウザ操作で X に投稿し done にする。X API は使わない。
 	 * location: Grok Bot ルーチン「Xブラウザ投稿」 + skill post-x-via-browser
 	 * href: /x-schedule
@@ -138,7 +138,7 @@ export const AUTOMATIONS: AutomationEntry[] = [
 		name: "X 予約投稿（ブラウザ・スタジオフーズ広報）",
 		runner: "cursor",
 		status: "active",
-		trigger: "Grok Bot ルーチン（平日 30分ごと 8:00–19:30）",
+		trigger: "Grok Bot ルーチン（平日 6:30・1日1回）",
 		summary:
 			"ai-org の x_posts で status=予約かつ scheduled_at 到来分を、ブラウザ操作で X に投稿し done にする。X API は使わない。",
 		location:
