@@ -15,7 +15,8 @@ function withPathname(response: NextResponse, pathname: string) {
 function isInternalApiPath(pathname: string) {
 	return (
 		pathname === "/api/internal/automation-ingest" ||
-		pathname === "/api/internal/requirements"
+		pathname === "/api/internal/requirements" ||
+		pathname === "/api/internal/blog-drafts"
 	);
 }
 

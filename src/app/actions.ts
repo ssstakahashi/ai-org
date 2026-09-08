@@ -47,7 +47,14 @@ import {
 	type RecurrenceEditScope,
 	type TaskWithEmployee,
 	type XPost,
+	type BlogPost,
+	type BlogPostStatus,
 } from "@/lib/types";
+import {
+	listBlogPostsFromDb,
+	parseBlogPostStatus,
+	slugifyBlogSlug,
+} from "@/lib/blog-posts";
 
 type TaskRow = Omit<TaskWithEmployee, "tags" | "links">;
 type TaskWithTags = Omit<TaskWithEmployee, "links">;
@@ -329,6 +336,11 @@ function revalidateTaskPages() {
 
 function revalidateXPostPages() {
 	revalidatePath("/x-schedule");
+}
+
+function revalidateBlogPostPages() {
+	revalidatePath("/blog-drafts");
+	revalidatePath("/pages");
 }
 
 function revalidateAppsPage() {
@@ -2744,4 +2756,207 @@ export async function deleteAppCron(formData: FormData) {
 
 	await db.prepare("DELETE FROM app_crons WHERE id = ?").bind(id).run();
 	revalidateAutomationsPage();
+}
+
+export async function listBlogPosts(status?: BlogPostStatus): Promise<BlogPost[]> {
+	const db = await getDb();
+	return listBlogPostsFromDb(db, status);
+}
+
+async function allocateUniqueBlogSlug(
+	db: Awaited<ReturnType<typeof getDb>>,
+	desired: string,
+	excludeId?: string,
+): Promise<string> {
+	const base = slugifyBlogSlug(desired) || `blog-${crypto.randomUUID().slice(0, 8)}`;
+	for (let attempt = 0; attempt < 20; attempt++) {
+		const candidate = attempt === 0 ? base : `${base}-${attempt + 1}`;
+		const existing = await db
+			.prepare("SELECT id FROM blog_posts WHERE slug = ?")
+			.bind(candidate)
+			.first<{ id: string }>();
+		if (!existing || existing.id === excludeId) {
+			return candidate;
+		}
+	}
+	return `${base}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+type BlogPostFormState = { error: string | null; ok: boolean };
+
+export async function createBlogPost(formData: FormData): Promise<{ error?: string }> {
+	const db = await getDb();
+	const title = formText(formData, "title");
+	const slugRaw = formText(formData, "slug");
+	const excerpt = formText(formData, "excerpt");
+	const body = String(formData.get("body") ?? "").trim();
+	const category = formText(formData, "category");
+	const tags = formText(formData, "tags");
+	const thumbnailUrl = formText(formData, "thumbnail_url");
+	const publishedOn = formText(formData, "published_on");
+	const notes = formText(formData, "notes");
+	let status: BlogPostStatus;
+	try {
+		status = parseBlogPostStatus(formData.get("status") ?? "draft");
+	} catch (error) {
+		return { error: error instanceof Error ? error.message : "ステータスが不正です" };
+	}
+
+	if (!title) {
+		return { error: "タイトルは必須です" };
+	}
+
+	try {
+		const id = newId("blog");
+		const slug = await allocateUniqueBlogSlug(db, slugRaw || title);
+		await db
+			.prepare(
+				`INSERT INTO blog_posts
+					(id, slug, title, excerpt, body, category, tags, thumbnail_url, published_on, status, notes, source)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual')`,
+			)
+			.bind(
+				id,
+				slug,
+				title,
+				excerpt,
+				body,
+				category,
+				tags,
+				thumbnailUrl,
+				publishedOn,
+				status,
+				notes,
+			)
+			.run();
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { error: `下書きの保存に失敗しました: ${message}` };
+	}
+
+	try {
+		revalidateBlogPostPages();
+	} catch (error) {
+		console.error("revalidateBlogPostPages failed", error);
+	}
+	return {};
+}
+
+export async function createBlogPostFormAction(
+	_prev: BlogPostFormState,
+	formData: FormData,
+): Promise<BlogPostFormState> {
+	const result = await createBlogPost(formData);
+	if (result.error) return { error: result.error, ok: false };
+	return { error: null, ok: true };
+}
+
+export async function updateBlogPost(formData: FormData): Promise<{ error?: string }> {
+	const db = await getDb();
+	const id = formText(formData, "id");
+	const title = formText(formData, "title");
+	const slugRaw = formText(formData, "slug");
+	const excerpt = formText(formData, "excerpt");
+	const body = String(formData.get("body") ?? "").trim();
+	const category = formText(formData, "category");
+	const tags = formText(formData, "tags");
+	const thumbnailUrl = formText(formData, "thumbnail_url");
+	const publishedOn = formText(formData, "published_on");
+	const notes = formText(formData, "notes");
+	let status: BlogPostStatus;
+	try {
+		status = parseBlogPostStatus(formData.get("status"));
+	} catch (error) {
+		return { error: error instanceof Error ? error.message : "ステータスが不正です" };
+	}
+
+	if (!id) {
+		return { error: "id が必要です" };
+	}
+	if (!title) {
+		return { error: "タイトルは必須です" };
+	}
+
+	const existing = await db
+		.prepare("SELECT id FROM blog_posts WHERE id = ?")
+		.bind(id)
+		.first();
+	if (!existing) {
+		return { error: "下書きが見つかりません" };
+	}
+
+	try {
+		const slug = await allocateUniqueBlogSlug(db, slugRaw || title, id);
+		await db
+			.prepare(
+				`UPDATE blog_posts
+				 SET slug = ?, title = ?, excerpt = ?, body = ?, category = ?, tags = ?,
+				     thumbnail_url = ?, published_on = ?, status = ?, notes = ?,
+				     updated_at = datetime('now')
+				 WHERE id = ?`,
+			)
+			.bind(
+				slug,
+				title,
+				excerpt,
+				body,
+				category,
+				tags,
+				thumbnailUrl,
+				publishedOn,
+				status,
+				notes,
+				id,
+			)
+			.run();
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { error: `下書きの更新に失敗しました: ${message}` };
+	}
+
+	try {
+		revalidateBlogPostPages();
+	} catch (error) {
+		console.error("revalidateBlogPostPages failed", error);
+	}
+	return {};
+}
+
+export async function updateBlogPostFormAction(
+	_prev: BlogPostFormState,
+	formData: FormData,
+): Promise<BlogPostFormState> {
+	const result = await updateBlogPost(formData);
+	if (result.error) return { error: result.error, ok: false };
+	return { error: null, ok: true };
+}
+
+export async function updateBlogPostStatus(formData: FormData) {
+	const db = await getDb();
+	const id = formText(formData, "id");
+	const status = parseBlogPostStatus(formData.get("status"));
+
+	if (!id) {
+		throw new Error("id が必要です");
+	}
+
+	await db
+		.prepare(
+			`UPDATE blog_posts
+			 SET status = ?, updated_at = datetime('now')
+			 WHERE id = ?`,
+		)
+		.bind(status, id)
+		.run();
+
+	revalidateBlogPostPages();
+}
+
+export async function deleteBlogPost(formData: FormData) {
+	const db = await getDb();
+	const id = formText(formData, "id");
+	if (!id) return;
+
+	await db.prepare("DELETE FROM blog_posts WHERE id = ?").bind(id).run();
+	revalidateBlogPostPages();
 }

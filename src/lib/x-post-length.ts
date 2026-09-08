@@ -29,6 +29,34 @@ export function xPostTextWeight(text: string): number {
 	return weight;
 }
 
+export type XPostLengthInfo = {
+	weight: number;
+	max: number;
+	remaining: number;
+	over: boolean;
+	/** 全角換算（半角1文字は 0.5） */
+	fullWidth: number;
+};
+
+export function xPostLengthInfo(text: string): XPostLengthInfo {
+	const weight = xPostTextWeight(text);
+	return {
+		weight,
+		max: X_POST_MAX_WEIGHT,
+		remaining: X_POST_MAX_WEIGHT - weight,
+		over: weight > X_POST_MAX_WEIGHT,
+		fullWidth: weight / 2,
+	};
+}
+
+function formatFullWidth(value: number): string {
+	return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+export function formatXPostLengthInfo(info: XPostLengthInfo): string {
+	return `${info.weight} / ${info.max}（全角 ${formatFullWidth(info.fullWidth)} / 140）`;
+}
+
 /** 全角140文字（weight 280）以内に切り詰める */
 export function truncateXPostText(text: string, maxWeight = X_POST_MAX_WEIGHT): string {
 	let weight = 0;

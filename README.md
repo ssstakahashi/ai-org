@@ -26,6 +26,7 @@ AI従業員が動く「会社」の司令塔。Cloudflare 上の Next.js アプ�
 |---|---|---|
 | 業務台帳 `/` | `tasks` | AI従業員の各種業務タスク |
 | X投稿スケジュール `/x-schedule` | `x_posts` | 投稿文・画像・予約・投稿結果 |
+| ブログ下書き `/blog-drafts` | `blog_posts` | AI作成の公式ブログ下書きの確認・承認 |
 
 ## 開発
 
@@ -110,6 +111,8 @@ npx wrangler secret put AUTOMATION_INGEST_SECRET
 
 - `POST /api/internal/automation-ingest` — 外部アプリからの自動化カタログ push
 - `GET /api/internal/requirements` — App 要件定義の export（Cursor Automation 用）
+- `POST /api/internal/blog-drafts` — 公式ブログ下書きの投入（Grok Bot 用）
+- `GET /api/internal/blog-drafts` — 下書き一覧（`status` で絞り込み可）
 
 ### App 要件定義 export
 
@@ -134,6 +137,29 @@ curl -sS \
 agri 側の適用手順: [integrations/agri-next-backend/README.md](./integrations/agri-next-backend/README.md)
 
 一覧: `/automations`
+
+## ブログ下書きの確認・承認
+
+AI（Grok Bot）が作成した公式ブログの下書きを `/blog-drafts` で確認し、承認します。承認はステータス変更のみで、studiofoods-public への公開（コミット／push／デプロイ）は別作業です。
+
+| ステータス | 意味 |
+|---|---|
+| 下書き | 確認待ち |
+| 承認済 | 人が内容を承認した |
+| 公開済 | サイトへ反映済み |
+| 差戻し | 修正が必要 |
+
+投入（認証は `AUTOMATION_INGEST_SECRET`）:
+
+```bash
+curl -sS -X POST \
+  -H "Authorization: Bearer $AUTOMATION_INGEST_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"記事タイトル","slug":"example-slug","body":"本文","category":"経営","tags":["AI","DX"]}' \
+  "https://<ai-org-host>/api/internal/blog-drafts"
+```
+
+同じ `slug`（または `id`）で再投入すると下書きに戻して上書きします。承認済み一覧の取得は `GET /api/internal/blog-drafts?status=approved` です。
 
 ## X 自動投稿
 
@@ -198,7 +224,8 @@ openssl rand -base64 32
 # → .dev.vars に追記（値はパスワードマネージャー等に保管。git には入れない）
 # NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=...
 
-bun run deploy   # 未設定なら scripts/check-build-env.sh で失敗
+bun run deploy   # 変更があれば commit → push → デプロイ。未設定なら check-build-env で失敗
+# bun run deploy -- "コミットメッセージ"  でも可（省略時は deploy: YYYY-MM-DD HH:MM）
 ```
 
 `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` は **ビルド時のみ** 使います。Workers の runtime secret（`wrangler secret put`）には不要です。

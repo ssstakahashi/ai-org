@@ -1,7 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import {
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	useTransition,
+	type ChangeEvent,
+	type ReactNode,
+} from "react";
+import { flushSync } from "react-dom";
 import { deleteXPost, updateXPostStatus } from "@/app/actions";
 import { PostXPostNowButton } from "@/components/PostXPostNowButton";
 import { RunDuePostsButton } from "@/components/RunDuePostsButton";
@@ -10,7 +19,9 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { StatusIcon } from "@/components/StatusIcon";
 import { XPostForm } from "@/components/XPostForm";
 import { mediaUrl } from "@/lib/media-upload";
+import { recoverFromStaleServerAction } from "@/lib/server-action-client";
 import { formatInAppTz } from "@/lib/timezone";
+import { formatXPostLengthInfo, xPostLengthInfo } from "@/lib/x-post-length";
 import {
 	X_POST_STATUS_LABEL,
 	type TaskStatus,
@@ -19,13 +30,6 @@ import {
 
 type Props = {
 	posts: XPost[];
-};
-
-const NEXT_STATUS: Partial<Record<TaskStatus, TaskStatus>> = {
-	draft: "approved",
-	approved: "scheduled",
-	scheduled: "done",
-	failed: "draft",
 };
 
 const STATUS_ORDER: TaskStatus[] = ["draft", "approved", "scheduled", "done", "failed"];
@@ -103,18 +107,82 @@ function DeleteIcon() {
 	);
 }
 
+function XPostStatusSelect({
+	post,
+	onMessage,
+}: {
+	post: XPost;
+	onMessage: (message: string | null) => void;
+}) {
+	const router = useRouter();
+	const [pending, startTransition] = useTransition();
+	const [status, setStatus] = useState(post.status);
+
+	useEffect(() => {
+		setStatus(post.status);
+	}, [post.status]);
+
+	function handleChange(event: ChangeEvent<HTMLSelectElement>) {
+		const next = event.target.value as TaskStatus;
+		if (next === status) return;
+		const previous = status;
+		setStatus(next);
+		onMessage(null);
+		startTransition(async () => {
+			try {
+				const formData = new FormData();
+				formData.set("id", post.id);
+				formData.set("status", next);
+				await updateXPostStatus(formData);
+				router.refresh();
+			} catch (error) {
+				setStatus(previous);
+				if (recoverFromStaleServerAction(error)) return;
+				onMessage(
+					error instanceof Error ? error.message : "ステータスの更新に失敗しました",
+				);
+			}
+		});
+	}
+
+	return (
+		<select
+			className={`x-schedule-status-select status-${status}`}
+			value={status}
+			disabled={pending}
+			aria-label={`${post.title} のステータス`}
+			onChange={handleChange}
+			onClick={(event) => event.stopPropagation()}
+		>
+			{STATUS_ORDER.map((value) => (
+				<option key={value} value={value}>
+					{X_POST_STATUS_LABEL[value]}
+				</option>
+			))}
+		</select>
+	);
+}
+
 export function XPostScheduleTable({ posts }: Props) {
 	const router = useRouter();
 	const counts = countByStatus(posts);
 	const createDialogRef = useRef<HTMLDialogElement>(null);
+	const detailDialogRef = useRef<HTMLDialogElement>(null);
 	const editDialogRef = useRef<HTMLDialogElement>(null);
+	const [detailing, setDetailing] = useState<XPost | null>(null);
 	const [editing, setEditing] = useState<XPost | null>(null);
 	const [createFormKey, setCreateFormKey] = useState(0);
 	const [editFormKey, setEditFormKey] = useState(0);
 	const [actionMessage, setActionMessage] = useState<string | null>(null);
+	const detailBodyLength = detailing ? xPostLengthInfo(detailing.body) : null;
 
 	const closeCreateDialog = useCallback(() => {
 		createDialogRef.current?.close();
+	}, []);
+
+	const closeDetailDialog = useCallback(() => {
+		detailDialogRef.current?.close();
+		setDetailing(null);
 	}, []);
 
 	const closeEditDialog = useCallback(() => {
@@ -137,10 +205,26 @@ export function XPostScheduleTable({ posts }: Props) {
 		createDialogRef.current?.showModal();
 	}
 
+	function openDetail(post: XPost) {
+		flushSync(() => {
+			setDetailing(post);
+		});
+		detailDialogRef.current?.showModal();
+	}
+
 	function openEdit(post: XPost) {
-		setEditing(post);
-		setEditFormKey((value) => value + 1);
+		flushSync(() => {
+			setEditing(post);
+			setEditFormKey((value) => value + 1);
+		});
 		editDialogRef.current?.showModal();
+	}
+
+	function openEditFromDetail() {
+		if (!detailing) return;
+		const post = detailing;
+		closeDetailDialog();
+		openEdit(post);
 	}
 
 	return (
@@ -183,13 +267,16 @@ export function XPostScheduleTable({ posts }: Props) {
 						</thead>
 						<tbody>
 							{posts.map((post) => {
-								const next = NEXT_STATUS[post.status];
+								const bodyLength = xPostLengthInfo(post.body);
 								return (
 									<tr key={post.id} className={`status-${post.status}`}>
 										<td className="meta-cell">
 											<p className="x-schedule-when">{formatWhen(post.scheduled_at)}</p>
 											<div className="x-schedule-status">
-												<StatusBadge status={post.status} />
+												<XPostStatusSelect
+													post={post}
+													onMessage={setActionMessage}
+												/>
 											</div>
 											{post.x_post_id ? (
 												<p className="x-post-id">
@@ -229,13 +316,25 @@ export function XPostScheduleTable({ posts }: Props) {
 											)}
 										</td>
 										<td className="content-cell">
-											<p className="x-schedule-post-title">{post.title}</p>
-											<p
-												className="x-schedule-post-body"
-												title={post.body || undefined}
+											<button
+												type="button"
+												className="x-schedule-content-btn"
+												onClick={() => openDetail(post)}
 											>
-												{truncate(post.body)}
-											</p>
+												<p className="x-schedule-post-title">{post.title}</p>
+												<p className="x-schedule-post-body">
+													{truncate(post.body)}
+												</p>
+												<p
+													className={
+														bodyLength.over
+															? "x-schedule-post-chars x-post-char-count is-over"
+															: "x-schedule-post-chars x-post-char-count"
+													}
+												>
+													{formatXPostLengthInfo(bodyLength)}
+												</p>
+											</button>
 										</td>
 										<td className="actions-col">
 											<div className="x-schedule-actions">
@@ -259,51 +358,6 @@ export function XPostScheduleTable({ posts }: Props) {
 														</ActionButtonIcon>
 														<span>Xへ投稿</span>
 													</PostXPostNowButton>
-												) : null}
-												{next && post.status !== "scheduled" ? (
-													<form action={updateXPostStatus}>
-														<input type="hidden" name="id" value={post.id} />
-														<input type="hidden" name="status" value={next} />
-														<button
-															type="submit"
-															className={`x-schedule-action-btn x-action-advance status-${next}`}
-														>
-															<ActionButtonIcon>
-																<StatusIcon status={next} className="x-schedule-action-svg" />
-															</ActionButtonIcon>
-															<span>{X_POST_STATUS_LABEL[next]}</span>
-														</button>
-													</form>
-												) : null}
-												{post.status === "scheduled" ? (
-													<form action={updateXPostStatus}>
-														<input type="hidden" name="id" value={post.id} />
-														<input type="hidden" name="status" value="done" />
-														<button
-															type="submit"
-															className="x-schedule-action-btn x-action-complete"
-														>
-															<ActionButtonIcon>
-																<StatusIcon status="done" className="x-schedule-action-svg" />
-															</ActionButtonIcon>
-															<span>手動完了</span>
-														</button>
-													</form>
-												) : null}
-												{post.status !== "failed" && post.status !== "done" ? (
-													<form action={updateXPostStatus}>
-														<input type="hidden" name="id" value={post.id} />
-														<input type="hidden" name="status" value="failed" />
-														<button
-															type="submit"
-															className="x-schedule-action-btn x-action-fail"
-														>
-															<ActionButtonIcon>
-																<StatusIcon status="failed" className="x-schedule-action-svg" />
-															</ActionButtonIcon>
-															<span>失敗</span>
-														</button>
-													</form>
 												) : null}
 												<form action={deleteXPost}>
 													<input type="hidden" name="id" value={post.id} />
@@ -342,6 +396,93 @@ export function XPostScheduleTable({ posts }: Props) {
 						</button>
 					</div>
 					<XPostForm key={createFormKey} onSuccess={handleCreateSuccess} />
+				</div>
+			</dialog>
+
+			<dialog
+				ref={detailDialogRef}
+				className="task-dialog"
+				onClick={(event) => {
+					if (event.target === detailDialogRef.current) closeDetailDialog();
+				}}
+			>
+				<div className="task-dialog-panel">
+					<div className="task-dialog-head">
+						<h2>投稿の詳細</h2>
+						<button type="button" className="ghost" onClick={closeDetailDialog}>
+							閉じる
+						</button>
+					</div>
+					{detailing ? (
+						<div className="task-detail">
+							<div className="task-meta">
+								<StatusBadge status={detailing.status} />
+								<span className="when">{formatWhen(detailing.scheduled_at)}</span>
+								<span
+									className={
+										detailBodyLength?.over
+											? "x-post-char-count is-over"
+											: "x-post-char-count"
+									}
+								>
+									{detailBodyLength
+										? formatXPostLengthInfo(detailBodyLength)
+										: null}
+								</span>
+							</div>
+							<h3 className="task-detail-title">{detailing.title}</h3>
+							{detailing.body ? (
+								<p className="body">{detailing.body}</p>
+							) : (
+								<p className="notes">投稿文はありません</p>
+							)}
+							{detailing.image_key ? (
+								<a
+									href={mediaUrl(detailing.image_key)}
+									target="_blank"
+									rel="noreferrer"
+									className="task-detail-image"
+									title="画像を開く"
+								>
+									{/* eslint-disable-next-line @next/next/no-img-element -- R2 配信プレビュー */}
+									<img
+										src={mediaUrl(detailing.image_key)}
+										alt={`${detailing.title} の画像`}
+										loading="lazy"
+									/>
+								</a>
+							) : null}
+							{detailing.notes ? (
+								<p className="notes">メモ: {detailing.notes}</p>
+							) : null}
+							{detailing.x_post_id ? (
+								<p className="x-post-id">
+									<a
+										href={`https://x.com/i/web/status/${detailing.x_post_id}`}
+										target="_blank"
+										rel="noreferrer"
+									>
+										投稿を見る
+									</a>
+								</p>
+							) : null}
+							{detailing.status === "failed" && detailing.last_error ? (
+								<p className="last-error">{detailing.last_error}</p>
+							) : null}
+							<div className="task-actions task-detail-actions">
+								<div className="task-detail-actions-end">
+									<button
+										type="button"
+										className="task-detail-btn task-detail-btn-edit"
+										onClick={openEditFromDetail}
+									>
+										<StatusIcon status="draft" className="task-detail-btn-icon" />
+										<span>編集</span>
+									</button>
+								</div>
+							</div>
+						</div>
+					) : null}
 				</div>
 			</dialog>
 

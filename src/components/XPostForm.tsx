@@ -7,6 +7,7 @@ import { StatusIcon } from "@/components/StatusIcon";
 import { mediaUrl } from "@/lib/media-upload";
 import { toAppDateTimeLocal } from "@/lib/timezone";
 import { replaceInputFile, toWebpFile } from "@/lib/to-webp";
+import { formatXPostLengthInfo, xPostLengthInfo } from "@/lib/x-post-length";
 import { X_POST_STATUS_LABEL, type TaskStatus, type XPost } from "@/lib/types";
 
 const CREATE_STATUSES: TaskStatus[] = ["draft", "approved", "scheduled", "done"];
@@ -62,6 +63,7 @@ export function XPostForm({
 		: storedImageUrl && !clearImage
 			? "現在の画像"
 			: null;
+	const bodyLength = xPostLengthInfo(body);
 
 	useEffect(() => {
 		if (state.ok) onSuccess?.();
@@ -216,7 +218,19 @@ export function XPostForm({
 					/>
 				</label>
 				<label className="full">
-					<span>投稿文</span>
+					<span>
+						投稿文
+						<span
+							className={
+								bodyLength.over
+									? "x-post-char-count is-over"
+									: "x-post-char-count"
+							}
+							aria-live="polite"
+						>
+							{formatXPostLengthInfo(bodyLength)}
+						</span>
+					</span>
 					<textarea
 						name="body"
 						rows={isEdit ? 10 : 4}
@@ -225,6 +239,15 @@ export function XPostForm({
 						onChange={(event) => setBody(event.target.value)}
 						disabled={imageBusy}
 					/>
+					<p
+						className={
+							bodyLength.over ? "field-hint x-post-char-hint is-over" : "field-hint"
+						}
+					>
+						{bodyLength.over
+							? `上限を ${bodyLength.weight - bodyLength.max} 超えています（全角は2、半角は1。上限は全角140文字相当）`
+							: `残り ${bodyLength.remaining}（全角は2、半角は1。上限は全角140文字相当）`}
+					</p>
 				</label>
 				{analysis ? (
 					<div className="full">

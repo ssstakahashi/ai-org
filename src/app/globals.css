@@ -387,6 +387,11 @@ a.logout-button:hover {
 	max-width: 12rem;
 }
 
+.task-detail .last-error,
+.task-detail .x-post-id {
+	max-width: none;
+}
+
 .task-form {
 	display: grid;
 	gap: 1rem;
@@ -1032,6 +1037,28 @@ a.logout-button:hover {
 .x-post-analysis {
 	white-space: pre-wrap;
 	margin-top: 0.5rem;
+}
+
+.x-post-char-count {
+	margin-left: 0.4rem;
+	font-size: 0.75rem;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--foreground);
+}
+
+.x-post-char-count.is-over,
+.x-post-char-hint.is-over {
+	color: var(--danger);
+}
+
+.x-schedule-post-chars {
+	margin: 0.3rem 0 0;
+	margin-left: 0;
+}
+
+.task-meta .x-post-char-count {
+	margin-left: 0;
 }
 
 .field-loading {
@@ -1953,6 +1980,45 @@ button.ghost {
 	margin-top: 0.4rem;
 }
 
+.x-schedule-status-select {
+	width: auto;
+	min-width: 7.5rem;
+	padding: 0.35rem 0.55rem;
+	border-radius: 999px;
+	font-size: 0.85rem;
+	font-weight: 600;
+}
+
+.x-schedule-status-select.status-draft {
+	color: var(--status-draft);
+	border-color: color-mix(in srgb, var(--status-draft) 40%, var(--line));
+	background: color-mix(in srgb, var(--status-draft) 14%, white);
+}
+
+.x-schedule-status-select.status-approved {
+	color: var(--status-approved);
+	border-color: color-mix(in srgb, var(--status-approved) 40%, var(--line));
+	background: color-mix(in srgb, var(--status-approved) 14%, white);
+}
+
+.x-schedule-status-select.status-scheduled {
+	color: var(--status-scheduled);
+	border-color: color-mix(in srgb, var(--status-scheduled) 40%, var(--line));
+	background: color-mix(in srgb, var(--status-scheduled) 14%, white);
+}
+
+.x-schedule-status-select.status-done {
+	color: var(--status-done);
+	border-color: color-mix(in srgb, var(--status-done) 40%, var(--line));
+	background: color-mix(in srgb, var(--status-done) 14%, white);
+}
+
+.x-schedule-status-select.status-failed {
+	color: var(--status-failed);
+	border-color: color-mix(in srgb, var(--status-failed) 40%, var(--line));
+	background: color-mix(in srgb, var(--status-failed) 14%, white);
+}
+
 .x-schedule-table .title {
 	font-weight: 600;
 	min-width: 8rem;
@@ -1961,6 +2027,32 @@ button.ghost {
 .x-schedule-table .content-cell {
 	min-width: 12rem;
 	max-width: 24rem;
+	padding: 0;
+}
+
+.x-schedule-content-btn {
+	display: block;
+	width: 100%;
+	min-height: 100%;
+	margin: 0;
+	padding: 0.75rem 0.85rem;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	text-align: left;
+	cursor: pointer;
+	font: inherit;
+	color: inherit;
+}
+
+.x-schedule-content-btn:hover,
+.x-schedule-content-btn:focus-visible {
+	background: color-mix(in srgb, var(--accent) 6%, white);
+}
+
+.x-schedule-content-btn:focus-visible {
+	outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+	outline-offset: 2px;
 }
 
 .x-schedule-post-title {
@@ -2029,8 +2121,6 @@ button.ghost {
 .x-schedule-actions {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	grid-template-rows: repeat(3, auto);
-	grid-auto-flow: column;
 	gap: 0.35rem;
 	width: 12.5rem;
 }

@@ -91,7 +91,10 @@ export function TaskForm({
 			: (employees[0]?.id ?? ""));
 	const selectedCategoryId = source?.category_id ?? defaultCategoryId;
 	const selectedTaskGroupId = source?.task_group_id ?? "";
-	const selectedStatus = source?.status ?? defaultStatus;
+	const selectedStatus =
+		!isEdit && prefillFrom?.status === "done"
+			? "draft"
+			: (source?.status ?? defaultStatus);
 	const selectedTagIds = new Set(source?.tags.map((tag) => tag.id) ?? []);
 	const startAtDefault = source
 		? toAppDateTimeLocal(source.start_at)

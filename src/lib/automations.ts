@@ -153,9 +153,9 @@ export const AUTOMATIONS: AutomationEntry[] = [
 	 * runner: cursor
 	 * status: active
 	 * trigger: Grok Bot ルーチン（毎週 月・水・金 9:00 JST）
-	 * summary: テーマを5本一巡（AI社員→MIERU→SODATE→農業DX→バックオフィス）で選び、下書きまで進める。公開（コミット／push／デプロイ）前のみ確認。
-	 * location: Grok Bot ルーチン「ブログ下書き（月水金）」 / studiofoods-public
-	 * href: /apps/requirements
+	 * summary: テーマを5本一巡で選び、下書きを ai-org へ投入する。公開前に /blog-drafts で確認・承認する。
+	 * location: Grok Bot ルーチン「ブログ下書き（月水金）」 → POST /api/internal/blog-drafts
+	 * href: /blog-drafts
 	 */
 	{
 		id: "grokbot-studiofoods-blog-draft",
@@ -164,10 +164,10 @@ export const AUTOMATIONS: AutomationEntry[] = [
 		status: "active",
 		trigger: "Grok Bot ルーチン（毎週 月・水・金 9:00 JST）",
 		summary:
-			"テーマを5本一巡（AI社員→MIERU→SODATE→農業DX→バックオフィス）で選び、下書きまで進める。公開（コミット／push／デプロイ）前のみ確認。次の1本は「AI社員に問い合わせ以外を任せる範囲の決め方」。",
+			"テーマを5本一巡（AI社員→MIERU→SODATE→農業DX→バックオフィス）で選び、下書きを ai-org へ投入する。公開（コミット／push／デプロイ）前に /blog-drafts で確認・承認する。",
 		location:
-			"Grok Bot ルーチン「ブログ下書き（月水金）」 → /Users/user/developer/01_Static_Site/studiofoods-public",
-		href: "/apps/requirements",
+			"Grok Bot ルーチン「ブログ下書き（月水金）」 → POST /api/internal/blog-drafts → /blog-drafts",
+		href: "/blog-drafts",
 		source: LOCAL_AUTOMATION_SOURCE,
 	},
 	/**

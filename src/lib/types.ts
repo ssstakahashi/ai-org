@@ -195,6 +195,54 @@ export const APP_REQUIREMENT_STATUS_OPTIONS = [
 	"cancelled",
 ] as const satisfies readonly AppRequirementStatus[];
 
+/** 公式ブログ下書き（確認・承認） */
+export type BlogPostStatus = "draft" | "approved" | "published" | "rejected";
+
+export type BlogPost = {
+	id: string;
+	slug: string;
+	title: string;
+	excerpt: string;
+	body: string;
+	category: string;
+	tags: string;
+	thumbnail_url: string;
+	published_on: string;
+	status: BlogPostStatus;
+	notes: string;
+	source: string;
+	created_at: string;
+	updated_at: string;
+};
+
+export const BLOG_POST_STATUS_LABEL: Record<BlogPostStatus, string> = {
+	draft: "下書き",
+	approved: "承認済",
+	published: "公開済",
+	rejected: "差戻し",
+};
+
+export const BLOG_POST_STATUS_OPTIONS = [
+	"draft",
+	"approved",
+	"published",
+	"rejected",
+] as const satisfies readonly BlogPostStatus[];
+
+export const BLOG_POST_STATUS_ICON: Record<BlogPostStatus, TaskStatus> = {
+	draft: "draft",
+	approved: "approved",
+	published: "done",
+	rejected: "failed",
+};
+
+export const BLOG_POST_STATUS_CLASS: Record<BlogPostStatus, string> = {
+	draft: "status-draft",
+	approved: "status-approved",
+	published: "status-done",
+	rejected: "status-failed",
+};
+
 /** アプリケーション名マスタ */
 export type AppName = {
 	id: string;
