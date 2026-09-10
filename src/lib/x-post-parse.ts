@@ -180,6 +180,49 @@ function extractPattern1(postSuggestions: string): string {
 	return match?.[1]?.trim() ?? "";
 }
 
+function isPatternHeader(line: string): boolean {
+	return /^###\s*パターン\d/u.test(normalizeLine(line));
+}
+
+function isRecommendBodyHeader(line: string): boolean {
+	const heading = normalizeLine(line).replace(/^##\s+/, "");
+	return heading === "おすすめ投稿文";
+}
+
+/** 分析テキスト内のおすすめ投稿文・3パターンを X 制限内に切り詰める */
+function truncateAnalysisPostBodies(raw: string): string {
+	const lines = raw.split(/\r?\n/);
+	const out: string[] = [];
+	let capturing = false;
+	let bodyLines: string[] = [];
+
+	const flushBody = () => {
+		if (!capturing) return;
+		const truncated = truncateXPostText(bodyLines.join("\n").trim(), X_POST_MAX_WEIGHT);
+		if (truncated) out.push(truncated);
+		bodyLines = [];
+		capturing = false;
+	};
+
+	for (const line of lines) {
+		const startsPostBody = isRecommendBodyHeader(line) || isPatternHeader(line);
+		const startsOtherHeading = /^##\s+/.test(line) && !isRecommendBodyHeader(line);
+		if (startsPostBody || startsOtherHeading) {
+			flushBody();
+			out.push(line);
+			capturing = startsPostBody;
+			continue;
+		}
+		if (capturing) {
+			bodyLines.push(line);
+		} else {
+			out.push(line);
+		}
+	}
+	flushBody();
+	return out.join("\n");
+}
+
 function isWeakTitle(title: string): boolean {
 	const trimmed = title.trim();
 	if (!trimmed) return true;
@@ -216,7 +259,7 @@ export function parseXPostAnalysis(raw: string): ParsedXPostAnalysis {
 
 	return {
 		title: truncateXPostText(title, 60),
-		body: body.trim(),
-		analysis: raw.trim(),
+		body: truncateXPostText(body, X_POST_MAX_WEIGHT),
+		analysis: truncateAnalysisPostBodies(raw.trim()),
 	};
 }

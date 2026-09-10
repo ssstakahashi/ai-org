@@ -1,6 +1,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getDb } from "@/lib/db";
 import { geminiGenerateContent, getGeminiApiKey } from "@/lib/gemini";
+import { xPostTextWeight, X_POST_MAX_WEIGHT } from "@/lib/x-post-length";
 import { parseXPostAnalysis } from "@/lib/x-post-parse";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -24,20 +25,21 @@ export type SuggestXPostResult = {
 
 function summarizePastStyle(pastPosts: PastPost[]): string {
 	if (pastPosts.length === 0) {
-		return "親しみやすい農家・個人事業主向けのカジュアルな口調";
+		return `親しみやすい農家・個人事業主向けのカジュアルな口調。投稿文は X文字数（全角2・半角1）で ${X_POST_MAX_WEIGHT} 以内`;
 	}
 
-	const lengths = pastPosts.map((post) => post.body.trim().length).filter(Boolean);
-	const avgLength =
-		lengths.length > 0
-			? Math.round(lengths.reduce((sum, length) => sum + length, 0) / lengths.length)
-			: 80;
+	const weights = pastPosts.map((post) => xPostTextWeight(post.body.trim())).filter(Boolean);
+	const avgWeight =
+		weights.length > 0
+			? Math.round(weights.reduce((sum, weight) => sum + weight, 0) / weights.length)
+			: 160;
+	const targetWeight = Math.min(Math.max(avgWeight, 80), 240);
 	const usesEmoji = pastPosts.some((post) => /[\u{1F300}-\u{1FAFF}]/u.test(post.body));
 	const usesHashtag = pastPosts.some((post) => /#[\w\u3040-\u30FF\u4E00-\u9FFF]+/u.test(post.body));
 
 	return [
 		"口調: カジュアルで親しみやすい",
-		`本文の長さ目安: ${avgLength}文字前後`,
+		`本文の長さ目安: X文字数（全角2・半角1）で ${targetWeight} 前後。必ず ${X_POST_MAX_WEIGHT} 以内`,
 		usesEmoji ? "絵文字: たまに使う" : "絵文字: ほぼ使わない",
 		usesHashtag ? "ハッシュタグ: たまに使う" : "ハッシュタグ: ほぼ使わない",
 	].join("、");
@@ -66,6 +68,8 @@ ${notesLine}
 - 過去の投稿と同じ題材・フレーズをコピーしない
 - 投稿文案は3パターン。パターン1をいちばんおすすめにする
 - ハッシュタグを適宜含める
+- 投稿文はハッシュタグ込みで X の制限内に収める（全角=2・半角/英数=1 で合計 ${X_POST_MAX_WEIGHT} 以内。日本語中心なら約140文字以内）
+- 3パターンとも制限を超えない。短い文で鋭く書く
 
 ## 出力形式（厳守。この見出し名をそのまま使う）
 
