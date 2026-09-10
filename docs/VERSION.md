@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.46 (2026-09-10)
+
+- X投稿フォームに、アップロード済み画像を再解析するボタンを追加
+
 ## 0.0.45 (2026-09-10)
 
 - X投稿の画像解析モデルを Gemini 3.8 Flash に更新

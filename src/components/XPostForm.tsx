@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useState, type ChangeEvent } from "react";
+import {
+	useActionState,
+	useEffect,
+	useState,
+	type ChangeEvent,
+	type MouseEvent,
+} from "react";
 import { createXPostFormAction, updateXPostFormAction } from "@/app/actions";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { StatusIcon } from "@/components/StatusIcon";
@@ -80,18 +86,16 @@ export function XPostForm({
 		};
 	}, [localPreviewUrl]);
 
-	async function suggestFromImage(
-		image: File,
-		form: HTMLFormElement | null | undefined,
-	) {
+	function appendNotes(payload: FormData, form: HTMLFormElement | null | undefined) {
 		const notesInput = form?.elements.namedItem("notes");
 		const notes =
 			notesInput instanceof HTMLTextAreaElement ? notesInput.value.trim() : "";
-
-		const payload = new FormData();
-		payload.set("image", image);
 		if (notes) payload.set("notes", notes);
+	}
 
+	async function suggestFromPayload(
+		payload: FormData,
+	) {
 		setAnalyzing(true);
 		setClientError(null);
 		setAnalysis(null);
@@ -122,6 +126,39 @@ export function XPostForm({
 		} finally {
 			setAnalyzing(false);
 		}
+	}
+
+	async function suggestFromImage(
+		image: File,
+		form: HTMLFormElement | null | undefined,
+	) {
+		const payload = new FormData();
+		payload.set("image", image);
+		appendNotes(payload, form);
+		await suggestFromPayload(payload);
+	}
+
+	async function handleAnalyzeClick(event: MouseEvent<HTMLButtonElement>) {
+		event.preventDefault();
+		event.stopPropagation();
+		const form = event.currentTarget.form;
+		const imageInput = form?.elements.namedItem("image");
+		const selected =
+			imageInput instanceof HTMLInputElement ? imageInput.files?.[0] : undefined;
+		if (selected) {
+			await suggestFromImage(selected, form);
+			return;
+		}
+
+		if (!post?.image_key || clearImage) {
+			setClientError("解析する画像がありません");
+			return;
+		}
+
+		const payload = new FormData();
+		payload.set("image_key", post.image_key);
+		appendNotes(payload, form);
+		await suggestFromPayload(payload);
 	}
 
 	async function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
@@ -257,22 +294,35 @@ export function XPostForm({
 						</details>
 					</div>
 				) : null}
-				<label className="full">
-					<span>画像</span>
-					<input
-						type="file"
-						name="image"
-						accept="image/*"
-						onChange={handleImageChange}
-						disabled={imageBusy || pending}
-					/>
+				<div className="status-field full">
+					<label>
+						<span>画像</span>
+						<input
+							type="file"
+							name="image"
+							accept="image/*"
+							onChange={handleImageChange}
+							disabled={imageBusy || pending}
+						/>
+					</label>
 					{imageBusy ? (
 						<LoadingSpinner label={imageBusyLabel} />
 					) : (
 						<p className="field-hint">
-							選択後に WebP へ変換し、AI がテーマ・投稿文・3パターン案を提案します（最大 8MB）
+							選択後に WebP へ変換し、AI がテーマ・投稿文・3パターン案を提案します（最大 8MB）。失敗したときは「AI解析する」で再実行できます
 						</p>
 					)}
+					{previewUrl && !imageBusy ? (
+						<div>
+							<button
+								type="button"
+								disabled={pending}
+								onClick={handleAnalyzeClick}
+							>
+								AI解析する
+							</button>
+						</div>
+					) : null}
 					{previewUrl ? (
 						<figure className="image-preview">
 							{/* eslint-disable-next-line @next/next/no-img-element -- blob / R2 配信プレビュー */}
@@ -317,7 +367,7 @@ export function XPostForm({
 							<span>画像を削除する</span>
 						</label>
 					) : null}
-				</label>
+				</div>
 				<label className="full">
 					<span>メモ</span>
 					<textarea
