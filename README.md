@@ -113,6 +113,8 @@ npx wrangler secret put AUTOMATION_INGEST_SECRET
 - `GET /api/internal/requirements` — App 要件定義の export（Cursor Automation 用）
 - `POST /api/internal/blog-drafts` — 公式ブログ下書きの投入（Grok Bot 用）
 - `GET /api/internal/blog-drafts` — 下書き一覧（`status` で絞り込み可）
+- `GET /api/internal/spark-automations` — Google Spark 自動化の現在値
+- `POST /api/internal/spark-automations` — スプレッドシートから Spark 自動化を再取得
 
 ### App 要件定義 export
 
@@ -211,6 +213,24 @@ npx wrangler secret put APP_PUBLIC_URL   # 任意
 ```
 
 転記列（デフォルト）: ID / タイトル / 投稿文 / ステータス / 予約日時 / メモ / 画像URL / X投稿ID / X投稿URL / エラー / 作成日時 / 更新日時
+
+## Google Spark 自動化の取得
+
+Spark（Gemini）は ai-org を直接編集できないため、指定スプレッドシートの内容を `/automations` へ取り込みます。人はシートを直接編集できます。
+
+取得元（固定）: [Spark_自動化一覧](https://docs.google.com/spreadsheets/d/1yAQXXH7yYkZ9Xm89tGKoUwqnDFXOZ6XfdXm0T1pQZwA/edit?gid=0#gid=0)
+
+列: `ID` / `自動化タイトル` / `ステータス` / `実行タイミング` / `処理内容・プロンプト`
+
+X投稿転記と同じ `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` を使い、シートを Service Account に **閲覧者** で共有してください。
+
+`/automations` を開いたとき、および「スプレッドシートから取得」ボタンで再取得します。
+
+```bash
+curl -sS -X POST \
+  -H "Authorization: Bearer $AUTOMATION_INGEST_SECRET" \
+  "https://<ai-org-host>/api/internal/spark-automations"
+```
 
 ## デプロイ
 

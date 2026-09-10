@@ -1,13 +1,16 @@
 import { newId } from "@/lib/db";
 import {
+	BLOG_POST_DESTINATION_DEFAULT,
+	BLOG_POST_DESTINATION_OPTIONS,
 	BLOG_POST_STATUS_OPTIONS,
 	type BlogPost,
+	type BlogPostDestination,
 	type BlogPostStatus,
 } from "@/lib/types";
 
 export const BLOG_POST_SELECT = `SELECT
 	id, slug, title, excerpt, body, category, tags, thumbnail_url, published_on,
-	status, notes, source, created_at, updated_at
+	status, destination, notes, source, created_at, updated_at
  FROM blog_posts`;
 
 export const BLOG_POST_ORDER = `ORDER BY
@@ -29,6 +32,7 @@ export type BlogDraftIngestInput = {
 	tags?: string;
 	thumbnail_url?: string;
 	published_on?: string;
+	destination?: BlogPostDestination;
 	notes?: string;
 	source?: string;
 };
@@ -39,6 +43,29 @@ export function parseBlogPostStatus(raw: unknown): BlogPostStatus {
 		return value as BlogPostStatus;
 	}
 	throw new Error("ステータスが不正です");
+}
+
+export function parseBlogPostDestination(
+	raw: unknown,
+	options?: { fallback?: BlogPostDestination },
+): BlogPostDestination {
+	const value = String(raw ?? "").trim();
+	if ((BLOG_POST_DESTINATION_OPTIONS as readonly string[]).includes(value)) {
+		return value as BlogPostDestination;
+	}
+	if (options?.fallback && !value) {
+		return options.fallback;
+	}
+	throw new Error("投稿先が不正です");
+}
+
+function withDestination(post: BlogPost): BlogPost {
+	return {
+		...post,
+		destination: parseBlogPostDestination(post.destination, {
+			fallback: BLOG_POST_DESTINATION_DEFAULT,
+		}),
+	};
 }
 
 export function formatBlogPostTags(tags: string): string[] {
@@ -88,6 +115,15 @@ export function parseBlogDraftIngest(
 		return { ok: false, error: "title is required" };
 	}
 
+	let destination: BlogPostDestination | undefined;
+	if (asOptionalString(obj.destination)) {
+		try {
+			destination = parseBlogPostDestination(obj.destination);
+		} catch {
+			return { ok: false, error: "destination is invalid" };
+		}
+	}
+
 	return {
 		ok: true,
 		input: {
@@ -100,6 +136,7 @@ export function parseBlogDraftIngest(
 			tags: normalizeTagsInput(obj.tags),
 			thumbnail_url: asOptionalString(obj.thumbnail_url),
 			published_on: asOptionalString(obj.published_on),
+			destination,
 			notes: asOptionalString(obj.notes),
 			source: asOptionalString(obj.source) || "grokbot",
 		},
@@ -128,13 +165,23 @@ async function allocateUniqueSlug(
 export async function listBlogPostsFromDb(
 	db: D1Database,
 	status?: BlogPostStatus,
+	destination?: BlogPostDestination,
 ): Promise<BlogPost[]> {
-	const sql = status
-		? `${BLOG_POST_SELECT} WHERE status = ? ${BLOG_POST_ORDER}`
-		: `${BLOG_POST_SELECT} ${BLOG_POST_ORDER}`;
-	const stmt = status ? db.prepare(sql).bind(status) : db.prepare(sql);
+	const filters: string[] = [];
+	const binds: string[] = [];
+	if (status) {
+		filters.push("status = ?");
+		binds.push(status);
+	}
+	if (destination) {
+		filters.push("destination = ?");
+		binds.push(destination);
+	}
+	const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+	const sql = `${BLOG_POST_SELECT} ${where} ${BLOG_POST_ORDER}`;
+	const stmt = binds.length > 0 ? db.prepare(sql).bind(...binds) : db.prepare(sql);
 	const { results } = await stmt.all<BlogPost>();
-	return results ?? [];
+	return (results ?? []).map(withDestination);
 }
 
 export async function upsertBlogPostFromIngest(
@@ -160,13 +207,23 @@ export async function upsertBlogPostFromIngest(
 		if (!existing) {
 			throw new Error("blog post not found");
 		}
-	} else if (input.slug) {
+	}
+
+	const destination =
+		input.destination ??
+		(existing
+			? parseBlogPostDestination(existing.destination, {
+					fallback: BLOG_POST_DESTINATION_DEFAULT,
+				})
+			: BLOG_POST_DESTINATION_DEFAULT);
+
+	if (!existing && input.slug) {
 		const slug = slugifyBlogSlug(input.slug);
 		if (slug) {
 			existing =
 				(await db
-					.prepare(`${BLOG_POST_SELECT} WHERE slug = ?`)
-					.bind(slug)
+					.prepare(`${BLOG_POST_SELECT} WHERE slug = ? AND destination = ?`)
+					.bind(slug, destination)
 					.first<BlogPost>()) ?? null;
 		}
 	}
@@ -181,8 +238,8 @@ export async function upsertBlogPostFromIngest(
 			.prepare(
 				`UPDATE blog_posts
 				 SET slug = ?, title = ?, excerpt = ?, body = ?, category = ?, tags = ?,
-				     thumbnail_url = ?, published_on = ?, status = 'draft', notes = ?,
-				     source = ?, updated_at = datetime('now')
+				     thumbnail_url = ?, published_on = ?, status = 'draft', destination = ?,
+				     notes = ?, source = ?, updated_at = datetime('now')
 				 WHERE id = ?`,
 			)
 			.bind(
@@ -194,6 +251,7 @@ export async function upsertBlogPostFromIngest(
 				tags,
 				thumbnailUrl,
 				publishedOn,
+				destination,
 				notes,
 				source,
 				existing.id,
@@ -207,8 +265,8 @@ export async function upsertBlogPostFromIngest(
 	await db
 		.prepare(
 			`INSERT INTO blog_posts
-				(id, slug, title, excerpt, body, category, tags, thumbnail_url, published_on, status, notes, source)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)`,
+				(id, slug, title, excerpt, body, category, tags, thumbnail_url, published_on, status, destination, notes, source)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)`,
 		)
 		.bind(
 			id,
@@ -220,6 +278,7 @@ export async function upsertBlogPostFromIngest(
 			tags,
 			thumbnailUrl,
 			publishedOn,
+			destination,
 			notes,
 			source,
 		)

@@ -11,7 +11,7 @@ export default async function BlogDraftsPage() {
 		<main className="page page-wide">
 			<AppHeader
 				title="ブログ下書き"
-				lede="AIが自動作成した公式ブログの下書きを確認し、公開前に承認します。"
+				lede="スタジオフーズのHPと農業日誌アプリLPの下書きを確認し、公開前に承認します。"
 			/>
 			<BlogDraftsManager posts={posts} />
 		</main>

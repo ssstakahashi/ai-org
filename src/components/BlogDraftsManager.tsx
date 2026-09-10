@@ -17,11 +17,15 @@ import { StatusIcon } from "@/components/StatusIcon";
 import { recoverFromStaleServerAction } from "@/lib/server-action-client";
 import { formatInAppTz } from "@/lib/timezone";
 import {
+	BLOG_POST_DESTINATION_DEFAULT,
+	BLOG_POST_DESTINATION_LABEL,
+	BLOG_POST_DESTINATION_OPTIONS,
 	BLOG_POST_STATUS_CLASS,
 	BLOG_POST_STATUS_ICON,
 	BLOG_POST_STATUS_LABEL,
 	BLOG_POST_STATUS_OPTIONS,
 	type BlogPost,
+	type BlogPostDestination,
 	type BlogPostStatus,
 } from "@/lib/types";
 
@@ -45,6 +49,16 @@ function truncate(text: string, max = 80) {
 	if (!trimmed) return "—";
 	if (trimmed.length <= max) return trimmed;
 	return `${trimmed.slice(0, max)}…`;
+}
+
+function countByDestination(posts: BlogPost[]) {
+	const counts = Object.fromEntries(
+		BLOG_POST_DESTINATION_OPTIONS.map((destination) => [destination, 0]),
+	) as Record<BlogPostDestination, number>;
+	for (const post of posts) {
+		counts[post.destination] += 1;
+	}
+	return counts;
 }
 
 function countByStatus(posts: BlogPost[]) {
@@ -166,7 +180,12 @@ function BlogPostStatusSelect({
 
 export function BlogDraftsManager({ posts }: Props) {
 	const router = useRouter();
-	const counts = countByStatus(posts);
+	const [destination, setDestination] = useState<BlogPostDestination>(
+		BLOG_POST_DESTINATION_DEFAULT,
+	);
+	const destinationCounts = countByDestination(posts);
+	const visiblePosts = posts.filter((post) => post.destination === destination);
+	const counts = countByStatus(visiblePosts);
 	const createDialogRef = useRef<HTMLDialogElement>(null);
 	const detailDialogRef = useRef<HTMLDialogElement>(null);
 	const editDialogRef = useRef<HTMLDialogElement>(null);
@@ -250,9 +269,27 @@ export function BlogDraftsManager({ posts }: Props) {
 	}
 
 	return (
+		<>
+			<div className="view-tabs apps-tabs" role="tablist" aria-label="投稿先">
+				{BLOG_POST_DESTINATION_OPTIONS.map((value) => {
+					const active = destination === value;
+					return (
+						<button
+							key={value}
+							type="button"
+							role="tab"
+							aria-selected={active}
+							className={active ? "view-tab active" : "view-tab"}
+							onClick={() => setDestination(value)}
+						>
+							{BLOG_POST_DESTINATION_LABEL[value]}（{destinationCounts[value]}）
+						</button>
+					);
+				})}
+			</div>
 		<section className="panel">
 			<div className="panel-head">
-				<h2>下書き一覧（{posts.length}）</h2>
+				<h2>下書き一覧（{visiblePosts.length}）</h2>
 				<div className="task-actions">
 					<button type="button" className="primary" onClick={openCreateDialog}>
 						新規登録
@@ -270,9 +307,10 @@ export function BlogDraftsManager({ posts }: Props) {
 				</ul>
 				{actionMessage ? <p className="run-due-message">{actionMessage}</p> : null}
 
-				{posts.length === 0 ? (
+				{visiblePosts.length === 0 ? (
 					<p className="empty">
-						ブログ下書きはまだありません。AI からの投入、または「新規登録」から追加してください。
+						{BLOG_POST_DESTINATION_LABEL[destination]}の下書きはまだありません。AI
+						からの投入、または「新規登録」から追加してください。
 					</p>
 				) : (
 					<div className="x-schedule-scroll">
@@ -285,7 +323,7 @@ export function BlogDraftsManager({ posts }: Props) {
 								</tr>
 							</thead>
 							<tbody>
-								{posts.map((post) => (
+								{visiblePosts.map((post) => (
 									<tr key={post.id} className={BLOG_POST_STATUS_CLASS[post.status]}>
 										<td className="meta-cell">
 											<p className="x-schedule-when">{formatWhen(post.updated_at)}</p>
@@ -393,7 +431,11 @@ export function BlogDraftsManager({ posts }: Props) {
 								閉じる
 							</button>
 						</div>
-						<BlogPostForm key={createFormKey} onSuccess={handleCreateSuccess} />
+						<BlogPostForm
+							key={`${createFormKey}-${destination}`}
+							defaultDestination={destination}
+							onSuccess={handleCreateSuccess}
+						/>
 					</div>
 				</dialog>
 
@@ -415,6 +457,7 @@ export function BlogDraftsManager({ posts }: Props) {
 							<div className="task-detail task-dialog-scroll">
 								<div className="task-meta">
 									<BlogPostStatusBadge status={detailing.status} />
+									<span>{BLOG_POST_DESTINATION_LABEL[detailing.destination]}</span>
 									{detailing.category ? <span>{detailing.category}</span> : null}
 									<span className="when">{formatWhen(detailing.updated_at)}</span>
 									{isAiSource(detailing.source) ? <span>AI自動作成</span> : null}
@@ -533,5 +576,6 @@ export function BlogDraftsManager({ posts }: Props) {
 				</dialog>
 			</div>
 		</section>
+		</>
 	);
 }

@@ -172,6 +172,29 @@ export const AUTOMATIONS: AutomationEntry[] = [
 	},
 	/**
 	 * @automation
+	 * id: spark-sheet-sync-ui
+	 * name: Google Spark をスプレッドシートから取得
+	 * runner: manual
+	 * status: manual
+	 * trigger: 自動化一覧画面のボタン
+	 * summary: Spark（Gemini）が書けないため、指定スプレッドシートの自動化一覧を取得してカタログに載せる。
+	 * location: SyncSparkFromSheetButton → syncSparkAutomationsFromSheet
+	 * href: /automations
+	 */
+	{
+		id: "spark-sheet-sync-ui",
+		name: "Google Spark をスプレッドシートから取得",
+		runner: "manual",
+		status: "manual",
+		trigger: "自動化一覧画面のボタン",
+		summary:
+			"Spark（Gemini）が書けないため、指定スプレッドシート「Spark_自動化一覧」の内容を取得してカタログに載せる。人はシートを直接編集できる。",
+		location: "SyncSparkFromSheetButton → syncSparkAutomationsFromSheet",
+		href: "/automations",
+		source: LOCAL_AUTOMATION_SOURCE,
+	},
+	/**
+	 * @automation
 	 * id: cursor-automations
 	 * name: Cursor Automations
 	 * runner: cursor

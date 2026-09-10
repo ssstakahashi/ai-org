@@ -16,10 +16,14 @@ import { verifyIngestSecret } from "@/lib/automation-ingest";
 import {
 	listBlogPostsFromDb,
 	parseBlogDraftIngest,
+	parseBlogPostDestination,
 	parseBlogPostStatus,
 	upsertBlogPostFromIngest,
 } from "@/lib/blog-posts";
-import { BLOG_POST_STATUS_OPTIONS } from "@/lib/types";
+import {
+	BLOG_POST_DESTINATION_OPTIONS,
+	BLOG_POST_STATUS_OPTIONS,
+} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -57,8 +61,21 @@ export async function GET(request: NextRequest) {
 		}
 	}
 
+	const destinationParam = request.nextUrl.searchParams.get("destination")?.trim();
+	let destination: ReturnType<typeof parseBlogPostDestination> | undefined;
+	if (destinationParam) {
+		try {
+			destination = parseBlogPostDestination(destinationParam);
+		} catch {
+			return NextResponse.json(
+				{ error: `Invalid destination. Use: ${BLOG_POST_DESTINATION_OPTIONS.join(", ")}` },
+				{ status: 400 },
+			);
+		}
+	}
+
 	try {
-		const posts = await listBlogPostsFromDb(env.DB, status);
+		const posts = await listBlogPostsFromDb(env.DB, status, destination);
 		return NextResponse.json({ ok: true, posts });
 	} catch (error) {
 		console.error("blog-drafts list failed", error);

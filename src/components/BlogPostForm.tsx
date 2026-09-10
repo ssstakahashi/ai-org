@@ -3,19 +3,26 @@
 import { useActionState, useEffect } from "react";
 import { createBlogPostFormAction, updateBlogPostFormAction } from "@/app/actions";
 import { BlogPostStatusField } from "@/components/BlogPostStatusField";
-import type { BlogPost } from "@/lib/types";
+import {
+	BLOG_POST_DESTINATION_DEFAULT,
+	BLOG_POST_DESTINATION_LABEL,
+	BLOG_POST_DESTINATION_OPTIONS,
+	type BlogPost,
+	type BlogPostDestination,
+} from "@/lib/types";
 
 type Props = {
 	post?: BlogPost;
 	formId?: string;
 	onSuccess?: () => void;
+	defaultDestination?: BlogPostDestination;
 };
 
 type FormState = { error: string | null; ok: boolean };
 
 const initialState: FormState = { error: null, ok: false };
 
-export function BlogPostForm({ post, formId, onSuccess }: Props) {
+export function BlogPostForm({ post, formId, onSuccess, defaultDestination }: Props) {
 	const isEdit = Boolean(post);
 	const [state, formAction, pending] = useActionState(
 		isEdit ? updateBlogPostFormAction : createBlogPostFormAction,
@@ -26,6 +33,8 @@ export function BlogPostForm({ post, formId, onSuccess }: Props) {
 		if (state.ok) onSuccess?.();
 	}, [state.ok, onSuccess]);
 
+	const destination = post?.destination ?? defaultDestination ?? BLOG_POST_DESTINATION_DEFAULT;
+
 	return (
 		<form id={formId} action={formAction} className="task-form">
 			{post ? <input type="hidden" name="id" value={post.id} /> : null}
@@ -35,6 +44,16 @@ export function BlogPostForm({ post, formId, onSuccess }: Props) {
 					selectedStatus={post?.status}
 					formId={formId}
 				/>
+				<label>
+					<span>投稿先</span>
+					<select name="destination" defaultValue={destination} form={formId}>
+						{BLOG_POST_DESTINATION_OPTIONS.map((value) => (
+							<option key={value} value={value}>
+								{BLOG_POST_DESTINATION_LABEL[value]}
+							</option>
+						))}
+					</select>
+				</label>
 				<label>
 					<span>スラッグ</span>
 					<input

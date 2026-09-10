@@ -198,6 +198,9 @@ export const APP_REQUIREMENT_STATUS_OPTIONS = [
 /** 公式ブログ下書き（確認・承認） */
 export type BlogPostStatus = "draft" | "approved" | "published" | "rejected";
 
+/** ブログ下書きの投稿先 */
+export type BlogPostDestination = "studiofoods_hp" | "agri_lp";
+
 export type BlogPost = {
 	id: string;
 	slug: string;
@@ -209,6 +212,7 @@ export type BlogPost = {
 	thumbnail_url: string;
 	published_on: string;
 	status: BlogPostStatus;
+	destination: BlogPostDestination;
 	notes: string;
 	source: string;
 	created_at: string;
@@ -242,6 +246,18 @@ export const BLOG_POST_STATUS_CLASS: Record<BlogPostStatus, string> = {
 	published: "status-done",
 	rejected: "status-failed",
 };
+
+export const BLOG_POST_DESTINATION_LABEL: Record<BlogPostDestination, string> = {
+	studiofoods_hp: "スタジオフーズのHP",
+	agri_lp: "農業日誌アプリLP",
+};
+
+export const BLOG_POST_DESTINATION_OPTIONS = [
+	"studiofoods_hp",
+	"agri_lp",
+] as const satisfies readonly BlogPostDestination[];
+
+export const BLOG_POST_DESTINATION_DEFAULT: BlogPostDestination = "studiofoods_hp";
 
 /** アプリケーション名マスタ */
 export type AppName = {

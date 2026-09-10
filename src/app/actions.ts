@@ -5,6 +5,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getDb, getMediaBucket, newId, queryInChunks } from "@/lib/db";
 import { copyTaskImage, getUploadFile, putTaskImage, putXPostImage } from "@/lib/media-upload";
 import { LOCAL_SOURCE, recordAutomationRun } from "@/lib/automation-ingest";
+import { pullSparkAutomationsFromSheet } from "@/lib/spark-sheet-sync";
 import { publishDueXPosts, publishXPostNow, type PublishResult } from "@/lib/publish-x-posts";
 import {
 	queueXPostSheetRemoval,
@@ -52,6 +53,7 @@ import {
 } from "@/lib/types";
 import {
 	listBlogPostsFromDb,
+	parseBlogPostDestination,
 	parseBlogPostStatus,
 	slugifyBlogSlug,
 } from "@/lib/blog-posts";
@@ -1887,6 +1889,40 @@ export async function syncXPostsToSheet(): Promise<
 	}
 }
 
+/** Spark_自動化一覧スプレッドシートから Google Spark の内容を取得 */
+export async function syncSparkAutomationsFromSheet(): Promise<{
+	count: number;
+	fatalError?: string;
+}> {
+	const { env } = await getCloudflareContext({ async: true });
+	const startedAt = new Date().toISOString();
+	try {
+		const result = await pullSparkAutomationsFromSheet(env);
+		await recordAutomationRun(env.DB, {
+			source: LOCAL_SOURCE,
+			automationId: "spark-sheet-sync-ui",
+			ok: true,
+			startedAt,
+			finishedAt: new Date().toISOString(),
+			error: null,
+			meta: { count: result.count },
+		});
+		revalidateAutomationsPage();
+		return { count: result.count };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		await recordAutomationRun(env.DB, {
+			source: LOCAL_SOURCE,
+			automationId: "spark-sheet-sync-ui",
+			ok: false,
+			startedAt,
+			finishedAt: new Date().toISOString(),
+			error: message,
+		});
+		return { count: 0, fatalError: message };
+	}
+}
+
 /** 予約時刻を過ぎた X 投稿をまとめて実行 */
 export async function runDueXPosts(): Promise<PublishResult & { fatalError?: string }> {
 	const { env } = await getCloudflareContext({ async: true });
@@ -2801,6 +2837,12 @@ export async function createBlogPost(formData: FormData): Promise<{ error?: stri
 	} catch (error) {
 		return { error: error instanceof Error ? error.message : "ステータスが不正です" };
 	}
+	let destination: ReturnType<typeof parseBlogPostDestination>;
+	try {
+		destination = parseBlogPostDestination(formData.get("destination") ?? "studiofoods_hp");
+	} catch (error) {
+		return { error: error instanceof Error ? error.message : "投稿先が不正です" };
+	}
 
 	if (!title) {
 		return { error: "タイトルは必須です" };
@@ -2812,8 +2854,8 @@ export async function createBlogPost(formData: FormData): Promise<{ error?: stri
 		await db
 			.prepare(
 				`INSERT INTO blog_posts
-					(id, slug, title, excerpt, body, category, tags, thumbnail_url, published_on, status, notes, source)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual')`,
+					(id, slug, title, excerpt, body, category, tags, thumbnail_url, published_on, status, destination, notes, source)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual')`,
 			)
 			.bind(
 				id,
@@ -2826,6 +2868,7 @@ export async function createBlogPost(formData: FormData): Promise<{ error?: stri
 				thumbnailUrl,
 				publishedOn,
 				status,
+				destination,
 				notes,
 			)
 			.run();
@@ -2869,6 +2912,12 @@ export async function updateBlogPost(formData: FormData): Promise<{ error?: stri
 	} catch (error) {
 		return { error: error instanceof Error ? error.message : "ステータスが不正です" };
 	}
+	let destination: ReturnType<typeof parseBlogPostDestination>;
+	try {
+		destination = parseBlogPostDestination(formData.get("destination"));
+	} catch (error) {
+		return { error: error instanceof Error ? error.message : "投稿先が不正です" };
+	}
 
 	if (!id) {
 		return { error: "id が必要です" };
@@ -2891,7 +2940,7 @@ export async function updateBlogPost(formData: FormData): Promise<{ error?: stri
 			.prepare(
 				`UPDATE blog_posts
 				 SET slug = ?, title = ?, excerpt = ?, body = ?, category = ?, tags = ?,
-				     thumbnail_url = ?, published_on = ?, status = ?, notes = ?,
+				     thumbnail_url = ?, published_on = ?, status = ?, destination = ?, notes = ?,
 				     updated_at = datetime('now')
 				 WHERE id = ?`,
 			)
@@ -2905,6 +2954,7 @@ export async function updateBlogPost(formData: FormData): Promise<{ error?: stri
 				thumbnailUrl,
 				publishedOn,
 				status,
+				destination,
 				notes,
 				id,
 			)

@@ -2,6 +2,11 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.48 (2026-09-10)
+
+- Google Spark の自動化一覧をスプレッドシートから取得する
+- ブログ下書きに投稿先（HP / 農業日誌LP）を追加
+
 ## 0.0.47 (2026-09-10)
 
 - Gemini 混雑時は 2.5 / 2.0 Flash へフォールバックする
