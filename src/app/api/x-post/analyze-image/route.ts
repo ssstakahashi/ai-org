@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getUploadFile } from "@/lib/media-upload";
 import { suggestXPostFromImage } from "@/lib/x-post-ai";
 
 export const dynamic = "force-dynamic";
@@ -8,10 +9,10 @@ const ALLOWED_MIME_PREFIXES = ["image/"];
 
 export async function POST(request: NextRequest) {
 	const formData = await request.formData();
-	const image = formData.get("image");
+	const image = getUploadFile(formData, "image");
 	const notes = String(formData.get("notes") ?? "").trim();
 
-	if (!(image instanceof File) || image.size === 0) {
+	if (!image) {
 		return NextResponse.json({ error: "画像ファイルが必要です" }, { status: 400 });
 	}
 
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json({ error: "画像は 8MB 以下にしてください" }, { status: 400 });
 	}
 
-	const mimeType = image.type || "application/octet-stream";
+	const mimeType = image.type?.trim() || "image/webp";
 	if (!ALLOWED_MIME_PREFIXES.some((prefix) => mimeType.startsWith(prefix))) {
 		return NextResponse.json({ error: "対応していない画像形式です" }, { status: 400 });
 	}

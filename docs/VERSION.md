@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.44 (2026-09-10)
+
+- X投稿の画像解析が Workers で File 判定に落ち、Gemini まで届かない問題を修正
+
 ## 0.0.43 (2026-09-08)
 
 - Xブラウザ投稿を毎日6:30に変更
