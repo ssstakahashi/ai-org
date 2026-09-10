@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.45 (2026-09-10)
+
+- X投稿の画像解析モデルを Gemini 3.8 Flash に更新
+
 ## 0.0.44 (2026-09-10)
 
 - X投稿の画像解析が Workers で File 判定に落ち、Gemini まで届かない問題を修正
