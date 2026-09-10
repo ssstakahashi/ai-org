@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.49 (2026-09-10)
+
+- Gemini 混雑時のフォールバックを 3.7 / 3.6 Flash に更新（2.5 は新規利用不可）
+
 ## 0.0.48 (2026-09-10)
 
 - Google Spark の自動化一覧をスプレッドシートから取得する

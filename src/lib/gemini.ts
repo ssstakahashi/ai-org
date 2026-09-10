@@ -1,6 +1,6 @@
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 const DEFAULT_MODEL = "gemini-3.8-flash";
-const FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
+const FALLBACK_MODELS = ["gemini-3.7-flash", "gemini-3.6-flash"] as const;
 
 type GeminiPart = { text: string } | { inline_data: { mime_type: string; data: string } };
 
@@ -35,7 +35,7 @@ export type GeminiGenerateOptions = {
 const CAPACITY_MESSAGE =
 	"画像解析モデルが混み合っています。しばらくして「AI解析する」でもう一度お試しください";
 
-function isCapacityError(status: number, message: string): boolean {
+function shouldTryNextModel(status: number, message: string): boolean {
 	if (status === 429 || status === 503) return true;
 	const lower = message.toLowerCase();
 	return (
@@ -43,7 +43,8 @@ function isCapacityError(status: number, message: string): boolean {
 		lower.includes("overloaded") ||
 		lower.includes("unavailable") ||
 		lower.includes("try again later") ||
-		lower.includes("no capacity")
+		lower.includes("no capacity") ||
+		lower.includes("no longer available")
 	);
 }
 
@@ -113,7 +114,7 @@ export async function geminiGenerateContent(
 			return result.text;
 		}
 
-		if (!isCapacityError(result.status, result.message)) {
+		if (!shouldTryNextModel(result.status, result.message)) {
 			throw new Error(result.message);
 		}
 
