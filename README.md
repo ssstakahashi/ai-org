@@ -232,6 +232,41 @@ curl -sS -X POST \
   "https://<ai-org-host>/api/internal/spark-automations"
 ```
 
+## Google Tasks ↔ 業務台帳
+
+`/` の業務台帳と Google Tasks を双方向同期します（10分ごと Cron、または画面の「Google Tasks と同期」）。
+
+同期するフィールド: タイトル / 本文（Google の notes） / 完了状態 / 期日の日付（`end_at` の日付 ↔ Google `due`。時刻は Google API が持てない）。担当・カテゴリ・タグ・画像・繰り返しは ai-org 側のみです。
+
+Google の完了は台帳の `done`、それ以外は Google では未完了です。Google で未完了に戻したとき、台帳が `done` なら `approved` に戻し、下書き・予約などは上書きしません。
+
+対象リストは既定で名称 `ai-org`（無ければ作成）。`GOOGLE_TASKS_LIST_ID` で固定もできます。
+
+認証は次のいずれかです。Sheets 用サービスアカウントを共有するだけでは Tasks に届きません。
+
+| 変数 | 内容 |
+|---|---|
+| `GOOGLE_TASKS_CLIENT_ID` / `GOOGLE_TASKS_CLIENT_SECRET` / `GOOGLE_TASKS_REFRESH_TOKEN` | 個人 Gmail 向け OAuth（優先） |
+| `GOOGLE_TASKS_IMPERSONATE_EMAIL` | Workspace ドメイン全体委任。既存の `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` でこのユーザーになりすます |
+| `GOOGLE_TASKS_LIST_TITLE` | 任意。既定 `ai-org` |
+| `GOOGLE_TASKS_LIST_ID` | 任意。指定時はリスト名を使わない |
+| `GOOGLE_TASKS_DEFAULT_EMPLOYEE_ID` | Google から新規取込したときの担当。未設定なら `sort_order` 先頭の従業員 |
+
+セットアップ:
+
+1. Google Cloud で **Tasks API** を有効化
+2. 個人 Google アカウントなら OAuth クライアントを作り、スコープ `https://www.googleapis.com/auth/tasks` のリフレッシュトークンを発行して Secrets に入れる
+3. Google Workspace なら管理コンソールでサービスアカウントにドメイン全体委任（同じスコープ）を付け、なりすますユーザーのメールを `GOOGLE_TASKS_IMPERSONATE_EMAIL` に入れる
+4. 初回は片方を空にして同期した方が、タイトルだけの重複が起きにくい
+
+```bash
+npx wrangler secret put GOOGLE_TASKS_CLIENT_ID
+npx wrangler secret put GOOGLE_TASKS_CLIENT_SECRET
+npx wrangler secret put GOOGLE_TASKS_REFRESH_TOKEN
+# または Workspace:
+npx wrangler secret put GOOGLE_TASKS_IMPERSONATE_EMAIL
+```
+
 ## デプロイ
 
 D1 `ai-org` と R2 `ai-org-media` は作成済みです。リモートへ出すとき:

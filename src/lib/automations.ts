@@ -193,6 +193,29 @@ export const AUTOMATIONS: AutomationEntry[] = [
 		href: "/automations",
 		source: LOCAL_AUTOMATION_SOURCE,
 	},
+	{
+		id: "google-tasks-sync-cron",
+		name: "Google Tasks と業務台帳を同期",
+		runner: "program",
+		status: "active",
+		trigger: "Cloudflare Cron（10分ごと: */10 * * * *）",
+		summary:
+			"Google Tasks（既定リスト ai-org）と業務台帳を双方向同期する。認証未設定なら何もしない。",
+		location: "worker.ts → runGoogleTasksCron → syncGoogleTasks",
+		href: "/",
+		source: LOCAL_AUTOMATION_SOURCE,
+	},
+	{
+		id: "google-tasks-sync-ui",
+		name: "Google Tasks と業務台帳を同期",
+		runner: "manual",
+		status: "manual",
+		trigger: "業務台帳画面のボタン",
+		summary: "Google Tasks（ai-org リスト）と業務台帳を双方向同期する（手動）。",
+		location: "SyncGoogleTasksButton → syncGoogleTasksNow",
+		href: "/",
+		source: LOCAL_AUTOMATION_SOURCE,
+	},
 	/**
 	 * @automation
 	 * id: cursor-automations

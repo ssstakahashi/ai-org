@@ -30,3 +30,16 @@
 # X投稿の画像解析（Google AI Studio / Gemini API）
 # https://aistudio.google.com/apikey
 # GEMINI_API_KEY=
+
+# Google Tasks ↔ 業務台帳の双方向同期
+# 個人 Gmail: OAuth クライアント + リフレッシュトークン（Tasks API を有効化）
+# GOOGLE_TASKS_CLIENT_ID=
+# GOOGLE_TASKS_CLIENT_SECRET=
+# GOOGLE_TASKS_REFRESH_TOKEN=
+# Workspace: 既存 Service Account にドメイン全体委任し、なりすましユーザーを指定
+# GOOGLE_TASKS_IMPERSONATE_EMAIL=
+# 任意。既定リスト名は ai-org。リスト ID を指定すると名称検索しない
+# GOOGLE_TASKS_LIST_TITLE=ai-org
+# GOOGLE_TASKS_LIST_ID=
+# Google から取り込んだタスクの担当（未設定なら sort_order 先頭の従業員）
+# GOOGLE_TASKS_DEFAULT_EMPLOYEE_ID=

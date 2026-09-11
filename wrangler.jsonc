@@ -44,10 +44,11 @@
 		"binding": "AI",
 		"remote": true
 	},
-	// @automation id: x-due-cron — 詳細は worker.ts の scheduled
+	// @automation id: x-due-cron, google-tasks-sync-cron — 詳細は worker.ts の scheduled
 	"triggers": {
 		"crons": [
-			"* * * * *"
+			"* * * * *",
+			"*/10 * * * *"
 		]
 	},
 	"vars": {

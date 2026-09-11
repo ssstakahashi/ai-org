@@ -8,6 +8,7 @@ import { createTask } from "@/app/actions";
 import { TaskBoard } from "@/components/TaskBoard";
 import { TaskDetailPanel } from "@/components/TaskDetailPanel";
 import { TaskForm } from "@/components/TaskForm";
+import { SyncGoogleTasksButton } from "@/components/SyncGoogleTasksButton";
 import { toAppDateTimeLocal } from "@/lib/timezone";
 import type { Category, Employee, Tag, TaskGroup, TaskWithEmployee } from "@/lib/types";
 
@@ -163,6 +164,7 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 						<Link href="/task-groups" className="ghost">
 							タスクグループ
 						</Link>
+						<SyncGoogleTasksButton />
 						<button type="button" className="primary" onClick={() => openCreateDialog()}>
 							新規タスク
 						</button>

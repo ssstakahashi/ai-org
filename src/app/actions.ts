@@ -14,6 +14,14 @@ import {
 	type SyncAllXPostsResult,
 } from "@/lib/x-post-sheets-sync";
 import {
+	isGoogleTasksSyncConfigured,
+	listGoogleTaskSyncRefs,
+	queueGoogleTaskApiDeletes,
+	queueGoogleTaskPushes,
+	syncGoogleTasks,
+	type GoogleTasksSyncResult,
+} from "@/lib/google-tasks-sync";
+import {
 	expandRecurrenceDates,
 	parseOptionalCount,
 	parseOptionalDate,
@@ -334,6 +342,27 @@ function revalidateTaskPages() {
 	revalidatePath("/pages/tags");
 	revalidatePath("/employees");
 	revalidatePath("/apps");
+}
+
+async function queueGoogleTaskSync(taskIds: string[]) {
+	if (taskIds.length === 0) return;
+	try {
+		const { env } = await getCloudflareContext({ async: true });
+		queueGoogleTaskPushes(env, taskIds);
+	} catch (error) {
+		console.error("google tasks sync queue failed", error);
+	}
+}
+
+async function queueGoogleTaskRemoval(db: D1Database, taskIds: string[]) {
+	if (taskIds.length === 0) return;
+	try {
+		const refs = await listGoogleTaskSyncRefs(db, taskIds);
+		const { env } = await getCloudflareContext({ async: true });
+		queueGoogleTaskApiDeletes(env, refs);
+	} catch (error) {
+		console.error("google tasks delete queue failed", error);
+	}
 }
 
 function revalidateXPostPages() {
@@ -839,11 +868,13 @@ export async function createTask(formData: FormData): Promise<{ error?: string }
 	const tagInsert = db.prepare("INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)");
 
 	const statements: D1PreparedStatement[] = [];
+	const createdIds: string[] = [];
 	let firstTaskId: string | null = null;
 	for (let index = 0; index < occurrences.length; index++) {
 		const occurrence = occurrences[index];
 		const { start, end } = shiftDateKeepingDuration(baseStart, baseEnd, occurrence);
 		const id = newId("task");
+		createdIds.push(id);
 		if (index === 0) firstTaskId = id;
 
 		statements.push(
@@ -883,6 +914,7 @@ export async function createTask(formData: FormData): Promise<{ error?: string }
 	} catch (error) {
 		console.error("revalidateTaskPages failed", error);
 	}
+	await queueGoogleTaskSync(createdIds);
 	return {};
 }
 
@@ -1094,6 +1126,7 @@ export async function updateTask(formData: FormData): Promise<{ error?: string }
 	} catch (error) {
 		console.error("revalidateTaskPages failed", error);
 	}
+	await queueGoogleTaskSync(applyDatesAndImage ? [id] : targetIds);
 	return {};
 }
 
@@ -1754,6 +1787,7 @@ export async function setTaskStatus(
 	} catch {
 		// DB は更新済み。呼び出し側の refresh に任せる
 	}
+	await queueGoogleTaskSync([taskId]);
 	return {};
 }
 
@@ -1801,6 +1835,8 @@ export async function deleteTask(formData: FormData) {
 		statements.push(db.prepare("DELETE FROM task_links WHERE task_id = ?").bind(taskId));
 		statements.push(db.prepare("DELETE FROM tasks WHERE id = ?").bind(taskId));
 	}
+
+	await queueGoogleTaskRemoval(db, targetIds);
 
 	if (statements.length > 0) {
 		await db.batch(statements);
@@ -1886,6 +1922,69 @@ export async function syncXPostsToSheet(): Promise<
 			error: message,
 		});
 		return { total: 0, synced: 0, failed: 0, errors: [], fatalError: message };
+	}
+}
+
+/** 業務台帳と Google Tasks を手動で双方向同期 */
+export async function syncGoogleTasksNow(): Promise<
+	GoogleTasksSyncResult & { fatalError?: string }
+> {
+	const { env } = await getCloudflareContext({ async: true });
+	const startedAt = new Date().toISOString();
+	try {
+		if (!isGoogleTasksSyncConfigured(env)) {
+			throw new Error(
+				"Google Tasks の認証が未設定です。OAuth または Workspace ドメイン委任を設定してください。",
+			);
+		}
+		const result = await syncGoogleTasks(env);
+		const errorText = result.errors.join("; ").slice(0, 2000);
+		await recordAutomationRun(env.DB, {
+			source: LOCAL_SOURCE,
+			automationId: "google-tasks-sync-ui",
+			ok: result.errors.length === 0,
+			startedAt,
+			finishedAt: new Date().toISOString(),
+			error: errorText || null,
+			meta: {
+				pulled: result.pulled,
+				createdLocal: result.createdLocal,
+				updatedLocal: result.updatedLocal,
+				deletedLocal: result.deletedLocal,
+				createdGoogle: result.createdGoogle,
+				updatedGoogle: result.updatedGoogle,
+				deletedGoogle: result.deletedGoogle,
+			},
+		});
+		try {
+			revalidateTaskPages();
+		} catch (error) {
+			console.error("revalidateTaskPages failed", error);
+		}
+		return result;
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		await recordAutomationRun(env.DB, {
+			source: LOCAL_SOURCE,
+			automationId: "google-tasks-sync-ui",
+			ok: false,
+			startedAt,
+			finishedAt: new Date().toISOString(),
+			error: message,
+		});
+		return {
+			skipped: true,
+			reason: message,
+			pulled: 0,
+			createdLocal: 0,
+			updatedLocal: 0,
+			deletedLocal: 0,
+			createdGoogle: 0,
+			updatedGoogle: 0,
+			deletedGoogle: 0,
+			errors: [message],
+			fatalError: message,
+		};
 	}
 }
 

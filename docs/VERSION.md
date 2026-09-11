@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.50 (2026-09-12)
+
+- Google Tasks と業務台帳の双方向同期を追加
+
 ## 0.0.49 (2026-09-10)
 
 - Gemini 混雑時のフォールバックを 3.7 / 3.6 Flash に更新（2.5 は新規利用不可）
