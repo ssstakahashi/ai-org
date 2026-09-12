@@ -81,6 +81,7 @@ async function runGoogleTasksCron(env: CloudflareEnv) {
 				createdGoogle: result.createdGoogle,
 				updatedGoogle: result.updatedGoogle,
 				deletedGoogle: result.deletedGoogle,
+				deferredGoogle: result.deferredGoogle,
 			},
 		});
 	} catch (error) {

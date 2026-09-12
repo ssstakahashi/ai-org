@@ -16,8 +16,8 @@ import {
 import {
 	isGoogleTasksSyncConfigured,
 	listGoogleTaskSyncRefs,
-	queueGoogleTaskApiDeletes,
-	queueGoogleTaskPushes,
+	deleteGoogleTasksByRefs,
+	pushGoogleTasksByIds,
 	saveGoogleTasksOauthRefreshToken,
 	syncGoogleTasks,
 	type GoogleTasksSyncResult,
@@ -350,8 +350,8 @@ function revalidateTaskPages() {
 async function queueGoogleTaskSync(taskIds: string[]) {
 	if (taskIds.length === 0) return;
 	try {
-		const { env } = await getCloudflareContext({ async: true });
-		queueGoogleTaskPushes(env, taskIds);
+		const { env, ctx } = await getCloudflareContext({ async: true });
+		ctx.waitUntil(pushGoogleTasksByIds(env, taskIds));
 	} catch (error) {
 		console.error("google tasks sync queue failed", error);
 	}
@@ -361,8 +361,8 @@ async function queueGoogleTaskRemoval(db: D1Database, taskIds: string[]) {
 	if (taskIds.length === 0) return;
 	try {
 		const refs = await listGoogleTaskSyncRefs(db, taskIds);
-		const { env } = await getCloudflareContext({ async: true });
-		queueGoogleTaskApiDeletes(env, refs);
+		const { env, ctx } = await getCloudflareContext({ async: true });
+		ctx.waitUntil(deleteGoogleTasksByRefs(env, refs));
 	} catch (error) {
 		console.error("google tasks delete queue failed", error);
 	}
@@ -1957,6 +1957,7 @@ export async function syncGoogleTasksNow(): Promise<
 				createdGoogle: result.createdGoogle,
 				updatedGoogle: result.updatedGoogle,
 				deletedGoogle: result.deletedGoogle,
+				deferredGoogle: result.deferredGoogle,
 			},
 		});
 		try {
@@ -1985,6 +1986,7 @@ export async function syncGoogleTasksNow(): Promise<
 			createdGoogle: 0,
 			updatedGoogle: 0,
 			deletedGoogle: 0,
+			deferredGoogle: 0,
 			errors: [message],
 			fatalError: message,
 		};

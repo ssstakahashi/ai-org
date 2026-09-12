@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.52 (2026-09-12)
+
+- Google Tasks 同期が Workers のサブリクエスト上限で失敗する問題を修正
+
 ## 0.0.51 (2026-09-12)
 
 - Google Tasks の Web OAuth コールバックを追加し、正しい GCP プロジェクトで接続できるようにした

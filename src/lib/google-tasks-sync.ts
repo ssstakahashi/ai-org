@@ -19,6 +19,8 @@ import type { TaskStatus } from "@/lib/types";
 
 export const GOOGLE_TASKS_DEFAULT_LIST_TITLE = "ai-org";
 export const GOOGLE_TASKS_CRON = "*/10 * * * *";
+/** Workers 無料枠は外部 fetch が 1 呼び出しあたり 50。トークン／一覧の分を残す */
+export const GOOGLE_TASKS_MAX_WRITES_PER_RUN = 35;
 
 const UNTITLED = "（無題）";
 const TITLE_MAX = 1024;
@@ -78,8 +80,14 @@ export type GoogleTasksSyncResult = {
 	createdGoogle: number;
 	updatedGoogle: number;
 	deletedGoogle: number;
+	deferredGoogle: number;
 	errors: string[];
 };
+
+function isSubrequestLimitError(error: unknown): boolean {
+	const message = error instanceof Error ? error.message : String(error);
+	return /Too many subrequests/i.test(message);
+}
 
 function pad2(n: number): string {
 	return String(n).padStart(2, "0");
@@ -263,6 +271,7 @@ function emptyResult(skipped: boolean, reason?: string): GoogleTasksSyncResult {
 		createdGoogle: 0,
 		updatedGoogle: 0,
 		deletedGoogle: 0,
+		deferredGoogle: 0,
 		errors: [],
 	};
 }
@@ -271,6 +280,32 @@ function pushError(result: GoogleTasksSyncResult, context: string, error: unknow
 	const message = error instanceof Error ? error.message : String(error);
 	result.errors.push(`${context}: ${message}`);
 	console.error("google tasks sync", context, error);
+}
+
+function createGoogleWriteBudget(result: GoogleTasksSyncResult) {
+	let used = 0;
+	let stopped = false;
+	const exhausted = () => stopped || used >= GOOGLE_TASKS_MAX_WRITES_PER_RUN;
+	return {
+		async run(work: () => Promise<void>): Promise<"wrote" | "deferred"> {
+			if (exhausted()) {
+				result.deferredGoogle += 1;
+				return "deferred";
+			}
+			try {
+				await work();
+				used += 1;
+				return "wrote";
+			} catch (error) {
+				if (isSubrequestLimitError(error)) {
+					stopped = true;
+					result.deferredGoogle += 1;
+					return "deferred";
+				}
+				throw error;
+			}
+		},
+	};
 }
 
 async function loadState(db: D1Database): Promise<SyncStateRow> {
@@ -306,6 +341,11 @@ async function ensureTasklist(token: string, env: GoogleTasksSyncEnv, db: D1Data
 	if (configuredId) {
 		await saveState(db, { tasklist_id: configuredId });
 		return configuredId;
+	}
+
+	const stored = await loadState(db);
+	if (stored.tasklist_id?.trim()) {
+		return stored.tasklist_id.trim();
 	}
 
 	const title = env.GOOGLE_TASKS_LIST_TITLE?.trim() || GOOGLE_TASKS_DEFAULT_LIST_TITLE;
@@ -568,6 +608,7 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 
 	const employeeId = await defaultEmployeeId(env);
 	const seenGoogleIds = new Set<string>();
+	const googleWrites = createGoogleWriteBudget(result);
 
 	for (const google of googleTasks) {
 		if (!google.id) continue;
@@ -614,8 +655,10 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 					}
 				} else {
 					try {
-						await pushLocal(token, tasklistId, db, local, map);
-						result.updatedGoogle += 1;
+						const outcome = await googleWrites.run(async () => {
+							await pushLocal(token, tasklistId, db, local, map);
+						});
+						if (outcome === "wrote") result.updatedGoogle += 1;
 					} catch (error) {
 						pushError(result, `update google ${map.google_task_id}`, error);
 					}
@@ -662,8 +705,10 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 		const map = mapByTaskIdAfter.get(local.id);
 		if (!map) {
 			try {
-				await pushLocal(token, tasklistId, db, local, null);
-				result.createdGoogle += 1;
+				const outcome = await googleWrites.run(async () => {
+					await pushLocal(token, tasklistId, db, local, null);
+				});
+				if (outcome === "wrote") result.createdGoogle += 1;
 			} catch (error) {
 				pushError(result, `create google ${local.id}`, error);
 			}
@@ -677,8 +722,10 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 
 		if (!updatedMin && map.google_task_id && !googleById.has(map.google_task_id) && !seenGoogleIds.has(map.google_task_id)) {
 			try {
-				const created = await pushLocal(token, tasklistId, db, local, null);
-				if (created.created) result.createdGoogle += 1;
+				const outcome = await googleWrites.run(async () => {
+					await pushLocal(token, tasklistId, db, local, null);
+				});
+				if (outcome === "wrote") result.createdGoogle += 1;
 			} catch (error) {
 				pushError(result, `recreate google ${local.id}`, error);
 			}
@@ -688,8 +735,10 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 		const localHash = hashFromLocal(local);
 		if (localHash === map.payload_hash) continue;
 		try {
-			await pushLocal(token, tasklistId, db, local, map);
-			result.updatedGoogle += 1;
+			const outcome = await googleWrites.run(async () => {
+				await pushLocal(token, tasklistId, db, local, map);
+			});
+			if (outcome === "wrote") result.updatedGoogle += 1;
 		} catch (error) {
 			pushError(result, `update google ${local.id}`, error);
 		}
@@ -719,8 +768,8 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 	return result;
 }
 
-export async function pushLocalTaskToGoogle(env: GoogleTasksSyncEnv, taskId: string): Promise<void> {
-	if (!(await isGoogleTasksSyncConfigured(env)) || !taskId) return;
+export async function pushLocalTaskToGoogle(env: GoogleTasksSyncEnv, taskId: string): Promise<boolean> {
+	if (!(await isGoogleTasksSyncConfigured(env)) || !taskId) return false;
 	const token = await tasksAccessToken(env);
 	const tasklistId = await ensureTasklist(token, env, env.DB);
 	const local = await env.DB.prepare(
@@ -729,7 +778,7 @@ export async function pushLocalTaskToGoogle(env: GoogleTasksSyncEnv, taskId: str
 	)
 		.bind(taskId)
 		.first<LocalTaskRow>();
-	if (!local) return;
+	if (!local) return false;
 	const map = await env.DB.prepare(
 		`SELECT task_id, google_tasklist_id, google_task_id, etag, google_updated_at,
 		        payload_hash, last_source, synced_at
@@ -737,8 +786,9 @@ export async function pushLocalTaskToGoogle(env: GoogleTasksSyncEnv, taskId: str
 	)
 		.bind(taskId)
 		.first<SyncMapRow>();
-	if (map && hashFromLocal(local) === map.payload_hash) return;
+	if (map && hashFromLocal(local) === map.payload_hash) return false;
 	await pushLocal(token, tasklistId, env.DB, local, map);
+	return true;
 }
 
 export async function deleteGoogleTasksByRefs(
@@ -747,30 +797,41 @@ export async function deleteGoogleTasksByRefs(
 ): Promise<void> {
 	if (!(await isGoogleTasksSyncConfigured(env)) || refs.length === 0) return;
 	const token = await tasksAccessToken(env);
+	let writes = 0;
 	for (const ref of refs) {
 		if (!ref.google_tasklist_id || !ref.google_task_id) continue;
-		await deleteGoogleTask(token, ref.google_tasklist_id, ref.google_task_id);
+		if (writes >= GOOGLE_TASKS_MAX_WRITES_PER_RUN) return;
+		try {
+			await deleteGoogleTask(token, ref.google_tasklist_id, ref.google_task_id);
+			writes += 1;
+		} catch (error) {
+			if (isSubrequestLimitError(error)) return;
+			throw error;
+		}
+	}
+}
+
+export async function pushGoogleTasksByIds(env: GoogleTasksSyncEnv, taskIds: string[]): Promise<void> {
+	if (!(await isGoogleTasksSyncConfigured(env)) || taskIds.length === 0) return;
+	let writes = 0;
+	for (const taskId of taskIds) {
+		if (writes >= GOOGLE_TASKS_MAX_WRITES_PER_RUN) return;
+		try {
+			const wrote = await pushLocalTaskToGoogle(env, taskId);
+			if (wrote) writes += 1;
+		} catch (error) {
+			if (isSubrequestLimitError(error)) return;
+			console.error("google tasks push failed", taskId, error);
+		}
 	}
 }
 
 export function queueGoogleTaskPushes(env: GoogleTasksSyncEnv, taskIds: string[]): void {
-	void (async () => {
-		if (!(await isGoogleTasksSyncConfigured(env)) || taskIds.length === 0) return;
-		for (const taskId of taskIds) {
-			try {
-				await pushLocalTaskToGoogle(env, taskId);
-			} catch (error) {
-				console.error("google tasks push failed", taskId, error);
-			}
-		}
-	})();
+	void pushGoogleTasksByIds(env, taskIds);
 }
 
 export function queueGoogleTaskApiDeletes(env: GoogleTasksSyncEnv, refs: GoogleTaskRef[]): void {
-	void (async () => {
-		if (!(await isGoogleTasksSyncConfigured(env)) || refs.length === 0) return;
-		await deleteGoogleTasksByRefs(env, refs);
-	})().catch((error) => {
+	void deleteGoogleTasksByRefs(env, refs).catch((error) => {
 		console.error("google tasks delete failed", error);
 	});
 }

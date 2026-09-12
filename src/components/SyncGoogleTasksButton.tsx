@@ -34,10 +34,20 @@ export function SyncGoogleTasksButton() {
 								setMessage(result.fatalError);
 								return;
 							}
-							setMessage(
-								`同期: 取込${result.createdLocal + result.updatedLocal} / 送出${result.createdGoogle + result.updatedGoogle}` +
-									(result.errors.length > 0 ? `（失敗 ${result.errors.length}）` : ""),
-							);
+							const incoming = result.createdLocal + result.updatedLocal;
+							const outgoing = result.createdGoogle + result.updatedGoogle;
+							const deferred = result.deferredGoogle ?? 0;
+							if (incoming === 0 && outgoing === 0 && deferred === 0 && result.errors.length === 0) {
+								setMessage(
+									"同期済み（差分なし）。Google Tasks のリスト「ai-org」を開いて確認してください。",
+								);
+							} else {
+								setMessage(
+									`同期: 取込${incoming} / 送出${outgoing}` +
+										(deferred > 0 ? ` / 残り${deferred}件は次回` : "") +
+										(result.errors.length > 0 ? `（失敗 ${result.errors.length}）` : ""),
+								);
+							}
 							router.refresh();
 						} catch (error) {
 							setMessage(error instanceof Error ? error.message : String(error));
