@@ -3431,6 +3431,10 @@ button.gantt-task-meta {
 	color: var(--muted);
 }
 
+.x-schedule-scroll .x-schedule-table.automation-table {
+	width: 100%;
+}
+
 .automation-table .mono {
 	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 	font-size: 0.78rem;
@@ -3439,6 +3443,24 @@ button.gantt-task-meta {
 
 .automation-table .muted {
 	color: var(--muted);
+}
+
+.automation-table tbody tr.automation-meta-row td {
+	border-bottom: none;
+	padding-bottom: 0.35rem;
+}
+
+.automation-table tbody tr.automation-summary-row td {
+	padding-top: 0.2rem;
+}
+
+.automation-table .automation-summary-cell {
+	max-width: none;
+	width: 100%;
+	color: var(--muted);
+	line-height: 1.45;
+	white-space: normal;
+	word-break: break-word;
 }
 
 a.automation-link {
