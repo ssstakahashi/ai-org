@@ -18,9 +18,12 @@ import {
 	listGoogleTaskSyncRefs,
 	queueGoogleTaskApiDeletes,
 	queueGoogleTaskPushes,
+	saveGoogleTasksOauthRefreshToken,
 	syncGoogleTasks,
 	type GoogleTasksSyncResult,
 } from "@/lib/google-tasks-sync";
+import { exchangeGoogleOauthCode } from "@/lib/google-auth";
+import { verifyGoogleTasksOauthState } from "@/lib/app-auth";
 import {
 	expandRecurrenceDates,
 	parseOptionalCount,
@@ -1932,7 +1935,7 @@ export async function syncGoogleTasksNow(): Promise<
 	const { env } = await getCloudflareContext({ async: true });
 	const startedAt = new Date().toISOString();
 	try {
-		if (!isGoogleTasksSyncConfigured(env)) {
+		if (!(await isGoogleTasksSyncConfigured(env))) {
 			throw new Error(
 				"Google Tasks の認証が未設定です。OAuth または Workspace ドメイン委任を設定してください。",
 			);
@@ -1985,6 +1988,30 @@ export async function syncGoogleTasksNow(): Promise<
 			errors: [message],
 			fatalError: message,
 		};
+	}
+}
+
+export async function completeGoogleTasksOAuth(
+	code: string,
+	state: string,
+): Promise<{ error?: string }> {
+	const { env } = await getCloudflareContext({ async: true });
+	try {
+		const secret = env.APP_AUTH_SECRET?.trim();
+		if (!secret) return { error: "APP_AUTH_SECRET が未設定です" };
+		await verifyGoogleTasksOauthState(state, secret);
+		const refreshToken = await exchangeGoogleOauthCode(env, code.trim());
+		await saveGoogleTasksOauthRefreshToken(env.DB, refreshToken);
+		try {
+			revalidateTaskPages();
+		} catch (error) {
+			console.error("revalidateTaskPages failed", error);
+		}
+		return {};
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.error("google tasks oauth failed", message);
+		return { error: message };
 	}
 }
 

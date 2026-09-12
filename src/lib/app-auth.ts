@@ -46,6 +46,23 @@ export async function verifySessionToken(token: string, secret: string) {
 	});
 }
 
+export async function createGoogleTasksOauthState(secret: string) {
+	return new SignJWT({ purpose: "google-tasks-oauth" })
+		.setProtectedHeader({ alg: "HS256" })
+		.setIssuedAt()
+		.setExpirationTime("15m")
+		.sign(secretKey(secret));
+}
+
+export async function verifyGoogleTasksOauthState(state: string, secret: string) {
+	const { payload } = await jwtVerify(state, secretKey(secret), {
+		algorithms: ["HS256"],
+	});
+	if (payload.purpose !== "google-tasks-oauth") {
+		throw new Error("invalid oauth state");
+	}
+}
+
 export function sessionCookieOptions(maxAge: number, secure: boolean) {
 	return {
 		httpOnly: true,

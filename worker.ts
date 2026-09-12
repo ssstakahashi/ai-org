@@ -48,7 +48,7 @@ async function runXDueCron(env: CloudflareEnv) {
  */
 async function runGoogleTasksCron(env: CloudflareEnv) {
 	const startedAt = new Date().toISOString();
-	if (!isGoogleTasksSyncConfigured(env)) {
+	if (!(await isGoogleTasksSyncConfigured(env))) {
 		console.log("google-tasks-sync-cron skipped: auth not configured");
 		await recordAutomationRun(env.DB, {
 			source: LOCAL_SOURCE,

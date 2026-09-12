@@ -54,5 +54,6 @@ next-env.d.ts
 
 # Google Cloud service account keys (never commit)
 ai-organization-*.json
+client_secret*.json
 
 !.dev.vars.example

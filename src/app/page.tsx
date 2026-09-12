@@ -1,10 +1,24 @@
-import { listCategories, listEmployees, listTags, listTaskGroups, listTasks } from "@/app/actions";
+import { redirect } from "next/navigation";
+import { completeGoogleTasksOAuth, listCategories, listEmployees, listTags, listTaskGroups, listTasks } from "@/app/actions";
 import { AppHeader } from "@/components/AppHeader";
 import { TaskWorkspace } from "@/components/TaskWorkspace";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+export default async function Home({
+	searchParams,
+}: {
+	searchParams: Promise<{ code?: string; state?: string; error?: string }>;
+}) {
+	const params = await searchParams;
+	if (params.code) {
+		const result = await completeGoogleTasksOAuth(params.code, params.state ?? "");
+		if (result.error) {
+			console.error("google tasks oauth", result.error);
+		}
+		redirect("/");
+	}
+
 	const [employees, categories, taskGroups, tags, tasks] = await Promise.all([
 		listEmployees(),
 		listCategories(),

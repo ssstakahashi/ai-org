@@ -59,6 +59,7 @@ type SyncStateRow = {
 	tasklist_id: string | null;
 	last_polled_at: string | null;
 	last_updated_min: string | null;
+	oauth_refresh_token?: string | null;
 };
 
 export type GoogleTaskRef = {
@@ -84,8 +85,37 @@ function pad2(n: number): string {
 	return String(n).padStart(2, "0");
 }
 
-export function isGoogleTasksSyncConfigured(env: GoogleTasksAuthEnv): boolean {
-	return isGoogleTasksAuthConfigured(env);
+export async function isGoogleTasksSyncConfigured(env: GoogleTasksSyncEnv): Promise<boolean> {
+	const stored = await loadOauthRefreshToken(env.DB);
+	return isGoogleTasksAuthConfigured(env, stored);
+}
+
+async function loadOauthRefreshToken(db: D1Database): Promise<string | null> {
+	try {
+		const row = await db
+			.prepare("SELECT oauth_refresh_token FROM google_task_sync_state WHERE id = ?")
+			.bind(STATE_ID)
+			.first<{ oauth_refresh_token: string | null }>();
+		return row?.oauth_refresh_token?.trim() || null;
+	} catch {
+		return null;
+	}
+}
+
+export async function saveGoogleTasksOauthRefreshToken(
+	db: D1Database,
+	refreshToken: string,
+): Promise<void> {
+	await db.prepare("INSERT OR IGNORE INTO google_task_sync_state (id) VALUES (?)").bind(STATE_ID).run();
+	await db
+		.prepare("UPDATE google_task_sync_state SET oauth_refresh_token = ? WHERE id = ?")
+		.bind(refreshToken, STATE_ID)
+		.run();
+}
+
+async function tasksAccessToken(env: GoogleTasksSyncEnv): Promise<string> {
+	const stored = await loadOauthRefreshToken(env.DB);
+	return getGoogleTasksAccessToken(env, stored);
 }
 
 export function localStatusToGoogle(status: TaskStatus): GoogleTaskStatus {
@@ -502,7 +532,7 @@ async function deleteLocalTask(db: D1Database, taskId: string): Promise<void> {
 }
 
 export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTasksSyncResult> {
-	if (!isGoogleTasksSyncConfigured(env)) {
+	if (!(await isGoogleTasksSyncConfigured(env))) {
 		return emptyResult(
 			true,
 			"Google Tasks の認証が未設定です。OAuth または Workspace ドメイン委任を設定してください。",
@@ -510,7 +540,7 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 	}
 
 	const result = emptyResult(false);
-	const token = await getGoogleTasksAccessToken(env);
+	const token = await tasksAccessToken(env);
 	const db = env.DB;
 	const tasklistId = await ensureTasklist(token, env, db);
 	result.tasklistId = tasklistId;
@@ -690,8 +720,8 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 }
 
 export async function pushLocalTaskToGoogle(env: GoogleTasksSyncEnv, taskId: string): Promise<void> {
-	if (!isGoogleTasksSyncConfigured(env) || !taskId) return;
-	const token = await getGoogleTasksAccessToken(env);
+	if (!(await isGoogleTasksSyncConfigured(env)) || !taskId) return;
+	const token = await tasksAccessToken(env);
 	const tasklistId = await ensureTasklist(token, env, env.DB);
 	const local = await env.DB.prepare(
 		`SELECT id, employee_id, title, body, status, start_at, end_at, updated_at
@@ -712,11 +742,11 @@ export async function pushLocalTaskToGoogle(env: GoogleTasksSyncEnv, taskId: str
 }
 
 export async function deleteGoogleTasksByRefs(
-	env: GoogleTasksAuthEnv,
+	env: GoogleTasksSyncEnv,
 	refs: GoogleTaskRef[],
 ): Promise<void> {
-	if (!isGoogleTasksSyncConfigured(env) || refs.length === 0) return;
-	const token = await getGoogleTasksAccessToken(env);
+	if (!(await isGoogleTasksSyncConfigured(env)) || refs.length === 0) return;
+	const token = await tasksAccessToken(env);
 	for (const ref of refs) {
 		if (!ref.google_tasklist_id || !ref.google_task_id) continue;
 		await deleteGoogleTask(token, ref.google_tasklist_id, ref.google_task_id);
@@ -724,8 +754,8 @@ export async function deleteGoogleTasksByRefs(
 }
 
 export function queueGoogleTaskPushes(env: GoogleTasksSyncEnv, taskIds: string[]): void {
-	if (!isGoogleTasksSyncConfigured(env) || taskIds.length === 0) return;
 	void (async () => {
+		if (!(await isGoogleTasksSyncConfigured(env)) || taskIds.length === 0) return;
 		for (const taskId of taskIds) {
 			try {
 				await pushLocalTaskToGoogle(env, taskId);
@@ -736,9 +766,11 @@ export function queueGoogleTaskPushes(env: GoogleTasksSyncEnv, taskIds: string[]
 	})();
 }
 
-export function queueGoogleTaskApiDeletes(env: GoogleTasksAuthEnv, refs: GoogleTaskRef[]): void {
-	if (!isGoogleTasksSyncConfigured(env) || refs.length === 0) return;
-	void deleteGoogleTasksByRefs(env, refs).catch((error) => {
+export function queueGoogleTaskApiDeletes(env: GoogleTasksSyncEnv, refs: GoogleTaskRef[]): void {
+	void (async () => {
+		if (!(await isGoogleTasksSyncConfigured(env)) || refs.length === 0) return;
+		await deleteGoogleTasksByRefs(env, refs);
+	})().catch((error) => {
 		console.error("google tasks delete failed", error);
 	});
 }

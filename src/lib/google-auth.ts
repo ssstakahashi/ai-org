@@ -178,13 +178,28 @@ export type GoogleTasksAuthEnv = {
 	GOOGLE_TASKS_CLIENT_ID?: string;
 	GOOGLE_TASKS_CLIENT_SECRET?: string;
 	GOOGLE_TASKS_REFRESH_TOKEN?: string;
+	GOOGLE_TASKS_OAUTH_REDIRECT_URI?: string;
 };
 
-export function isGoogleTasksAuthConfigured(env: GoogleTasksAuthEnv): boolean {
-	const oauth =
-		Boolean(env.GOOGLE_TASKS_CLIENT_ID?.trim()) &&
-		Boolean(env.GOOGLE_TASKS_CLIENT_SECRET?.trim()) &&
-		Boolean(env.GOOGLE_TASKS_REFRESH_TOKEN?.trim());
+export const GOOGLE_TASKS_OAUTH_REDIRECT_URI_DEFAULT =
+	"https://ai-org.s-takahashi-241.workers.dev";
+
+export function googleTasksOauthRedirectUri(env: GoogleTasksAuthEnv): string {
+	return env.GOOGLE_TASKS_OAUTH_REDIRECT_URI?.trim() || GOOGLE_TASKS_OAUTH_REDIRECT_URI_DEFAULT;
+}
+
+export function isGoogleTasksOAuthClientConfigured(env: GoogleTasksAuthEnv): boolean {
+	return (
+		Boolean(env.GOOGLE_TASKS_CLIENT_ID?.trim()) && Boolean(env.GOOGLE_TASKS_CLIENT_SECRET?.trim())
+	);
+}
+
+export function isGoogleTasksAuthConfigured(
+	env: GoogleTasksAuthEnv,
+	storedRefreshToken?: string | null,
+): boolean {
+	const refresh = env.GOOGLE_TASKS_REFRESH_TOKEN?.trim() || storedRefreshToken?.trim();
+	const oauth = isGoogleTasksOAuthClientConfigured(env) && Boolean(refresh);
 	const dwd =
 		Boolean(env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim()) &&
 		Boolean(env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.trim()) &&
@@ -192,14 +207,50 @@ export function isGoogleTasksAuthConfigured(env: GoogleTasksAuthEnv): boolean {
 	return oauth || dwd;
 }
 
+export async function exchangeGoogleOauthCode(
+	env: GoogleTasksAuthEnv,
+	code: string,
+): Promise<string> {
+	const clientId = env.GOOGLE_TASKS_CLIENT_ID?.trim();
+	const clientSecret = env.GOOGLE_TASKS_CLIENT_SECRET?.trim();
+	if (!clientId || !clientSecret) {
+		throw new Error("GOOGLE_TASKS_CLIENT_ID / SECRET が未設定です");
+	}
+	const response = await fetch(TOKEN_URL, {
+		method: "POST",
+		headers: { "Content-Type": "application/x-www-form-urlencoded" },
+		body: new URLSearchParams({
+			code,
+			client_id: clientId,
+			client_secret: clientSecret,
+			redirect_uri: googleTasksOauthRedirectUri(env),
+			grant_type: "authorization_code",
+		}),
+	});
+	const data = (await response.json()) as {
+		refresh_token?: string;
+		error?: string;
+		error_description?: string;
+	};
+	if (!data.refresh_token) {
+		throw new Error(
+			data.error_description || data.error || "Google から refresh_token を取得できませんでした",
+		);
+	}
+	return data.refresh_token;
+}
+
 /**
  * Google Tasks 用トークン。
  * 個人 Gmail は OAuth リフレッシュトークンを優先。Workspace は SA + なりすましメール。
  */
-export async function getGoogleTasksAccessToken(env: GoogleTasksAuthEnv): Promise<string> {
+export async function getGoogleTasksAccessToken(
+	env: GoogleTasksAuthEnv,
+	storedRefreshToken?: string | null,
+): Promise<string> {
 	const clientId = env.GOOGLE_TASKS_CLIENT_ID?.trim();
 	const clientSecret = env.GOOGLE_TASKS_CLIENT_SECRET?.trim();
-	const refreshToken = env.GOOGLE_TASKS_REFRESH_TOKEN?.trim();
+	const refreshToken = env.GOOGLE_TASKS_REFRESH_TOKEN?.trim() || storedRefreshToken?.trim();
 	if (clientId && clientSecret && refreshToken) {
 		return getGoogleOAuthAccessToken(clientId, clientSecret, refreshToken);
 	}
