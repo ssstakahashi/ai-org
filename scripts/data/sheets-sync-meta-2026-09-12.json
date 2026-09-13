@@ -1,0 +1,23 @@
+[
+  {
+    "slug": "mieru-invoice-to-reconciliation",
+    "id": "blog_e8c31153-b910-4dc6-b9d9-b9c3d73b3a99",
+    "old_status": "approved",
+    "new_status": "draft",
+    "published": false
+  },
+  {
+    "slug": "sodate-carve-first-requirement",
+    "id": "blog_c593572a-7a27-4f38-a11a-3b395ffc1c76",
+    "old_status": "published",
+    "new_status": "published",
+    "published": true
+  },
+  {
+    "slug": "cloudflare-access-zero-trust-minimum-for-smb",
+    "id": "blog_71433035-3248-4210-ae78-34fca04ade66",
+    "old_status": "approved",
+    "new_status": "draft",
+    "published": false
+  }
+]

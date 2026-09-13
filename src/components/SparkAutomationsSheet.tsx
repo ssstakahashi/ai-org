@@ -1,7 +1,10 @@
+import { Fragment } from "react";
 import { SyncSparkFromSheetButton } from "@/components/SyncSparkFromSheetButton";
 import { STATUS_LABEL } from "@/lib/automations";
 import type { SparkAutomation } from "@/lib/spark-automations";
 import { SPARK_SHEET_URL } from "@/lib/spark-sheet-sync";
+
+const META_COLUMNS = 3;
 
 type Props = {
 	items: SparkAutomation[];
@@ -43,21 +46,27 @@ export function SparkAutomationsSheet({ items, syncError }: Props) {
 								<th>名称</th>
 								<th>設定</th>
 								<th>トリガー</th>
-								<th>内容</th>
 							</tr>
 						</thead>
 						<tbody>
 							{items.map((item) => (
-								<tr key={item.id}>
-									<td className="title">{item.name}</td>
-									<td>
-										<span className={`automation-status status-${item.status}`}>
-											{STATUS_LABEL[item.status]}
-										</span>
-									</td>
-									<td className="when">{item.trigger}</td>
-									<td className="body-cell">{item.summary}</td>
-								</tr>
+								<Fragment key={item.id}>
+									<tr className="automation-meta-row">
+										<td className="title">{item.name}</td>
+										<td>
+											<span className={`automation-status status-${item.status}`}>
+												{STATUS_LABEL[item.status]}
+											</span>
+										</td>
+										<td className="when">{item.trigger}</td>
+									</tr>
+									<tr className="automation-summary-row">
+											<td colSpan={META_COLUMNS} className="automation-summary-cell">
+												<span className="sr-only">内容</span>
+												{item.summary}
+											</td>
+									</tr>
+								</Fragment>
 							))}
 						</tbody>
 					</table>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import {
 	HEALTH_LABEL,
 	RUNNER_HINT,
@@ -8,6 +9,8 @@ import {
 } from "@/lib/automations";
 import type { CatalogRow } from "@/lib/automation-ingest";
 import { formatInAppTz } from "@/lib/timezone";
+
+const META_COLUMNS = 8;
 
 const RUNNER_ORDER: AutomationRunner[] = ["program", "cursor", "manual"];
 
@@ -75,57 +78,63 @@ export function AutomationCatalog({ rows }: Props) {
 									<th>最終成功</th>
 									<th>最終失敗</th>
 									<th>トリガー</th>
-									<th>内容</th>
 									<th>画面</th>
 								</tr>
 							</thead>
 							<tbody>
 								{items.map((item) => (
-									<tr key={`${item.source}:${item.id}`}>
-										<td className="mono">{item.source}</td>
-										<td className="title">{item.name}</td>
-										<td>
-											<span className={`automation-status status-${item.status}`}>
-												{STATUS_LABEL[item.status]}
-											</span>
-										</td>
-										<td>
-											<span className={`automation-health health-${item.run.health}`}>
-												{HEALTH_LABEL[item.run.health]}
-											</span>
-											{item.run.lastError ? (
-												<p className="last-error" title={item.run.lastError}>
-													{item.run.lastError.length > 80
-														? `${item.run.lastError.slice(0, 80)}…`
-														: item.run.lastError}
-												</p>
-											) : null}
-										</td>
-										<td className="when">{formatWhen(item.run.lastSuccessAt)}</td>
-										<td className="when">{formatWhen(item.run.lastFailureAt)}</td>
-										<td className="when">{item.trigger}</td>
-										<td className="body-cell">{item.summary}</td>
-										<td>
-											{item.href ? (
-												item.href.startsWith("http") ? (
-													<a
-														href={item.href}
-														className="automation-link"
-														target="_blank"
-														rel="noreferrer"
-													>
-														開く
-													</a>
+									<Fragment key={`${item.source}:${item.id}`}>
+										<tr className="automation-meta-row">
+											<td className="mono">{item.source}</td>
+											<td className="title">{item.name}</td>
+											<td>
+												<span className={`automation-status status-${item.status}`}>
+													{STATUS_LABEL[item.status]}
+												</span>
+											</td>
+											<td>
+												<span className={`automation-health health-${item.run.health}`}>
+													{HEALTH_LABEL[item.run.health]}
+												</span>
+												{item.run.lastError ? (
+													<p className="last-error" title={item.run.lastError}>
+														{item.run.lastError.length > 80
+															? `${item.run.lastError.slice(0, 80)}…`
+															: item.run.lastError}
+													</p>
+												) : null}
+											</td>
+											<td className="when">{formatWhen(item.run.lastSuccessAt)}</td>
+											<td className="when">{formatWhen(item.run.lastFailureAt)}</td>
+											<td className="when">{item.trigger}</td>
+											<td>
+												{item.href ? (
+													item.href.startsWith("http") ? (
+														<a
+															href={item.href}
+															className="automation-link"
+															target="_blank"
+															rel="noreferrer"
+														>
+															開く
+														</a>
+													) : (
+														<Link href={item.href} className="automation-link">
+															開く
+														</Link>
+													)
 												) : (
-													<Link href={item.href} className="automation-link">
-														開く
-													</Link>
-												)
-											) : (
-												<span className="muted">—</span>
-											)}
-										</td>
-									</tr>
+													<span className="muted">—</span>
+												)}
+											</td>
+										</tr>
+										<tr className="automation-summary-row">
+											<td colSpan={META_COLUMNS} className="automation-summary-cell">
+												<span className="sr-only">内容</span>
+												{item.summary}
+											</td>
+										</tr>
+									</Fragment>
 								))}
 							</tbody>
 						</table>
