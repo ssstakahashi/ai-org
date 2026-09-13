@@ -1,18 +1,20 @@
-import { BULLETIN_SHEET_TITLE, BULLETIN_SHEET_URL } from "@/lib/bulletin-board";
+import { BULLETIN_SHEETS } from "@/lib/bulletin-board";
 
 export function BulletinBoard() {
 	return (
 		<section className="panel">
-			<p>
-				<a
-					href={BULLETIN_SHEET_URL}
-					className="automation-link"
-					target="_blank"
-					rel="noreferrer"
-				>
-					{BULLETIN_SHEET_TITLE}
-				</a>
-			</p>
+			{BULLETIN_SHEETS.map((sheet) => (
+				<p key={sheet.url}>
+					<a
+						href={sheet.url}
+						className="automation-link"
+						target="_blank"
+						rel="noreferrer"
+					>
+						{sheet.title}
+					</a>
+				</p>
+			))}
 		</section>
 	);
 }
