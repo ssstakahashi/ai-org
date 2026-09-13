@@ -11,6 +11,7 @@ const NAV: NavItem[] = [
 	{ kind: "link", href: "/", label: "業務台帳", matchRoot: true },
 	{ kind: "link", href: "/x-schedule", label: "X投稿スケジュール" },
 	{ kind: "link", href: "/blog-drafts", label: "ブログ下書き" },
+	{ kind: "link", href: "/board", label: "掲示板" },
 	{ kind: "link", href: "/automations", label: "自動化一覧" },
 	{ kind: "apps" },
 	{ kind: "link", href: "/employees", label: "従業員" },

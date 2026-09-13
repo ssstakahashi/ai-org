@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { completeGoogleTasksOAuth, listCategories, listEmployees, listTags, listTaskGroups, listTasks } from "@/app/actions";
+import { completeGoogleTasksOAuth, getGoogleTasksLastRun, listCategories, listEmployees, listTags, listTaskGroups, listTasks } from "@/app/actions";
 import { AppHeader } from "@/components/AppHeader";
 import { TaskWorkspace } from "@/components/TaskWorkspace";
 
@@ -19,12 +19,13 @@ export default async function Home({
 		redirect("/");
 	}
 
-	const [employees, categories, taskGroups, tags, tasks] = await Promise.all([
+	const [employees, categories, taskGroups, tags, tasks, googleTasksLastRun] = await Promise.all([
 		listEmployees(),
 		listCategories(),
 		listTaskGroups(),
 		listTags(),
 		listTasks(),
+		getGoogleTasksLastRun(),
 	]);
 
 	return (
@@ -40,6 +41,7 @@ export default async function Home({
 				taskGroups={taskGroups}
 				tags={tags}
 				tasks={tasks}
+				googleTasksLastRun={googleTasksLastRun}
 			/>
 		</main>
 	);

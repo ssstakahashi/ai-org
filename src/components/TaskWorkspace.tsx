@@ -11,6 +11,7 @@ import { TaskForm } from "@/components/TaskForm";
 import { SyncGoogleTasksButton } from "@/components/SyncGoogleTasksButton";
 import { toAppDateTimeLocal } from "@/lib/timezone";
 import type { Category, Employee, Tag, TaskGroup, TaskWithEmployee } from "@/lib/types";
+import type { GoogleTasksLastRun } from "@/lib/google-tasks-sync-format";
 
 type Props = {
 	employees: Employee[];
@@ -18,6 +19,7 @@ type Props = {
 	taskGroups: TaskGroup[];
 	tags: Tag[];
 	tasks: TaskWithEmployee[];
+	googleTasksLastRun?: GoogleTasksLastRun | null;
 };
 
 function countSeriesTasks(tasks: TaskWithEmployee[], seriesId: string | null) {
@@ -40,7 +42,14 @@ function toDateTimeLocal(dateKey: string, time: string) {
 	return `${dateKey}T${time}`;
 }
 
-export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }: Props) {
+export function TaskWorkspace({
+	employees,
+	categories,
+	taskGroups,
+	tags,
+	tasks,
+	googleTasksLastRun = null,
+}: Props) {
 	const router = useRouter();
 	const createDialogRef = useRef<HTMLDialogElement>(null);
 	const detailDialogRef = useRef<HTMLDialogElement>(null);
@@ -164,7 +173,7 @@ export function TaskWorkspace({ employees, categories, taskGroups, tags, tasks }
 						<Link href="/task-groups" className="ghost">
 							タスクグループ
 						</Link>
-						<SyncGoogleTasksButton />
+						<SyncGoogleTasksButton lastRun={googleTasksLastRun} />
 						<button type="button" className="primary" onClick={() => openCreateDialog()}>
 							新規タスク
 						</button>

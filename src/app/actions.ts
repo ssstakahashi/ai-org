@@ -23,6 +23,7 @@ import {
 	type GoogleTasksSyncResult,
 } from "@/lib/google-tasks-sync";
 import { exchangeGoogleOauthCode } from "@/lib/google-auth";
+import type { GoogleTasksLastRun } from "@/lib/google-tasks-sync-format";
 import { verifyGoogleTasksOauthState } from "@/lib/app-auth";
 import {
 	expandRecurrenceDates,
@@ -1960,11 +1961,6 @@ export async function syncGoogleTasksNow(): Promise<
 				deferredGoogle: result.deferredGoogle,
 			},
 		});
-		try {
-			revalidateTaskPages();
-		} catch (error) {
-			console.error("revalidateTaskPages failed", error);
-		}
 		return result;
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -1990,6 +1986,65 @@ export async function syncGoogleTasksNow(): Promise<
 			errors: [message],
 			fatalError: message,
 		};
+	}
+}
+
+function asCount(value: unknown): number {
+	const n = typeof value === "number" ? value : Number(value);
+	return Number.isFinite(n) ? n : 0;
+}
+
+/** 直近の Google Tasks 同期結果（手動／Cron） */
+export async function getGoogleTasksLastRun(): Promise<GoogleTasksLastRun | null> {
+	try {
+		const db = await getDb();
+		const row = await db
+			.prepare(
+				`SELECT automation_id, ok, finished_at, error, meta_json
+				 FROM automation_runs
+				 WHERE source = ? AND automation_id IN ('google-tasks-sync-ui', 'google-tasks-sync-cron')
+				 ORDER BY finished_at DESC
+				 LIMIT 1`,
+			)
+			.bind(LOCAL_SOURCE)
+			.first<{
+				automation_id: string;
+				ok: number;
+				finished_at: string;
+				error: string | null;
+				meta_json: string | null;
+			}>();
+		if (!row) return null;
+
+		let counts: GoogleTasksLastRun["counts"] = null;
+		if (row.meta_json) {
+			try {
+				const meta = JSON.parse(row.meta_json) as Record<string, unknown>;
+				counts = {
+					pulled: asCount(meta.pulled),
+					createdLocal: asCount(meta.createdLocal),
+					updatedLocal: asCount(meta.updatedLocal),
+					deletedLocal: asCount(meta.deletedLocal),
+					createdGoogle: asCount(meta.createdGoogle),
+					updatedGoogle: asCount(meta.updatedGoogle),
+					deletedGoogle: asCount(meta.deletedGoogle),
+					deferredGoogle: asCount(meta.deferredGoogle),
+				};
+			} catch {
+				counts = null;
+			}
+		}
+
+		return {
+			automationId: row.automation_id,
+			ok: row.ok === 1,
+			finishedAt: row.finished_at,
+			error: row.error,
+			counts,
+		};
+	} catch (error) {
+		console.error("getGoogleTasksLastRun failed", error);
+		return null;
 	}
 }
 

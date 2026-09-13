@@ -371,6 +371,12 @@ a.logout-button:hover {
 	color: var(--muted);
 }
 
+.panel-head .run-due-message {
+	max-width: 22rem;
+	text-align: right;
+	white-space: normal;
+}
+
 .x-post-id {
 	margin: 0.35rem 0 0;
 	font-size: 0.8rem;

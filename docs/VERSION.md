@@ -2,6 +2,11 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.53 (2026-09-13)
+
+- 掲示板ページを追加し、指定スプレッドシートへのリンクを上部に置いた
+- Google Tasks の直近同期結果を業務台帳に表示する
+
 ## 0.0.52 (2026-09-12)
 
 - Google Tasks 同期が Workers のサブリクエスト上限で失敗する問題を修正
