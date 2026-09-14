@@ -8,11 +8,18 @@ import { LOCAL_SOURCE, recordAutomationRun } from "@/lib/automation-ingest";
 import { pullSparkAutomationsFromSheet } from "@/lib/spark-sheet-sync";
 import { publishDueXPosts, publishXPostNow, type PublishResult } from "@/lib/publish-x-posts";
 import {
+	isSheetsSyncConfigured,
 	queueXPostSheetRemoval,
 	queueXPostSheetSync,
 	syncAllXPostsToSheet,
 	type SyncAllXPostsResult,
 } from "@/lib/x-post-sheets-sync";
+import {
+	removeStudiofoodsHpPostFromSheet,
+	syncStudiofoodsHpBlogPostsWithSheet,
+	syncStudiofoodsHpPostToSheetById,
+	type StudiofoodsHpBlogSheetSyncResult,
+} from "@/lib/blog-posts-sheets-sync";
 import {
 	isGoogleTasksSyncConfigured,
 	listGoogleTaskSyncRefs,
@@ -376,6 +383,26 @@ function revalidateXPostPages() {
 function revalidateBlogPostPages() {
 	revalidatePath("/blog-drafts");
 	revalidatePath("/pages");
+}
+
+async function syncStudiofoodsHpBlogSheetById(postId: string) {
+	try {
+		const { env } = await getCloudflareContext({ async: true });
+		if (!isSheetsSyncConfigured(env)) return;
+		await syncStudiofoodsHpPostToSheetById(env, postId);
+	} catch (error) {
+		console.error("studiofoods hp blog sheet row sync failed", postId, error);
+	}
+}
+
+async function removeStudiofoodsHpBlogSheetById(postId: string) {
+	try {
+		const { env } = await getCloudflareContext({ async: true });
+		if (!isSheetsSyncConfigured(env)) return;
+		await removeStudiofoodsHpPostFromSheet(env, postId);
+	} catch (error) {
+		console.error("studiofoods hp blog sheet row removal failed", postId, error);
+	}
 }
 
 function revalidateAppsPage() {
@@ -3031,8 +3058,8 @@ export async function createBlogPost(formData: FormData): Promise<{ error?: stri
 		return { error: "タイトルは必須です" };
 	}
 
+	const id = newId("blog");
 	try {
-		const id = newId("blog");
 		const slug = await allocateUniqueBlogSlug(db, slugRaw || title);
 		await db
 			.prepare(
@@ -3059,6 +3086,8 @@ export async function createBlogPost(formData: FormData): Promise<{ error?: stri
 		const message = error instanceof Error ? error.message : String(error);
 		return { error: `下書きの保存に失敗しました: ${message}` };
 	}
+
+	await syncStudiofoodsHpBlogSheetById(id);
 
 	try {
 		revalidateBlogPostPages();
@@ -3147,6 +3176,8 @@ export async function updateBlogPost(formData: FormData): Promise<{ error?: stri
 		return { error: `下書きの更新に失敗しました: ${message}` };
 	}
 
+	await syncStudiofoodsHpBlogSheetById(id);
+
 	try {
 		revalidateBlogPostPages();
 	} catch (error) {
@@ -3182,6 +3213,7 @@ export async function updateBlogPostStatus(formData: FormData) {
 		.bind(status, id)
 		.run();
 
+	await syncStudiofoodsHpBlogSheetById(id);
 	revalidateBlogPostPages();
 }
 
@@ -3191,5 +3223,46 @@ export async function deleteBlogPost(formData: FormData) {
 	if (!id) return;
 
 	await db.prepare("DELETE FROM blog_posts WHERE id = ?").bind(id).run();
+	await removeStudiofoodsHpBlogSheetById(id);
 	revalidateBlogPostPages();
+}
+
+/** スタジオフーズHPの下書きを Google スプレッドシートと双方向同期 */
+export async function syncStudiofoodsHpBlogFromSheet(): Promise<
+	StudiofoodsHpBlogSheetSyncResult & { fatalError?: string }
+> {
+	const { env } = await getCloudflareContext({ async: true });
+	const startedAt = new Date().toISOString();
+	try {
+		const result = await syncStudiofoodsHpBlogPostsWithSheet(env);
+		await recordAutomationRun(env.DB, {
+			source: LOCAL_SOURCE,
+			automationId: "blog-hp-sheet-sync-ui",
+			ok: true,
+			startedAt,
+			finishedAt: new Date().toISOString(),
+			error: null,
+			meta: result,
+		});
+		revalidateBlogPostPages();
+		return result;
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		await recordAutomationRun(env.DB, {
+			source: LOCAL_SOURCE,
+			automationId: "blog-hp-sheet-sync-ui",
+			ok: false,
+			startedAt,
+			finishedAt: new Date().toISOString(),
+			error: message,
+		});
+		return {
+			pulled: 0,
+			createdLocal: 0,
+			updatedLocal: 0,
+			deletedLocal: 0,
+			createdSheet: 0,
+			fatalError: message,
+		};
+	}
 }

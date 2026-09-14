@@ -14,7 +14,9 @@ import { flushSync } from "react-dom";
 import { deleteBlogPost, updateBlogPostStatus } from "@/app/actions";
 import { BlogPostForm } from "@/components/BlogPostForm";
 import { StatusIcon } from "@/components/StatusIcon";
+import { SyncStudiofoodsHpBlogSheetButton } from "@/components/SyncStudiofoodsHpBlogSheetButton";
 import { recoverFromStaleServerAction } from "@/lib/server-action-client";
+import { STUDIOFOODS_HP_BLOG_SHEET_URL } from "@/lib/bulletin-board";
 import { formatInAppTz } from "@/lib/timezone";
 import {
 	BLOG_POST_DESTINATION_DEFAULT,
@@ -31,6 +33,7 @@ import {
 
 type Props = {
 	posts: BlogPost[];
+	sheetSyncError?: string | null;
 };
 
 function formatWhen(value: string) {
@@ -178,7 +181,7 @@ function BlogPostStatusSelect({
 	);
 }
 
-export function BlogDraftsManager({ posts }: Props) {
+export function BlogDraftsManager({ posts, sheetSyncError }: Props) {
 	const router = useRouter();
 	const [destination, setDestination] = useState<BlogPostDestination>(
 		BLOG_POST_DESTINATION_DEFAULT,
@@ -294,9 +297,28 @@ export function BlogDraftsManager({ posts }: Props) {
 					<button type="button" className="primary" onClick={openCreateDialog}>
 						新規登録
 					</button>
+					{destination === BLOG_POST_DESTINATION_DEFAULT ? (
+						<SyncStudiofoodsHpBlogSheetButton />
+					) : null}
 				</div>
 			</div>
 			<div className="x-schedule">
+				{destination === BLOG_POST_DESTINATION_DEFAULT ? (
+					<p className="field-hint">
+						<a
+							href={STUDIOFOODS_HP_BLOG_SHEET_URL}
+							className="automation-link"
+							target="_blank"
+							rel="noreferrer"
+						>
+							ブログ記事_投稿管理
+						</a>
+						と連動しています。
+					</p>
+				) : null}
+				{sheetSyncError && destination === BLOG_POST_DESTINATION_DEFAULT ? (
+					<p className="run-due-message">{sheetSyncError}</p>
+				) : null}
 				<ul className="x-schedule-summary">
 					{BLOG_POST_STATUS_OPTIONS.map((status) => (
 						<li key={status} className={BLOG_POST_STATUS_CLASS[status]}>

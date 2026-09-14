@@ -172,6 +172,29 @@ export const AUTOMATIONS: AutomationEntry[] = [
 	},
 	/**
 	 * @automation
+	 * id: blog-hp-sheet-sync-ui
+	 * name: スタジオフーズHPブログをスプレッドシートと同期
+	 * runner: manual
+	 * status: manual
+	 * trigger: ブログ下書き画面のボタン
+	 * summary: スタジオフーズHPの下書きを指定スプレッドシートと双方向同期する。
+	 * location: SyncStudiofoodsHpBlogSheetButton → syncStudiofoodsHpBlogFromSheet
+	 * href: /blog-drafts
+	 */
+	{
+		id: "blog-hp-sheet-sync-ui",
+		name: "スタジオフーズHPブログをスプレッドシートと同期",
+		runner: "manual",
+		status: "manual",
+		trigger: "ブログ下書き画面のボタン",
+		summary:
+			"スタジオフーズHPの下書きを「ブログ記事_投稿管理」スプレッドシートと双方向同期する。画面を開いたときも同じ処理を行う。",
+		location: "SyncStudiofoodsHpBlogSheetButton → syncStudiofoodsHpBlogFromSheet",
+		href: "/blog-drafts",
+		source: LOCAL_AUTOMATION_SOURCE,
+	},
+	/**
+	 * @automation
 	 * id: spark-sheet-sync-ui
 	 * name: Google Spark をスプレッドシートから取得
 	 * runner: manual

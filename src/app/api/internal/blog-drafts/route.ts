@@ -9,8 +9,8 @@
  * location: Grok Bot ルーチン「ブログ下書き（月水金）」 → POST /api/internal/blog-drafts
  * href: /blog-drafts
  */
-import { revalidatePath } from "next/cache";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyIngestSecret } from "@/lib/automation-ingest";
 import {
@@ -20,10 +20,12 @@ import {
 	parseBlogPostStatus,
 	upsertBlogPostFromIngest,
 } from "@/lib/blog-posts";
+import { syncStudiofoodsHpPostToSheetById } from "@/lib/blog-posts-sheets-sync";
 import {
 	BLOG_POST_DESTINATION_OPTIONS,
 	BLOG_POST_STATUS_OPTIONS,
 } from "@/lib/types";
+import { isSheetsSyncConfigured } from "@/lib/x-post-sheets-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +112,13 @@ export async function POST(request: NextRequest) {
 
 	try {
 		const result = await upsertBlogPostFromIngest(env.DB, parsed.input);
+		if (isSheetsSyncConfigured(env)) {
+			try {
+				await syncStudiofoodsHpPostToSheetById(env, result.id);
+			} catch (error) {
+				console.error("studiofoods hp blog sheet ingest sync failed", result.id, error);
+			}
+		}
 		revalidatePath("/blog-drafts");
 		return NextResponse.json({ ok: true, ...result });
 	} catch (error) {

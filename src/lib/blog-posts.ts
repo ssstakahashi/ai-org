@@ -162,6 +162,101 @@ async function allocateUniqueSlug(
 	return `${base}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
+export async function getBlogPostFromDb(
+	db: D1Database,
+	id: string,
+): Promise<BlogPost | null> {
+	const row = await db
+		.prepare(`${BLOG_POST_SELECT} WHERE id = ?`)
+		.bind(id)
+		.first<BlogPost>();
+	return row ? withDestination(row) : null;
+}
+
+function nowSqlUtc(): string {
+	return new Date().toISOString().replace("T", " ").slice(0, 19);
+}
+
+export async function upsertStudiofoodsHpPostFromSheet(
+	db: D1Database,
+	input: Omit<BlogPost, "destination">,
+): Promise<BlogPost> {
+	const slug = await allocateUniqueSlug(db, input.slug || input.title, input.id);
+	const createdAt = input.created_at.trim() || input.updated_at.trim() || nowSqlUtc();
+	const updatedAt = input.updated_at.trim() || createdAt;
+	const excerpt = input.excerpt ?? "";
+	const body = input.body ?? "";
+	const category = input.category ?? "";
+	const tags = input.tags ?? "";
+	const thumbnailUrl = input.thumbnail_url ?? "";
+	const publishedOn = input.published_on ?? "";
+	const notes = input.notes ?? "";
+	const source = input.source ?? "";
+	const status = parseBlogPostStatus(input.status);
+
+	const existing = await getBlogPostFromDb(db, input.id);
+	if (existing) {
+		await db
+			.prepare(
+				`UPDATE blog_posts
+				 SET slug = ?, title = ?, excerpt = ?, body = ?, category = ?, tags = ?,
+				     thumbnail_url = ?, published_on = ?, status = ?, destination = ?,
+				     notes = ?, source = ?, created_at = ?, updated_at = ?
+				 WHERE id = ?`,
+			)
+			.bind(
+				slug,
+				input.title,
+				excerpt,
+				body,
+				category,
+				tags,
+				thumbnailUrl,
+				publishedOn,
+				status,
+				BLOG_POST_DESTINATION_DEFAULT,
+				notes,
+				source,
+				createdAt,
+				updatedAt,
+				input.id,
+			)
+			.run();
+	} else {
+		await db
+			.prepare(
+				`INSERT INTO blog_posts
+					(id, slug, title, excerpt, body, category, tags, thumbnail_url, published_on,
+					 status, destination, notes, source, created_at, updated_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.bind(
+				input.id,
+				slug,
+				input.title,
+				excerpt,
+				body,
+				category,
+				tags,
+				thumbnailUrl,
+				publishedOn,
+				status,
+				BLOG_POST_DESTINATION_DEFAULT,
+				notes,
+				source,
+				createdAt,
+				updatedAt,
+			)
+			.run();
+	}
+
+	const saved = await getBlogPostFromDb(db, input.id);
+	if (!saved) {
+		throw new Error("シートからの下書き保存に失敗しました");
+	}
+	return saved;
+}
+
 export async function listBlogPostsFromDb(
 	db: D1Database,
 	status?: BlogPostStatus,
