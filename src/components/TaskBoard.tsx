@@ -92,7 +92,6 @@ export function TaskBoard({ tasks, onDayClick, onTaskClick }: Props) {
 		if (toolbar) observer.observe(toolbar);
 		return () => {
 			observer.disconnect();
-			document.documentElement.style.removeProperty("--app-topnav-height");
 			document.documentElement.style.removeProperty("--gantt-toolbar-height");
 		};
 	}, [view]);
