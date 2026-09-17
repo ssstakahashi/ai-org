@@ -1,3 +1,4 @@
+import { mediaUrl } from "@/lib/media-upload";
 import { newId } from "@/lib/db";
 import {
 	BLOG_POST_DESTINATION_DEFAULT,
@@ -9,8 +10,8 @@ import {
 } from "@/lib/types";
 
 export const BLOG_POST_SELECT = `SELECT
-	id, slug, title, excerpt, body, category, tags, thumbnail_url, published_on,
-	status, destination, notes, source, created_at, updated_at
+	id, slug, title, excerpt, body, category, tags, thumbnail_url, thumbnail_key, figure_keys,
+	published_on, status, destination, notes, source, created_at, updated_at
  FROM blog_posts`;
 
 export const BLOG_POST_ORDER = `ORDER BY
@@ -59,12 +60,62 @@ export function parseBlogPostDestination(
 	throw new Error("投稿先が不正です");
 }
 
+export type BlogFigure = {
+	key: string;
+	name: string;
+};
+
+export const BLOG_FIGURE_MAX = 12;
+
+export function parseBlogFigures(raw: string | null | undefined): BlogFigure[] {
+	if (!raw?.trim()) return [];
+	try {
+		const parsed = JSON.parse(raw) as unknown;
+		if (!Array.isArray(parsed)) return [];
+		const figures: BlogFigure[] = [];
+		for (const item of parsed) {
+			if (!item || typeof item !== "object") continue;
+			const record = item as Record<string, unknown>;
+			const key = typeof record.key === "string" ? record.key.trim() : "";
+			if (!key.startsWith("blog-posts/") || key.includes("..")) continue;
+			const name =
+				typeof record.name === "string" && record.name.trim()
+					? record.name.trim()
+					: key.split("/").pop() || "image.webp";
+			figures.push({ key, name });
+			if (figures.length >= BLOG_FIGURE_MAX) break;
+		}
+		return figures;
+	} catch {
+		return [];
+	}
+}
+
+export function serializeBlogFigures(figures: BlogFigure[]): string {
+	return JSON.stringify(
+		figures.slice(0, BLOG_FIGURE_MAX).map((figure) => ({
+			key: figure.key,
+			name: figure.name,
+		})),
+	);
+}
+
+export function blogHeroSrc(
+	post: Pick<BlogPost, "thumbnail_key" | "thumbnail_url">,
+): string | null {
+	if (post.thumbnail_key.trim()) return mediaUrl(post.thumbnail_key.trim());
+	const url = post.thumbnail_url.trim();
+	return url || null;
+}
+
 function withDestination(post: BlogPost): BlogPost {
 	return {
 		...post,
 		destination: parseBlogPostDestination(post.destination, {
 			fallback: BLOG_POST_DESTINATION_DEFAULT,
 		}),
+		thumbnail_key: post.thumbnail_key ?? "",
+		figure_keys: post.figure_keys?.trim() ? post.figure_keys : "[]",
 	};
 }
 

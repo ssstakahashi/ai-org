@@ -210,6 +210,10 @@ export type BlogPost = {
 	category: string;
 	tags: string;
 	thumbnail_url: string;
+	/** R2 に保存した TOP 画像。あれば thumbnail_url より優先して表示する */
+	thumbnail_key: string;
+	/** 図表・グラフの R2 キー JSON（[{ key, name }]） */
+	figure_keys: string;
 	published_on: string;
 	status: BlogPostStatus;
 	destination: BlogPostDestination;

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getDb, getMediaBucket, newId, queryInChunks } from "@/lib/db";
-import { copyTaskImage, getUploadFile, putTaskImage, putXPostImage } from "@/lib/media-upload";
+import { copyTaskImage, getUploadFile, getUploadFiles, putBlogPostImage, putTaskImage, putXPostImage } from "@/lib/media-upload";
 import { LOCAL_SOURCE, recordAutomationRun } from "@/lib/automation-ingest";
 import { pullSparkAutomationsFromSheet } from "@/lib/spark-sheet-sync";
 import { publishDueXPosts, publishXPostNow, type PublishResult } from "@/lib/publish-x-posts";
@@ -72,10 +72,14 @@ import {
 	type BlogPostStatus,
 } from "@/lib/types";
 import {
+	BLOG_FIGURE_MAX,
 	listBlogPostsFromDb,
+	parseBlogFigures,
 	parseBlogPostDestination,
 	parseBlogPostStatus,
+	serializeBlogFigures,
 	slugifyBlogSlug,
+	type BlogFigure,
 } from "@/lib/blog-posts";
 
 type TaskRow = Omit<TaskWithEmployee, "tags" | "links">;
@@ -3031,6 +3035,46 @@ async function allocateUniqueBlogSlug(
 
 type BlogPostFormState = { error: string | null; ok: boolean };
 
+async function storeBlogImagesFromForm(
+	formData: FormData,
+	existing?: { thumbnail_key: string; figure_keys: string },
+): Promise<{ thumbnailKey: string; figureKeys: string } | { error: string }> {
+	let thumbnailKey = existing?.thumbnail_key ?? "";
+	const thumbnailUpload = getUploadFile(formData, "thumbnail");
+	const clearThumbnail = String(formData.get("clear_thumbnail") ?? "") === "1";
+	if (thumbnailUpload) {
+		const stored = await putBlogPostImage(thumbnailUpload);
+		if ("error" in stored) return stored;
+		thumbnailKey = stored.key;
+	} else if (clearThumbnail) {
+		thumbnailKey = "";
+	}
+
+	const removeKeys = new Set(
+		formData
+			.getAll("remove_figure")
+			.map((value) => String(value).trim())
+			.filter(Boolean),
+	);
+	const figures = parseBlogFigures(existing?.figure_keys).filter(
+		(figure) => !removeKeys.has(figure.key),
+	);
+	const uploads = getUploadFiles(formData, "figures");
+	for (const file of uploads) {
+		if (figures.length >= BLOG_FIGURE_MAX) {
+			return { error: `図表・グラフは ${BLOG_FIGURE_MAX} 枚までです` };
+		}
+		const stored = await putBlogPostImage(file);
+		if ("error" in stored) return stored;
+		figures.push({
+			key: stored.key,
+			name: file.name || "image.webp",
+		} satisfies BlogFigure);
+	}
+
+	return { thumbnailKey, figureKeys: serializeBlogFigures(figures) };
+}
+
 export async function createBlogPost(formData: FormData): Promise<{ error?: string }> {
 	const db = await getDb();
 	const title = formText(formData, "title");
@@ -3059,14 +3103,18 @@ export async function createBlogPost(formData: FormData): Promise<{ error?: stri
 		return { error: "タイトルは必須です" };
 	}
 
+	const images = await storeBlogImagesFromForm(formData);
+	if ("error" in images) return { error: images.error };
+
 	const id = newId("blog");
 	try {
 		const slug = await allocateUniqueBlogSlug(db, slugRaw || title);
 		await db
 			.prepare(
 				`INSERT INTO blog_posts
-					(id, slug, title, excerpt, body, category, tags, thumbnail_url, published_on, status, destination, notes, source)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual')`,
+					(id, slug, title, excerpt, body, category, tags, thumbnail_url, thumbnail_key, figure_keys,
+					 published_on, status, destination, notes, source)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual')`,
 			)
 			.bind(
 				id,
@@ -3077,6 +3125,8 @@ export async function createBlogPost(formData: FormData): Promise<{ error?: stri
 				category,
 				tags,
 				thumbnailUrl,
+				images.thumbnailKey,
+				images.figureKeys,
 				publishedOn,
 				status,
 				destination,
@@ -3140,12 +3190,15 @@ export async function updateBlogPost(formData: FormData): Promise<{ error?: stri
 	}
 
 	const existing = await db
-		.prepare("SELECT id FROM blog_posts WHERE id = ?")
+		.prepare("SELECT id, thumbnail_key, figure_keys FROM blog_posts WHERE id = ?")
 		.bind(id)
-		.first();
+		.first<{ id: string; thumbnail_key: string; figure_keys: string }>();
 	if (!existing) {
 		return { error: "下書きが見つかりません" };
 	}
+
+	const images = await storeBlogImagesFromForm(formData, existing);
+	if ("error" in images) return { error: images.error };
 
 	try {
 		const slug = await allocateUniqueBlogSlug(db, slugRaw || title, id);
@@ -3153,7 +3206,8 @@ export async function updateBlogPost(formData: FormData): Promise<{ error?: stri
 			.prepare(
 				`UPDATE blog_posts
 				 SET slug = ?, title = ?, excerpt = ?, body = ?, category = ?, tags = ?,
-				     thumbnail_url = ?, published_on = ?, status = ?, destination = ?, notes = ?,
+				     thumbnail_url = ?, thumbnail_key = ?, figure_keys = ?, published_on = ?,
+				     status = ?, destination = ?, notes = ?,
 				     updated_at = datetime('now')
 				 WHERE id = ?`,
 			)
@@ -3165,6 +3219,8 @@ export async function updateBlogPost(formData: FormData): Promise<{ error?: stri
 				category,
 				tags,
 				thumbnailUrl,
+				images.thumbnailKey,
+				images.figureKeys,
 				publishedOn,
 				status,
 				destination,

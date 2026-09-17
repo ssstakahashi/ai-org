@@ -13,6 +13,9 @@ import {
 import { flushSync } from "react-dom";
 import { deleteBlogPost, updateBlogPostStatus } from "@/app/actions";
 import { BlogPostForm } from "@/components/BlogPostForm";
+import { blogHeroSrc, parseBlogFigures } from "@/lib/blog-posts";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
+import { mediaUrl } from "@/lib/media-upload";
 import { StatusIcon } from "@/components/StatusIcon";
 import {
 	SyncAgriLpBlogSheetButton,
@@ -92,6 +95,52 @@ function formatTags(tags: string) {
 				.filter(Boolean),
 		),
 	];
+}
+
+function BlogDetailMedia({ post }: { post: BlogPost }) {
+	const heroSrc = blogHeroSrc(post);
+	const figures = parseBlogFigures(post.figure_keys);
+	return (
+		<>
+			{heroSrc ? (
+				<div>
+					<a
+						href={heroSrc}
+						target="_blank"
+						rel="noreferrer"
+						className="task-detail-image"
+						title="TOP画像を開く"
+					>
+						{/* eslint-disable-next-line @next/next/no-img-element -- TOP画像確認 */}
+						<img src={heroSrc} alt={`${post.title} の TOP画像`} loading="lazy" />
+					</a>
+				</div>
+			) : null}
+			{post.body ? (
+				<MarkdownPreview markdown={post.body} />
+			) : (
+				<p className="notes">本文はありません</p>
+			)}
+			{figures.length > 0 ? (
+				<div className="blog-figure-list">
+					<p className="notes">図表・グラフ</p>
+					{figures.map((figure) => (
+						<a
+							key={figure.key}
+							href={mediaUrl(figure.key)}
+							target="_blank"
+							rel="noreferrer"
+							className="task-detail-image"
+							title={figure.name}
+						>
+							{/* eslint-disable-next-line @next/next/no-img-element -- 図表確認 */}
+							<img src={mediaUrl(figure.key)} alt={figure.name} loading="lazy" />
+						</a>
+					))}
+				</div>
+			) : null}
+		</>
+	);
 }
 
 function ActionButtonIcon({ children }: { children: ReactNode }) {
@@ -499,27 +548,7 @@ export function BlogDraftsManager({ posts, sheetSyncErrors }: Props) {
 										タグ: {formatTags(detailing.tags).join(" / ")}
 									</p>
 								) : null}
-								{detailing.thumbnail_url ? (
-									<a
-										href={detailing.thumbnail_url}
-										target="_blank"
-										rel="noreferrer"
-										className="task-detail-image"
-										title="サムネイルを開く"
-									>
-										{/* eslint-disable-next-line @next/next/no-img-element -- 外部サムネイル確認 */}
-										<img
-											src={detailing.thumbnail_url}
-											alt={`${detailing.title} のサムネイル`}
-											loading="lazy"
-										/>
-									</a>
-								) : null}
-								{detailing.body ? (
-									<p className="body">{detailing.body}</p>
-								) : (
-									<p className="notes">本文はありません</p>
-								)}
+								<BlogDetailMedia post={detailing} />
 								{detailing.notes ? (
 									<p className="notes">メモ: {detailing.notes}</p>
 								) : null}

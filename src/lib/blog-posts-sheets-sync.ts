@@ -371,6 +371,8 @@ function parseSheetRows(layout: SheetLayout, rows: string[][]): ParsedSheetRow[]
 				category: cell(row, columns.category).trim(),
 				tags: cell(row, columns.tags),
 				thumbnail_url: cell(row, columns.thumbnail_url).trim(),
+				thumbnail_key: "",
+				figure_keys: "[]",
 				published_on: cell(row, columns.published_on).trim(),
 				status: parseSheetStatus(cell(row, columns.status)),
 				notes: cell(row, columns.notes),

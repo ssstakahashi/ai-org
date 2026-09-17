@@ -45,7 +45,14 @@ export async function toWebpFile(file: File, quality = WEBP_QUALITY): Promise<Fi
 
 /** file input の選択を WebP File で差し替える */
 export function replaceInputFile(input: HTMLInputElement, file: File) {
+	replaceInputFiles(input, [file]);
+}
+
+/** file input の選択を複数の WebP File で差し替える */
+export function replaceInputFiles(input: HTMLInputElement, files: File[]) {
 	const transfer = new DataTransfer();
-	transfer.items.add(file);
+	for (const file of files) {
+		transfer.items.add(file);
+	}
 	input.files = transfer.files;
 }

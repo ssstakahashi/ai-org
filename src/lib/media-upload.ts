@@ -1,15 +1,26 @@
 import { getMediaBucket } from "@/lib/db";
 
-const ALLOWED_MEDIA_PREFIXES = ["x-posts/", "tasks/"] as const;
+const ALLOWED_MEDIA_PREFIXES = ["x-posts/", "tasks/", "blog-posts/"] as const;
 
-/** FormData からアップロード画像を取り出す（Workers でも File/Blob 両対応） */
-export function getUploadFile(formData: FormData, key: string): File | null {
-	const value = formData.get(key);
+function asUploadFile(value: FormDataEntryValue | null): File | null {
 	if (!value || typeof value === "string") return null;
 	const file = value as File;
 	const size = Number(file.size ?? 0);
 	if (!Number.isFinite(size) || size <= 0) return null;
 	return file;
+}
+
+/** FormData からアップロード画像を取り出す（Workers でも File/Blob 両対応） */
+export function getUploadFile(formData: FormData, key: string): File | null {
+	return asUploadFile(formData.get(key));
+}
+
+/** FormData から複数のアップロード画像を取り出す */
+export function getUploadFiles(formData: FormData, key: string): File[] {
+	return formData.getAll(key).flatMap((value) => {
+		const file = asUploadFile(value);
+		return file ? [file] : [];
+	});
 }
 
 /** R2 キーがブラウザ配信してよいプレフィックスか */
@@ -30,14 +41,16 @@ export function mediaUrl(key: string): string {
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
-function webpObjectKey(prefix: "x-posts" | "tasks", file: File): string {
+type MediaPrefix = "x-posts" | "tasks" | "blog-posts";
+
+function webpObjectKey(prefix: MediaPrefix, file: File): string {
 	const raw = String(file.name || "image").replace(/\.[^.]+$/, "");
 	const safeName = raw.replace(/[^\w.\-]+/g, "_") || "image";
 	return `${prefix}/${crypto.randomUUID()}-${safeName}.webp`;
 }
 
 async function putWebpImage(
-	prefix: "x-posts" | "tasks",
+	prefix: MediaPrefix,
 	file: File,
 ): Promise<{ key: string } | { error: string }> {
 	if (file.size > MAX_IMAGE_BYTES) {
@@ -64,6 +77,10 @@ export async function putXPostImage(file: File): Promise<{ key: string } | { err
 
 export async function putTaskImage(file: File): Promise<{ key: string } | { error: string }> {
 	return putWebpImage("tasks", file);
+}
+
+export async function putBlogPostImage(file: File): Promise<{ key: string } | { error: string }> {
+	return putWebpImage("blog-posts", file);
 }
 
 /** 既存タスク画像を複製して新しい R2 キーを返す */
