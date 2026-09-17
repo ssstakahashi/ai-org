@@ -14,7 +14,15 @@ import { mediaUrl } from "@/lib/media-upload";
 import { toAppDateTimeLocal } from "@/lib/timezone";
 import { replaceInputFile, toWebpFile } from "@/lib/to-webp";
 import { formatXPostLengthInfo, xPostLengthInfo } from "@/lib/x-post-length";
-import { X_POST_STATUS_LABEL, type TaskStatus, type XPost } from "@/lib/types";
+import {
+	X_POST_DESTINATION_DEFAULT,
+	X_POST_DESTINATION_LABEL,
+	X_POST_DESTINATION_OPTIONS,
+	X_POST_STATUS_LABEL,
+	type TaskStatus,
+	type XPost,
+	type XPostDestination,
+} from "@/lib/types";
 
 const CREATE_STATUSES: TaskStatus[] = ["draft", "approved", "scheduled", "done"];
 const EDIT_STATUSES: TaskStatus[] = ["draft", "approved", "scheduled", "done", "failed"];
@@ -24,6 +32,7 @@ type Props = {
 	post?: XPost;
 	defaultScheduledAt?: string;
 	defaultStatus?: TaskStatus;
+	defaultDestination?: XPostDestination;
 	onSuccess?: () => void;
 };
 
@@ -35,10 +44,12 @@ export function XPostForm({
 	post,
 	defaultScheduledAt = "",
 	defaultStatus = "draft",
+	defaultDestination = X_POST_DESTINATION_DEFAULT,
 	onSuccess,
 }: Props) {
 	const isEdit = Boolean(post);
 	const statuses = isEdit ? EDIT_STATUSES : CREATE_STATUSES;
+	const destination = post?.destination ?? defaultDestination;
 	const [status, setStatus] = useState<TaskStatus>(post?.status ?? defaultStatus);
 	const [clientError, setClientError] = useState<string | null>(null);
 	const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
@@ -93,6 +104,12 @@ export function XPostForm({
 		if (notes) payload.set("notes", notes);
 	}
 
+	function appendDestination(payload: FormData, form: HTMLFormElement | null | undefined) {
+		const input = form?.elements.namedItem("destination");
+		const value = input instanceof HTMLSelectElement ? input.value.trim() : destination;
+		if (value) payload.set("destination", value);
+	}
+
 	async function suggestFromPayload(
 		payload: FormData,
 	) {
@@ -135,6 +152,7 @@ export function XPostForm({
 		const payload = new FormData();
 		payload.set("image", image);
 		appendNotes(payload, form);
+		appendDestination(payload, form);
 		await suggestFromPayload(payload);
 	}
 
@@ -158,6 +176,7 @@ export function XPostForm({
 		const payload = new FormData();
 		payload.set("image_key", post.image_key);
 		appendNotes(payload, form);
+		appendDestination(payload, form);
 		await suggestFromPayload(payload);
 	}
 
@@ -228,6 +247,16 @@ export function XPostForm({
 						))}
 					</div>
 				</div>
+				<label>
+					<span>投稿先</span>
+					<select name="destination" defaultValue={destination}>
+						{X_POST_DESTINATION_OPTIONS.map((value) => (
+							<option key={value} value={value}>
+								{X_POST_DESTINATION_LABEL[value]}
+							</option>
+						))}
+					</select>
+				</label>
 				<label>
 					<span>
 						予約日時

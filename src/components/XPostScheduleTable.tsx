@@ -23,9 +23,13 @@ import { recoverFromStaleServerAction } from "@/lib/server-action-client";
 import { formatInAppTz } from "@/lib/timezone";
 import { formatXPostLengthInfo, xPostLengthInfo } from "@/lib/x-post-length";
 import {
+	X_POST_DESTINATION_DEFAULT,
+	X_POST_DESTINATION_LABEL,
+	X_POST_DESTINATION_OPTIONS,
 	X_POST_STATUS_LABEL,
 	type TaskStatus,
 	type XPost,
+	type XPostDestination,
 } from "@/lib/types";
 
 type Props = {
@@ -51,6 +55,16 @@ function truncate(text: string, max = 80) {
 	if (!trimmed) return "—";
 	if (trimmed.length <= max) return trimmed;
 	return `${trimmed.slice(0, max)}…`;
+}
+
+function countByDestination(posts: XPost[]) {
+	const counts = Object.fromEntries(
+		X_POST_DESTINATION_OPTIONS.map((destination) => [destination, 0]),
+	) as Record<XPostDestination, number>;
+	for (const post of posts) {
+		counts[post.destination] += 1;
+	}
+	return counts;
 }
 
 function countByStatus(posts: XPost[]) {
@@ -165,7 +179,10 @@ function XPostStatusSelect({
 
 export function XPostScheduleTable({ posts }: Props) {
 	const router = useRouter();
-	const counts = countByStatus(posts);
+	const [tab, setTab] = useState<XPostDestination>(X_POST_DESTINATION_DEFAULT);
+	const destinationCounts = countByDestination(posts);
+	const visiblePosts = posts.filter((post) => post.destination === tab);
+	const counts = countByStatus(visiblePosts);
 	const createDialogRef = useRef<HTMLDialogElement>(null);
 	const detailDialogRef = useRef<HTMLDialogElement>(null);
 	const editDialogRef = useRef<HTMLDialogElement>(null);
@@ -228,9 +245,27 @@ export function XPostScheduleTable({ posts }: Props) {
 	}
 
 	return (
+		<>
+			<div className="view-tabs apps-tabs" role="tablist" aria-label="投稿先">
+				{X_POST_DESTINATION_OPTIONS.map((value) => {
+					const active = tab === value;
+					return (
+						<button
+							key={value}
+							type="button"
+							role="tab"
+							aria-selected={active}
+							className={active ? "view-tab active" : "view-tab"}
+							onClick={() => setTab(value)}
+						>
+							{X_POST_DESTINATION_LABEL[value]}（{destinationCounts[value]}）
+						</button>
+					);
+				})}
+			</div>
 		<section className="panel">
 			<div className="panel-head">
-				<h2>予定一覧（{posts.length}）</h2>
+				<h2>予定一覧（{visiblePosts.length}）</h2>
 				<div className="task-actions">
 					<button type="button" className="primary" onClick={openCreateDialog}>
 						新規登録
@@ -250,9 +285,10 @@ export function XPostScheduleTable({ posts }: Props) {
 			</ul>
 			{actionMessage ? <p className="run-due-message">{actionMessage}</p> : null}
 
-			{posts.length === 0 ? (
+			{visiblePosts.length === 0 ? (
 				<p className="empty">
-					X投稿の予定はまだありません。「新規登録」から追加してください。
+					{X_POST_DESTINATION_LABEL[tab]}
+					のX投稿の予定はまだありません。「新規登録」から追加してください。
 				</p>
 			) : (
 				<div className="x-schedule-scroll">
@@ -266,7 +302,7 @@ export function XPostScheduleTable({ posts }: Props) {
 							</tr>
 						</thead>
 						<tbody>
-							{posts.map((post) => {
+							{visiblePosts.map((post) => {
 								const bodyLength = xPostLengthInfo(post.body);
 								return (
 									<tr key={post.id} className={`status-${post.status}`}>
@@ -395,7 +431,11 @@ export function XPostScheduleTable({ posts }: Props) {
 							閉じる
 						</button>
 					</div>
-					<XPostForm key={createFormKey} onSuccess={handleCreateSuccess} />
+					<XPostForm
+						key={`${createFormKey}-${tab}`}
+						defaultDestination={tab}
+						onSuccess={handleCreateSuccess}
+					/>
 				</div>
 			</dialog>
 
@@ -417,6 +457,7 @@ export function XPostScheduleTable({ posts }: Props) {
 						<div className="task-detail">
 							<div className="task-meta">
 								<StatusBadge status={detailing.status} />
+								<span>{X_POST_DESTINATION_LABEL[detailing.destination]}</span>
 								<span className="when">{formatWhen(detailing.scheduled_at)}</span>
 								<span
 									className={
@@ -507,5 +548,6 @@ export function XPostScheduleTable({ posts }: Props) {
 			</dialog>
 			</div>
 		</section>
+		</>
 	);
 }

@@ -67,6 +67,7 @@ import {
 	type RecurrenceEditScope,
 	type TaskWithEmployee,
 	type XPost,
+	X_POST_DESTINATION_DEFAULT,
 	type BlogPost,
 	type BlogPostDestination,
 	type BlogPostStatus,
@@ -81,6 +82,12 @@ import {
 	slugifyBlogSlug,
 	type BlogFigure,
 } from "@/lib/blog-posts";
+import {
+	parseXPostDestination,
+	withXPostDestination,
+	X_POST_ORDER,
+	X_POST_SELECT,
+} from "@/lib/x-posts";
 
 type TaskRow = Omit<TaskWithEmployee, "tags" | "links">;
 type TaskWithTags = Omit<TaskWithEmployee, "links">;
@@ -339,13 +346,6 @@ const TASK_ORDER = `ORDER BY
 					ELSE 4
 				END,
 				COALESCE(t.start_at, t.created_at) ASC`;
-
-const X_POST_SELECT = `SELECT
-				id, title, body, image_key, status, scheduled_at, notes,
-				x_post_id, last_error, created_at, updated_at
-			 FROM x_posts`;
-
-const X_POST_ORDER = `ORDER BY COALESCE(scheduled_at, created_at) DESC`;
 
 function revalidateTaskPages() {
 	revalidatePath("/");
@@ -730,7 +730,7 @@ export async function listXPosts(): Promise<XPost[]> {
 	const { results } = await db
 		.prepare(`${X_POST_SELECT} ${X_POST_ORDER}`)
 		.all<XPost>();
-	return results ?? [];
+	return (results ?? []).map(withXPostDestination);
 }
 
 function parseNewTagNames(raw: string): string[] {
@@ -1178,6 +1178,14 @@ export async function createXPost(
 	const status =
 		(String(formData.get("status") ?? "draft").trim() as TaskStatus) || "draft";
 	const upload = getUploadFile(formData, "image");
+	let destination: ReturnType<typeof parseXPostDestination>;
+	try {
+		destination = parseXPostDestination(formData.get("destination"), {
+			fallback: X_POST_DESTINATION_DEFAULT,
+		});
+	} catch (error) {
+		return { error: error instanceof Error ? error.message : "投稿先が不正です" };
+	}
 
 	if (!title) {
 		return { error: "タイトルは必須です" };
@@ -1208,10 +1216,10 @@ export async function createXPost(
 		await db
 			.prepare(
 				`INSERT INTO x_posts
-					(id, title, body, image_key, status, scheduled_at, notes)
-				 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+					(id, title, body, image_key, status, scheduled_at, notes, destination)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
-			.bind(id, title, body, imageKey, status, scheduledAt, notes)
+			.bind(id, title, body, imageKey, status, scheduledAt, notes, destination)
 			.run();
 		const { env } = await getCloudflareContext({ async: true });
 		queueXPostSheetSync(env, id);
@@ -1252,6 +1260,12 @@ export async function updateXPost(
 		(String(formData.get("status") ?? "scheduled").trim() as TaskStatus) || "scheduled";
 	const upload = getUploadFile(formData, "image");
 	const clearImage = String(formData.get("clear_image") ?? "") === "1";
+	let destination: ReturnType<typeof parseXPostDestination>;
+	try {
+		destination = parseXPostDestination(formData.get("destination"));
+	} catch (error) {
+		return { error: error instanceof Error ? error.message : "投稿先が不正です" };
+	}
 
 	if (!id) {
 		return { error: "id が必要です" };
@@ -1316,11 +1330,12 @@ export async function updateXPost(
 				     status = ?,
 				     scheduled_at = ?,
 				     notes = ?,
+				     destination = ?,
 				     last_error = '',
 				     updated_at = datetime('now')
 				 WHERE id = ?`,
 			)
-			.bind(title, body, imageKey, status, scheduledAt, notes, id)
+			.bind(title, body, imageKey, status, scheduledAt, notes, destination, id)
 			.run();
 		const { env } = await getCloudflareContext({ async: true });
 		queueXPostSheetSync(env, id);

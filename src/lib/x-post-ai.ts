@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { geminiGenerateContent, getGeminiApiKey } from "@/lib/gemini";
 import { xPostTextWeight, X_POST_MAX_WEIGHT } from "@/lib/x-post-length";
 import { parseXPostAnalysis } from "@/lib/x-post-parse";
+import type { XPostDestination } from "@/lib/types";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const PAST_POSTS_LIMIT = 5;
@@ -15,6 +16,7 @@ type PastPost = {
 export type SuggestXPostOptions = {
 	notes?: string;
 	mimeType?: string;
+	destination?: XPostDestination;
 };
 
 export type SuggestXPostResult = {
@@ -98,8 +100,22 @@ ${notesLine}
 （箇条書きで2〜3点。キーワードや訴求のコツ）`;
 }
 
-async function listPastXPostsForAi(): Promise<PastPost[]> {
+async function listPastXPostsForAi(destination?: XPostDestination): Promise<PastPost[]> {
 	const db = await getDb();
+	if (destination) {
+		const { results } = await db
+			.prepare(
+				`SELECT title, body
+				 FROM x_posts
+				 WHERE status = 'done' AND TRIM(body) != '' AND destination = ?
+				 ORDER BY COALESCE(scheduled_at, created_at) DESC
+				 LIMIT ?`,
+			)
+			.bind(destination, PAST_POSTS_LIMIT)
+			.all<PastPost>();
+		return results ?? [];
+	}
+
 	const { results } = await db
 		.prepare(
 			`SELECT title, body
@@ -158,7 +174,7 @@ export async function suggestXPostFromImage(
 		);
 	}
 
-	const pastPosts = await listPastXPostsForAi();
+	const pastPosts = await listPastXPostsForAi(options?.destination);
 	const base64 = Buffer.from(image).toString("base64");
 	const mimeType = options?.mimeType?.trim() || "image/jpeg";
 

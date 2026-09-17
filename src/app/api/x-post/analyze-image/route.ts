@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMediaBucket } from "@/lib/db";
 import { getUploadFile, isAllowedMediaKey } from "@/lib/media-upload";
+import { parseXPostDestination } from "@/lib/x-posts";
 import { suggestXPostFromImage } from "@/lib/x-post-ai";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,15 @@ export async function POST(request: NextRequest) {
 	const image = getUploadFile(formData, "image");
 	const imageKey = String(formData.get("image_key") ?? "").trim();
 	const notes = String(formData.get("notes") ?? "").trim();
+	let destination: ReturnType<typeof parseXPostDestination> | undefined;
+	try {
+		const rawDestination = String(formData.get("destination") ?? "").trim();
+		if (rawDestination) {
+			destination = parseXPostDestination(rawDestination);
+		}
+	} catch {
+		return NextResponse.json({ error: "投稿先が不正です" }, { status: 400 });
+	}
 
 	let buffer: ArrayBuffer;
 	let mimeType: string;
@@ -77,6 +87,7 @@ export async function POST(request: NextRequest) {
 		const result = await suggestXPostFromImage(buffer, {
 			notes: notes || undefined,
 			mimeType,
+			destination,
 		});
 		return NextResponse.json(result);
 	} catch (error) {

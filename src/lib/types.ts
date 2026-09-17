@@ -128,6 +128,18 @@ export type TaskWithEmployee = Task & {
 	links: TaskLink[];
 };
 
+/** X投稿の投稿先アカウント。増やすときは OPTIONS と LABEL を追加する */
+export const X_POST_DESTINATION_OPTIONS = ["studiofoods", "agri"] as const;
+
+export type XPostDestination = (typeof X_POST_DESTINATION_OPTIONS)[number];
+
+export const X_POST_DESTINATION_LABEL: Record<XPostDestination, string> = {
+	studiofoods: "スタジオフーズ",
+	agri: "Agri",
+};
+
+export const X_POST_DESTINATION_DEFAULT: XPostDestination = "studiofoods";
+
 /** X投稿（業務タスクとは別テーブル） */
 export type XPost = {
 	id: string;
@@ -137,6 +149,7 @@ export type XPost = {
 	status: TaskStatus;
 	scheduled_at: string | null;
 	notes: string;
+	destination: XPostDestination;
 	x_post_id: string | null;
 	last_error: string;
 	created_at: string;

@@ -1,7 +1,13 @@
 import { getGoogleAccessToken } from "@/lib/google-auth";
 import { mediaUrl } from "@/lib/media-upload";
 import { formatInAppTz } from "@/lib/timezone";
-import { X_POST_STATUS_LABEL, type TaskStatus, type XPost } from "@/lib/types";
+import {
+	X_POST_DESTINATION_LABEL,
+	X_POST_STATUS_LABEL,
+	type TaskStatus,
+	type XPost,
+} from "@/lib/types";
+import { X_POST_SELECT, withXPostDestination } from "@/lib/x-posts";
 
 /** 転記先スプレッドシート（ユーザー指定） */
 export const X_POST_SHEET_ID = "1a1ZZgAgHoxgoG6y2FB_SVFRb9YBlIFiW7rm1IlJeIvI";
@@ -24,6 +30,7 @@ type SheetField =
 	| "scheduled_time"
 	| "media"
 	| "notes"
+	| "destination"
 	| "image_url"
 	| "x_post_id"
 	| "x_post_url"
@@ -42,6 +49,7 @@ const DEFAULT_HEADERS: Record<SheetField, string> = {
 	scheduled_time: "投稿時間",
 	media: "媒体",
 	notes: "メモ",
+	destination: "投稿先",
 	image_url: "画像URL",
 	x_post_id: "X投稿ID",
 	x_post_url: "X投稿URL",
@@ -61,6 +69,7 @@ const HEADER_ALIASES: Record<SheetField, string[]> = {
 	scheduled_time: ["投稿時間", "scheduled_time", "時間"],
 	media: ["媒体", "media"],
 	notes: ["メモ", "notes", "Notes", "備考"],
+	destination: ["投稿先", "destination", "アカウント"],
 	image_url: [
 		"画像URL",
 		"画像",
@@ -87,6 +96,7 @@ const FIELD_ORDER: SheetField[] = [
 	"scheduled_time",
 	"media",
 	"notes",
+	"destination",
 	"image_url",
 	"x_post_id",
 	"x_post_url",
@@ -182,6 +192,7 @@ function rowValues(post: XPost, layout: SheetLayout, env: SheetsSyncEnv): string
 		scheduled_time: formatScheduledTime(post.scheduled_at),
 		media: "X",
 		notes: post.notes,
+		destination: X_POST_DESTINATION_LABEL[post.destination] ?? post.destination,
 		image_url: absoluteMediaUrl(env.APP_PUBLIC_URL, post.image_key),
 		x_post_id: post.x_post_id ?? "",
 		x_post_url: xPostUrl(post.x_post_id),
@@ -482,16 +493,12 @@ export async function syncXPostToSheetById(
 ): Promise<void> {
 	if (!isSheetsSyncConfigured(env)) return;
 
-	const post = await env.DB.prepare(
-		`SELECT id, title, body, image_key, status, scheduled_at, notes,
-		        x_post_id, last_error, created_at, updated_at
-		 FROM x_posts WHERE id = ?`,
-	)
+	const post = await env.DB.prepare(`${X_POST_SELECT} WHERE id = ?`)
 		.bind(postId)
 		.first<XPost>();
 
 	if (!post) return;
-	await syncXPostToSheet(env, post);
+	await syncXPostToSheet(env, withXPostDestination(post));
 }
 
 /** 非同期 fire-and-forget 用。Sheets 失敗はログのみ */
@@ -530,12 +537,10 @@ export async function syncAllXPostsToSheet(
 	}
 
 	const { results } = await env.DB.prepare(
-		`SELECT id, title, body, image_key, status, scheduled_at, notes,
-		        x_post_id, last_error, created_at, updated_at
-		 FROM x_posts ORDER BY created_at ASC`,
+		`${X_POST_SELECT} ORDER BY created_at ASC`,
 	).all<XPost>();
 
-	const posts = results ?? [];
+	const posts = (results ?? []).map(withXPostDestination);
 	let synced = 0;
 	const errors: string[] = [];
 
