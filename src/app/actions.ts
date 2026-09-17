@@ -15,10 +15,10 @@ import {
 	type SyncAllXPostsResult,
 } from "@/lib/x-post-sheets-sync";
 import {
-	removeStudiofoodsHpPostFromSheet,
-	syncStudiofoodsHpBlogPostsWithSheet,
-	syncStudiofoodsHpPostToSheetById,
-	type StudiofoodsHpBlogSheetSyncResult,
+	removeBlogPostFromAllSheets,
+	syncBlogPostToSheetById,
+	syncBlogPostsWithSheet,
+	type BlogSheetSyncResult,
 } from "@/lib/blog-posts-sheets-sync";
 import {
 	isGoogleTasksSyncConfigured,
@@ -68,6 +68,7 @@ import {
 	type TaskWithEmployee,
 	type XPost,
 	type BlogPost,
+	type BlogPostDestination,
 	type BlogPostStatus,
 } from "@/lib/types";
 import {
@@ -385,23 +386,23 @@ function revalidateBlogPostPages() {
 	revalidatePath("/pages");
 }
 
-async function syncStudiofoodsHpBlogSheetById(postId: string) {
+async function syncBlogSheetById(postId: string) {
 	try {
 		const { env } = await getCloudflareContext({ async: true });
 		if (!isSheetsSyncConfigured(env)) return;
-		await syncStudiofoodsHpPostToSheetById(env, postId);
+		await syncBlogPostToSheetById(env, postId);
 	} catch (error) {
-		console.error("studiofoods hp blog sheet row sync failed", postId, error);
+		console.error("blog sheet row sync failed", postId, error);
 	}
 }
 
-async function removeStudiofoodsHpBlogSheetById(postId: string) {
+async function removeBlogSheetById(postId: string) {
 	try {
 		const { env } = await getCloudflareContext({ async: true });
 		if (!isSheetsSyncConfigured(env)) return;
-		await removeStudiofoodsHpPostFromSheet(env, postId);
+		await removeBlogPostFromAllSheets(env, postId);
 	} catch (error) {
-		console.error("studiofoods hp blog sheet row removal failed", postId, error);
+		console.error("blog sheet row removal failed", postId, error);
 	}
 }
 
@@ -3087,7 +3088,7 @@ export async function createBlogPost(formData: FormData): Promise<{ error?: stri
 		return { error: `下書きの保存に失敗しました: ${message}` };
 	}
 
-	await syncStudiofoodsHpBlogSheetById(id);
+	await syncBlogSheetById(id);
 
 	try {
 		revalidateBlogPostPages();
@@ -3176,7 +3177,7 @@ export async function updateBlogPost(formData: FormData): Promise<{ error?: stri
 		return { error: `下書きの更新に失敗しました: ${message}` };
 	}
 
-	await syncStudiofoodsHpBlogSheetById(id);
+	await syncBlogSheetById(id);
 
 	try {
 		revalidateBlogPostPages();
@@ -3213,7 +3214,7 @@ export async function updateBlogPostStatus(formData: FormData) {
 		.bind(status, id)
 		.run();
 
-	await syncStudiofoodsHpBlogSheetById(id);
+	await syncBlogSheetById(id);
 	revalidateBlogPostPages();
 }
 
@@ -3223,21 +3224,41 @@ export async function deleteBlogPost(formData: FormData) {
 	if (!id) return;
 
 	await db.prepare("DELETE FROM blog_posts WHERE id = ?").bind(id).run();
-	await removeStudiofoodsHpBlogSheetById(id);
+	await removeBlogSheetById(id);
 	revalidateBlogPostPages();
 }
 
-/** スタジオフーズHPの下書きを Google スプレッドシートと双方向同期 */
-export async function syncStudiofoodsHpBlogFromSheet(): Promise<
-	StudiofoodsHpBlogSheetSyncResult & { fatalError?: string }
-> {
+const BLOG_SHEET_SYNC_AUTOMATION: Record<BlogPostDestination, string> = {
+	studiofoods_hp: "blog-hp-sheet-sync-ui",
+	agri_lp: "blog-agri-lp-sheet-sync-ui",
+};
+
+/** 指定投稿先の下書きを Google スプレッドシートと双方向同期 */
+export async function syncBlogDestinationFromSheet(
+	rawDestination: string,
+): Promise<BlogSheetSyncResult & { fatalError?: string }> {
+	let destination: BlogPostDestination;
+	try {
+		destination = parseBlogPostDestination(rawDestination);
+	} catch (error) {
+		return {
+			pulled: 0,
+			createdLocal: 0,
+			updatedLocal: 0,
+			deletedLocal: 0,
+			createdSheet: 0,
+			fatalError: error instanceof Error ? error.message : "投稿先が不正です",
+		};
+	}
+
+	const automationId = BLOG_SHEET_SYNC_AUTOMATION[destination];
 	const { env } = await getCloudflareContext({ async: true });
 	const startedAt = new Date().toISOString();
 	try {
-		const result = await syncStudiofoodsHpBlogPostsWithSheet(env);
+		const result = await syncBlogPostsWithSheet(env, destination);
 		await recordAutomationRun(env.DB, {
 			source: LOCAL_SOURCE,
-			automationId: "blog-hp-sheet-sync-ui",
+			automationId,
 			ok: true,
 			startedAt,
 			finishedAt: new Date().toISOString(),
@@ -3250,7 +3271,7 @@ export async function syncStudiofoodsHpBlogFromSheet(): Promise<
 		const message = error instanceof Error ? error.message : String(error);
 		await recordAutomationRun(env.DB, {
 			source: LOCAL_SOURCE,
-			automationId: "blog-hp-sheet-sync-ui",
+			automationId,
 			ok: false,
 			startedAt,
 			finishedAt: new Date().toISOString(),
@@ -3265,4 +3286,10 @@ export async function syncStudiofoodsHpBlogFromSheet(): Promise<
 			fatalError: message,
 		};
 	}
+}
+
+export async function syncStudiofoodsHpBlogFromSheet(): Promise<
+	BlogSheetSyncResult & { fatalError?: string }
+> {
+	return syncBlogDestinationFromSheet("studiofoods_hp");
 }

@@ -2,19 +2,23 @@ import { getGoogleAccessToken } from "@/lib/google-auth";
 import {
 	getBlogPostFromDb,
 	listBlogPostsFromDb,
-	upsertStudiofoodsHpPostFromSheet,
+	upsertBlogPostFromSheet,
 } from "@/lib/blog-posts";
-import { newId } from "@/lib/db";
 import {
-	BLOG_POST_DESTINATION_DEFAULT,
-	BLOG_POST_STATUS_OPTIONS,
-	type BlogPost,
-	type BlogPostStatus,
-} from "@/lib/types";
-import {
+	AGRI_LP_BLOG_SHEET_GID,
+	AGRI_LP_BLOG_SHEET_ID,
 	STUDIOFOODS_HP_BLOG_SHEET_GID,
 	STUDIOFOODS_HP_BLOG_SHEET_ID,
 } from "@/lib/bulletin-board";
+import { newId } from "@/lib/db";
+import {
+	BLOG_POST_DESTINATION_DEFAULT,
+	BLOG_POST_DESTINATION_OPTIONS,
+	BLOG_POST_STATUS_OPTIONS,
+	type BlogPost,
+	type BlogPostDestination,
+	type BlogPostStatus,
+} from "@/lib/types";
 import { isSheetsSyncConfigured, type SheetsSyncEnv } from "@/lib/x-post-sheets-sync";
 
 type SheetField =
@@ -91,6 +95,25 @@ const STATUS_ALIASES: Record<BlogPostStatus, string[]> = {
 	rejected: ["rejected", "差戻し", "差戻", "差し戻し"],
 };
 
+type BlogSheetTarget = {
+	destination: BlogPostDestination;
+	sheetId: string;
+	sheetGid: number;
+};
+
+const BLOG_SHEET_TARGETS: Record<BlogPostDestination, BlogSheetTarget> = {
+	studiofoods_hp: {
+		destination: "studiofoods_hp",
+		sheetId: STUDIOFOODS_HP_BLOG_SHEET_ID,
+		sheetGid: STUDIOFOODS_HP_BLOG_SHEET_GID,
+	},
+	agri_lp: {
+		destination: "agri_lp",
+		sheetId: AGRI_LP_BLOG_SHEET_ID,
+		sheetGid: AGRI_LP_BLOG_SHEET_GID,
+	},
+};
+
 type SheetLayout = {
 	sheetTitle: string;
 	columnFields: (SheetField | null)[];
@@ -105,13 +128,16 @@ type ParsedSheetRow = {
 	post: Omit<BlogPost, "destination">;
 };
 
-export type StudiofoodsHpBlogSheetSyncResult = {
+export type BlogSheetSyncResult = {
 	pulled: number;
 	createdLocal: number;
 	updatedLocal: number;
 	deletedLocal: number;
 	createdSheet: number;
 };
+
+/** @deprecated 投稿先ごとの結果型に置き換え */
+export type StudiofoodsHpBlogSheetSyncResult = BlogSheetSyncResult;
 
 function normalizeHeader(value: string): string {
 	return value.trim().toLowerCase().replace(/\s+/g, "").replace(/_/g, "");
@@ -233,28 +259,30 @@ async function getAccessToken(env: SheetsSyncEnv): Promise<string> {
 	return getGoogleAccessToken(email, privateKey);
 }
 
-async function getSheetTitle(token: string): Promise<string> {
+async function getSheetTitle(token: string, target: BlogSheetTarget): Promise<string> {
 	const data = await sheetsFetch<{
 		sheets?: { properties?: { sheetId?: number; title?: string } }[];
 	}>(
-		`spreadsheets/${STUDIOFOODS_HP_BLOG_SHEET_ID}?fields=sheets(properties(sheetId,title))`,
+		`spreadsheets/${target.sheetId}?fields=sheets(properties(sheetId,title))`,
 		token,
 	);
 
-	const sheet = data.sheets?.find(
-		(item) => item.properties?.sheetId === STUDIOFOODS_HP_BLOG_SHEET_GID,
-	);
+	const sheet = data.sheets?.find((item) => item.properties?.sheetId === target.sheetGid);
 	const title = sheet?.properties?.title;
 	if (!title) {
-		throw new Error(`シート gid=${STUDIOFOODS_HP_BLOG_SHEET_GID} が見つかりません`);
+		throw new Error(`シート gid=${target.sheetGid} が見つかりません`);
 	}
 	return title;
 }
 
-async function loadSheetValues(token: string, sheetTitle: string): Promise<string[][]> {
+async function loadSheetValues(
+	token: string,
+	target: BlogSheetTarget,
+	sheetTitle: string,
+): Promise<string[][]> {
 	const range = `${escapeSheetTitle(sheetTitle)}`;
 	const data = await sheetsFetch<{ values?: string[][] }>(
-		`spreadsheets/${STUDIOFOODS_HP_BLOG_SHEET_ID}/values/${encodeURIComponent(range)}`,
+		`spreadsheets/${target.sheetId}/values/${encodeURIComponent(range)}`,
 		token,
 	);
 	return data.values ?? [];
@@ -279,6 +307,7 @@ function detectLayout(sheetTitle: string, rows: string[][]): SheetLayout | null 
 
 async function createDefaultLayout(
 	token: string,
+	target: BlogSheetTarget,
 	sheetTitle: string,
 ): Promise<SheetLayout> {
 	const layout: SheetLayout = {
@@ -290,7 +319,7 @@ async function createDefaultLayout(
 	const range = `${escapeSheetTitle(sheetTitle)}!A1:${columnLetter(FIELD_ORDER.length - 1)}1`;
 	const headers = FIELD_ORDER.map((field) => DEFAULT_HEADERS[field]);
 	await sheetsFetch(
-		`spreadsheets/${STUDIOFOODS_HP_BLOG_SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=RAW`,
+		`spreadsheets/${target.sheetId}/values/${encodeURIComponent(range)}?valueInputOption=RAW`,
 		token,
 		{
 			method: "PUT",
@@ -357,13 +386,14 @@ function parseSheetRows(layout: SheetLayout, rows: string[][]): ParsedSheetRow[]
 
 async function readRow(
 	token: string,
+	target: BlogSheetTarget,
 	layout: SheetLayout,
 	rowNumber: number,
 ): Promise<string[]> {
 	const lastColumn = columnLetter(Math.max(layout.columnFields.length - 1, 0));
 	const range = `${escapeSheetTitle(layout.sheetTitle)}!A${rowNumber}:${lastColumn}${rowNumber}`;
 	const data = await sheetsFetch<{ values?: string[][] }>(
-		`spreadsheets/${STUDIOFOODS_HP_BLOG_SHEET_ID}/values/${encodeURIComponent(range)}`,
+		`spreadsheets/${target.sheetId}/values/${encodeURIComponent(range)}`,
 		token,
 	);
 	const row = data.values?.[0] ?? [];
@@ -372,6 +402,7 @@ async function readRow(
 
 async function writeRow(
 	token: string,
+	target: BlogSheetTarget,
 	layout: SheetLayout,
 	rowNumber: number,
 	values: string[],
@@ -381,7 +412,7 @@ async function writeRow(
 	const lastColumn = columnLetter(Math.max(merged.length - 1, 0));
 	const range = `${escapeSheetTitle(layout.sheetTitle)}!A${rowNumber}:${lastColumn}${rowNumber}`;
 	await sheetsFetch(
-		`spreadsheets/${STUDIOFOODS_HP_BLOG_SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=RAW`,
+		`spreadsheets/${target.sheetId}/values/${encodeURIComponent(range)}?valueInputOption=RAW`,
 		token,
 		{
 			method: "PUT",
@@ -390,10 +421,15 @@ async function writeRow(
 	);
 }
 
-async function appendRow(token: string, layout: SheetLayout, values: string[]): Promise<void> {
+async function appendRow(
+	token: string,
+	target: BlogSheetTarget,
+	layout: SheetLayout,
+	values: string[],
+): Promise<void> {
 	const range = `${escapeSheetTitle(layout.sheetTitle)}!A:${columnLetter(Math.max(values.length - 1, 0))}`;
 	await sheetsFetch(
-		`spreadsheets/${STUDIOFOODS_HP_BLOG_SHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+		`spreadsheets/${target.sheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
 		token,
 		{
 			method: "POST",
@@ -404,13 +440,14 @@ async function appendRow(token: string, layout: SheetLayout, values: string[]): 
 
 async function findRowIndexById(
 	token: string,
+	target: BlogSheetTarget,
 	layout: SheetLayout,
 	postId: string,
 ): Promise<number | null> {
 	const idColumn = columnLetter(layout.idColumnIndex);
 	const range = `${escapeSheetTitle(layout.sheetTitle)}!${idColumn}:${idColumn}`;
 	const data = await sheetsFetch<{ values?: string[][] }>(
-		`spreadsheets/${STUDIOFOODS_HP_BLOG_SHEET_ID}/values/${encodeURIComponent(range)}`,
+		`spreadsheets/${target.sheetId}/values/${encodeURIComponent(range)}`,
 		token,
 	);
 
@@ -423,15 +460,19 @@ async function findRowIndexById(
 	return null;
 }
 
-async function deleteRow(token: string, rowNumber: number): Promise<void> {
-	await sheetsFetch(`spreadsheets/${STUDIOFOODS_HP_BLOG_SHEET_ID}:batchUpdate`, token, {
+async function deleteRow(
+	token: string,
+	target: BlogSheetTarget,
+	rowNumber: number,
+): Promise<void> {
+	await sheetsFetch(`spreadsheets/${target.sheetId}:batchUpdate`, token, {
 		method: "POST",
 		body: JSON.stringify({
 			requests: [
 				{
 					deleteDimension: {
 						range: {
-							sheetId: STUDIOFOODS_HP_BLOG_SHEET_GID,
+							sheetId: target.sheetGid,
 							dimension: "ROWS",
 							startIndex: rowNumber - 1,
 							endIndex: rowNumber,
@@ -456,47 +497,61 @@ function permissionError(env: SheetsSyncEnv, error: unknown): Error {
 
 async function loadLayout(
 	token: string,
+	target: BlogSheetTarget,
 ): Promise<{ layout: SheetLayout; rows: string[][] }> {
-	const sheetTitle = await getSheetTitle(token);
-	const rows = await loadSheetValues(token, sheetTitle);
+	const sheetTitle = await getSheetTitle(token, target);
+	const rows = await loadSheetValues(token, target, sheetTitle);
 	const detected = detectLayout(sheetTitle, rows);
 	if (detected) {
 		return { layout: detected, rows };
 	}
-	const layout = await createDefaultLayout(token, sheetTitle);
+	const layout = await createDefaultLayout(token, target, sheetTitle);
 	return { layout, rows: [FIELD_ORDER.map((field) => DEFAULT_HEADERS[field])] };
 }
 
-/** スタジオフーズHPの1件をシートへ upsert。投稿先が HP 以外ならシートから外す */
-export async function syncStudiofoodsHpPostToSheetById(
-	env: SheetsSyncEnv & { DB: D1Database },
+async function upsertPostOnTargetSheet(
+	token: string,
+	target: BlogSheetTarget,
+	post: BlogPost,
+): Promise<void> {
+	const { layout } = await loadLayout(token, target);
+	const values = rowValues(post, layout);
+	const existingRow = await findRowIndexById(token, target, layout, post.id);
+	if (existingRow) {
+		const existingValues = await readRow(token, target, layout, existingRow);
+		await writeRow(token, target, layout, existingRow, values, existingValues);
+	} else {
+		await appendRow(token, target, layout, values);
+	}
+}
+
+async function removePostFromTargetSheet(
+	token: string,
+	target: BlogSheetTarget,
 	postId: string,
+): Promise<void> {
+	const { layout } = await loadLayout(token, target);
+	const rowNumber = await findRowIndexById(token, target, layout, postId);
+	if (!rowNumber) return;
+	await deleteRow(token, target, rowNumber);
+}
+
+export async function removeBlogPostFromSheet(
+	env: SheetsSyncEnv,
+	postId: string,
+	destination: BlogPostDestination,
 ): Promise<void> {
 	if (!isSheetsSyncConfigured(env)) return;
 
-	const post = await getBlogPostFromDb(env.DB, postId);
-	if (!post || post.destination !== BLOG_POST_DESTINATION_DEFAULT) {
-		await removeStudiofoodsHpPostFromSheet(env, postId);
-		return;
-	}
-
 	try {
 		const token = await getAccessToken(env);
-		const { layout } = await loadLayout(token);
-		const values = rowValues(post, layout);
-		const existingRow = await findRowIndexById(token, layout, post.id);
-		if (existingRow) {
-			const existingValues = await readRow(token, layout, existingRow);
-			await writeRow(token, layout, existingRow, values, existingValues);
-		} else {
-			await appendRow(token, layout, values);
-		}
+		await removePostFromTargetSheet(token, BLOG_SHEET_TARGETS[destination], postId);
 	} catch (error) {
 		throw permissionError(env, error);
 	}
 }
 
-export async function removeStudiofoodsHpPostFromSheet(
+export async function removeBlogPostFromAllSheets(
 	env: SheetsSyncEnv,
 	postId: string,
 ): Promise<void> {
@@ -504,36 +559,72 @@ export async function removeStudiofoodsHpPostFromSheet(
 
 	try {
 		const token = await getAccessToken(env);
-		const { layout } = await loadLayout(token);
-		const rowNumber = await findRowIndexById(token, layout, postId);
-		if (!rowNumber) return;
-		await deleteRow(token, rowNumber);
+		for (const destination of BLOG_POST_DESTINATION_OPTIONS) {
+			await removePostFromTargetSheet(token, BLOG_SHEET_TARGETS[destination], postId);
+		}
 	} catch (error) {
 		throw permissionError(env, error);
 	}
 }
 
-/**
- * シートを正としてスタジオフーズHPの D1 を合わせる。
- * 同一 id はシートの内容で上書きし、シートに無い HP 記事は D1 から外す。
- * 農業日誌アプリLPは対象外。
- */
-export async function syncStudiofoodsHpBlogPostsWithSheet(
+/** 投稿先に応じて該当シートへ upsert。他投稿先のシートからは外す */
+export async function syncBlogPostToSheetById(
 	env: SheetsSyncEnv & { DB: D1Database },
-): Promise<StudiofoodsHpBlogSheetSyncResult> {
-	if (!isSheetsSyncConfigured(env)) {
-		throw new Error("Google Service Account が未設定です");
+	postId: string,
+): Promise<void> {
+	if (!isSheetsSyncConfigured(env)) return;
+
+	const post = await getBlogPostFromDb(env.DB, postId);
+	if (!post) {
+		await removeBlogPostFromAllSheets(env, postId);
+		return;
 	}
 
 	try {
 		const token = await getAccessToken(env);
-		const { layout, rows } = await loadLayout(token);
+		await upsertPostOnTargetSheet(token, BLOG_SHEET_TARGETS[post.destination], post);
+		for (const destination of BLOG_POST_DESTINATION_OPTIONS) {
+			if (destination === post.destination) continue;
+			await removePostFromTargetSheet(token, BLOG_SHEET_TARGETS[destination], postId);
+		}
+	} catch (error) {
+		throw permissionError(env, error);
+	}
+}
+
+export async function syncStudiofoodsHpPostToSheetById(
+	env: SheetsSyncEnv & { DB: D1Database },
+	postId: string,
+): Promise<void> {
+	await syncBlogPostToSheetById(env, postId);
+}
+
+export async function removeStudiofoodsHpPostFromSheet(
+	env: SheetsSyncEnv,
+	postId: string,
+): Promise<void> {
+	await removeBlogPostFromSheet(env, postId, BLOG_POST_DESTINATION_DEFAULT);
+}
+
+/**
+ * 指定投稿先のシートを正として D1 を合わせる。
+ * 同一 id はシートの内容で上書きし、シートに無い当該投稿先の記事は D1 から外す。
+ */
+export async function syncBlogPostsWithSheet(
+	env: SheetsSyncEnv & { DB: D1Database },
+	destination: BlogPostDestination,
+): Promise<BlogSheetSyncResult> {
+	if (!isSheetsSyncConfigured(env)) {
+		throw new Error("Google Service Account が未設定です");
+	}
+
+	const target = BLOG_SHEET_TARGETS[destination];
+
+	try {
+		const token = await getAccessToken(env);
+		const { layout, rows } = await loadLayout(token, target);
 		const parsed = parseSheetRows(layout, rows);
-		const localPosts = await listBlogPostsFromDb(
-			env.DB,
-			undefined,
-			BLOG_POST_DESTINATION_DEFAULT,
-		);
+		const localPosts = await listBlogPostsFromDb(env.DB, undefined, destination);
 		const localById = new Map(localPosts.map((post) => [post.id, post]));
 
 		let createdLocal = 0;
@@ -542,15 +633,22 @@ export async function syncStudiofoodsHpBlogPostsWithSheet(
 
 		for (const row of parsed) {
 			const existed = localById.has(row.id);
-			await upsertStudiofoodsHpPostFromSheet(env.DB, row.post);
+			await upsertBlogPostFromSheet(env.DB, row.post, destination);
 			if (existed) updatedLocal += 1;
 			else createdLocal += 1;
 
 			if (row.generatedId) {
 				const saved = await getBlogPostFromDb(env.DB, row.id);
 				if (saved) {
-					const existingValues = await readRow(token, layout, row.rowNumber);
-					await writeRow(token, layout, row.rowNumber, rowValues(saved, layout), existingValues);
+					const existingValues = await readRow(token, target, layout, row.rowNumber);
+					await writeRow(
+						token,
+						target,
+						layout,
+						row.rowNumber,
+						rowValues(saved, layout),
+						existingValues,
+					);
 					createdSheet += 1;
 				}
 			}
@@ -559,10 +657,8 @@ export async function syncStudiofoodsHpBlogPostsWithSheet(
 
 		let deletedLocal = 0;
 		for (const leftover of localById.values()) {
-			await env.DB.prepare(
-				"DELETE FROM blog_posts WHERE id = ? AND destination = ?",
-			)
-				.bind(leftover.id, BLOG_POST_DESTINATION_DEFAULT)
+			await env.DB.prepare("DELETE FROM blog_posts WHERE id = ? AND destination = ?")
+				.bind(leftover.id, destination)
 				.run();
 			deletedLocal += 1;
 		}
@@ -577,4 +673,10 @@ export async function syncStudiofoodsHpBlogPostsWithSheet(
 	} catch (error) {
 		throw permissionError(env, error);
 	}
+}
+
+export async function syncStudiofoodsHpBlogPostsWithSheet(
+	env: SheetsSyncEnv & { DB: D1Database },
+): Promise<BlogSheetSyncResult> {
+	return syncBlogPostsWithSheet(env, BLOG_POST_DESTINATION_DEFAULT);
 }

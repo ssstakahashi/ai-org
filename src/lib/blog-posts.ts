@@ -177,9 +177,10 @@ function nowSqlUtc(): string {
 	return new Date().toISOString().replace("T", " ").slice(0, 19);
 }
 
-export async function upsertStudiofoodsHpPostFromSheet(
+export async function upsertBlogPostFromSheet(
 	db: D1Database,
 	input: Omit<BlogPost, "destination">,
+	destination: BlogPostDestination,
 ): Promise<BlogPost> {
 	const slug = await allocateUniqueSlug(db, input.slug || input.title, input.id);
 	const createdAt = input.created_at.trim() || input.updated_at.trim() || nowSqlUtc();
@@ -214,7 +215,7 @@ export async function upsertStudiofoodsHpPostFromSheet(
 				thumbnailUrl,
 				publishedOn,
 				status,
-				BLOG_POST_DESTINATION_DEFAULT,
+				destination,
 				notes,
 				source,
 				createdAt,
@@ -241,7 +242,7 @@ export async function upsertStudiofoodsHpPostFromSheet(
 				thumbnailUrl,
 				publishedOn,
 				status,
-				BLOG_POST_DESTINATION_DEFAULT,
+				destination,
 				notes,
 				source,
 				createdAt,

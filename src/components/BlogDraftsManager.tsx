@@ -14,9 +14,12 @@ import { flushSync } from "react-dom";
 import { deleteBlogPost, updateBlogPostStatus } from "@/app/actions";
 import { BlogPostForm } from "@/components/BlogPostForm";
 import { StatusIcon } from "@/components/StatusIcon";
-import { SyncStudiofoodsHpBlogSheetButton } from "@/components/SyncStudiofoodsHpBlogSheetButton";
+import {
+	SyncAgriLpBlogSheetButton,
+	SyncStudiofoodsHpBlogSheetButton,
+} from "@/components/SyncStudiofoodsHpBlogSheetButton";
 import { recoverFromStaleServerAction } from "@/lib/server-action-client";
-import { STUDIOFOODS_HP_BLOG_SHEET_URL } from "@/lib/bulletin-board";
+import { BLOG_DESTINATION_SHEET } from "@/lib/bulletin-board";
 import { formatInAppTz } from "@/lib/timezone";
 import {
 	BLOG_POST_DESTINATION_DEFAULT,
@@ -33,7 +36,7 @@ import {
 
 type Props = {
 	posts: BlogPost[];
-	sheetSyncError?: string | null;
+	sheetSyncErrors?: Partial<Record<BlogPostDestination, string>>;
 };
 
 function formatWhen(value: string) {
@@ -181,7 +184,7 @@ function BlogPostStatusSelect({
 	);
 }
 
-export function BlogDraftsManager({ posts, sheetSyncError }: Props) {
+export function BlogDraftsManager({ posts, sheetSyncErrors }: Props) {
 	const router = useRouter();
 	const [destination, setDestination] = useState<BlogPostDestination>(
 		BLOG_POST_DESTINATION_DEFAULT,
@@ -299,25 +302,25 @@ export function BlogDraftsManager({ posts, sheetSyncError }: Props) {
 					</button>
 					{destination === BLOG_POST_DESTINATION_DEFAULT ? (
 						<SyncStudiofoodsHpBlogSheetButton />
-					) : null}
+					) : (
+						<SyncAgriLpBlogSheetButton />
+					)}
 				</div>
 			</div>
 			<div className="x-schedule">
-				{destination === BLOG_POST_DESTINATION_DEFAULT ? (
-					<p className="field-hint">
-						<a
-							href={STUDIOFOODS_HP_BLOG_SHEET_URL}
-							className="automation-link"
-							target="_blank"
-							rel="noreferrer"
-						>
-							ブログ記事_投稿管理
-						</a>
-						と連動しています。
-					</p>
-				) : null}
-				{sheetSyncError && destination === BLOG_POST_DESTINATION_DEFAULT ? (
-					<p className="run-due-message">{sheetSyncError}</p>
+				<p className="field-hint">
+					<a
+						href={BLOG_DESTINATION_SHEET[destination].url}
+						className="automation-link"
+						target="_blank"
+						rel="noreferrer"
+					>
+						{BLOG_DESTINATION_SHEET[destination].title}
+					</a>
+					と連動しています。
+				</p>
+				{sheetSyncErrors?.[destination] ? (
+					<p className="run-due-message">{sheetSyncErrors[destination]}</p>
 				) : null}
 				<ul className="x-schedule-summary">
 					{BLOG_POST_STATUS_OPTIONS.map((status) => (

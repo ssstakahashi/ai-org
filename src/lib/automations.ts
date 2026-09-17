@@ -178,7 +178,7 @@ export const AUTOMATIONS: AutomationEntry[] = [
 	 * status: manual
 	 * trigger: ブログ下書き画面のボタン
 	 * summary: スタジオフーズHPの下書きを指定スプレッドシートと双方向同期する。
-	 * location: SyncStudiofoodsHpBlogSheetButton → syncStudiofoodsHpBlogFromSheet
+	 * location: SyncStudiofoodsHpBlogSheetButton → syncBlogDestinationFromSheet
 	 * href: /blog-drafts
 	 */
 	{
@@ -189,7 +189,30 @@ export const AUTOMATIONS: AutomationEntry[] = [
 		trigger: "ブログ下書き画面のボタン",
 		summary:
 			"スタジオフーズHPの下書きを「ブログ記事_投稿管理」スプレッドシートと双方向同期する。画面を開いたときも同じ処理を行う。",
-		location: "SyncStudiofoodsHpBlogSheetButton → syncStudiofoodsHpBlogFromSheet",
+		location: "SyncStudiofoodsHpBlogSheetButton → syncBlogDestinationFromSheet",
+		href: "/blog-drafts",
+		source: LOCAL_AUTOMATION_SOURCE,
+	},
+	/**
+	 * @automation
+	 * id: blog-agri-lp-sheet-sync-ui
+	 * name: 農業日誌アプリLPブログをスプレッドシートと同期
+	 * runner: manual
+	 * status: manual
+	 * trigger: ブログ下書き画面のボタン
+	 * summary: 農業日誌アプリLPの下書きを指定スプレッドシートと双方向同期する。
+	 * location: SyncAgriLpBlogSheetButton → syncBlogDestinationFromSheet
+	 * href: /blog-drafts
+	 */
+	{
+		id: "blog-agri-lp-sheet-sync-ui",
+		name: "農業日誌アプリLPブログをスプレッドシートと同期",
+		runner: "manual",
+		status: "manual",
+		trigger: "ブログ下書き画面のボタン",
+		summary:
+			"農業日誌アプリLPの下書きを「農業_ブログ記事_投稿管理」スプレッドシートと双方向同期する。画面を開いたときも同じ処理を行う。",
+		location: "SyncAgriLpBlogSheetButton → syncBlogDestinationFromSheet",
 		href: "/blog-drafts",
 		source: LOCAL_AUTOMATION_SOURCE,
 	},

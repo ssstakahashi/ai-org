@@ -20,7 +20,7 @@ import {
 	parseBlogPostStatus,
 	upsertBlogPostFromIngest,
 } from "@/lib/blog-posts";
-import { syncStudiofoodsHpPostToSheetById } from "@/lib/blog-posts-sheets-sync";
+import { syncBlogPostToSheetById } from "@/lib/blog-posts-sheets-sync";
 import {
 	BLOG_POST_DESTINATION_OPTIONS,
 	BLOG_POST_STATUS_OPTIONS,
@@ -114,9 +114,9 @@ export async function POST(request: NextRequest) {
 		const result = await upsertBlogPostFromIngest(env.DB, parsed.input);
 		if (isSheetsSyncConfigured(env)) {
 			try {
-				await syncStudiofoodsHpPostToSheetById(env, result.id);
+				await syncBlogPostToSheetById(env, result.id);
 			} catch (error) {
-				console.error("studiofoods hp blog sheet ingest sync failed", result.id, error);
+				console.error("blog sheet ingest sync failed", result.id, error);
 			}
 		}
 		revalidatePath("/blog-drafts");
