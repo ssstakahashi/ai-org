@@ -84,7 +84,7 @@ export function AppTopNav({ logoutHref }: Props) {
 					</div>
 					<div className="hero-actions">
 						<nav className="app-nav" aria-label="主要メニュー">
-							<AppNavItems />
+							<AppNavItems layout="bar" />
 						</nav>
 						<LogoutButton href={logoutHref} />
 					</div>
@@ -125,7 +125,7 @@ export function AppTopNav({ logoutHref }: Props) {
 						}
 					}}
 				>
-					<AppNavItems />
+					<AppNavItems layout="drawer" />
 				</nav>
 				<div className="app-sidedrawer-foot">
 					<LogoutButton href={logoutHref} />

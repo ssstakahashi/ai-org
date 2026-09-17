@@ -289,7 +289,8 @@ body {
 	flex-wrap: wrap;
 }
 
-a.app-nav-link {
+a.app-nav-link,
+button.app-nav-link {
 	display: inline-flex;
 	align-items: center;
 	border: 1px solid transparent;
@@ -300,17 +301,70 @@ a.app-nav-link {
 	text-decoration: none;
 }
 
-a.app-nav-link:hover {
+button.app-nav-link {
+	background: transparent;
+}
+
+a.app-nav-link:hover,
+button.app-nav-link:hover {
 	color: var(--foreground);
 	background: #fff;
 	border-color: var(--line);
 }
 
-a.app-nav-link.active {
+a.app-nav-link.active,
+button.app-nav-link.active {
 	color: var(--accent);
 	background: var(--accent-soft);
 	border-color: color-mix(in srgb, var(--accent) 25%, var(--line));
 	font-weight: 600;
+}
+
+.app-nav-group {
+	position: relative;
+}
+
+.app-nav .app-nav-submenu {
+	position: absolute;
+	top: calc(100% + 0.35rem);
+	right: 0;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.35rem;
+	min-width: 100%;
+	padding: 0.35rem;
+	background: #fff;
+	border: 1px solid var(--line);
+	border-radius: 12px;
+	box-shadow: 0 10px 30px rgba(40, 50, 40, 0.04);
+}
+
+.app-nav .app-nav-submenu a.app-nav-link {
+	justify-content: flex-start;
+	white-space: nowrap;
+}
+
+.app-sidedrawer-nav .app-nav-group {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.35rem;
+}
+
+.app-sidedrawer-nav .app-nav-group-label {
+	margin: 0;
+	padding: 0.45rem 0.85rem 0;
+	color: var(--muted);
+	font-size: 0.78rem;
+}
+
+.app-sidedrawer-nav .app-nav-submenu {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.35rem;
 }
 
 a.logout-button {
