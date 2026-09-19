@@ -21,6 +21,7 @@ export const APP_NAV: AppNavItem[] = [
 	{ kind: "link", href: "/x-schedule", label: "X投稿スケジュール" },
 	{ kind: "link", href: "/blog-drafts", label: "ブログ下書き" },
 	{ kind: "link", href: "/board", label: "掲示板" },
+	{ kind: "link", href: "/accounting-manual", label: "会計マニュアル" },
 	{ kind: "apps" },
 	{
 		kind: "group",
