@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
+import { AccountingManualContent } from "@/components/AccountingManualContent";
 import {
 	accountingManualPath,
 	getAccountingManualChapter,
@@ -43,6 +44,13 @@ export function AccountingManualEntry({ entry }: Props) {
 				<p>{entry.summary}</p>
 				<p className="field-hint">元資料ページ {entry.page}</p>
 			</section>
+
+			{entry.body ? (
+				<section className="panel">
+					<h2>詳細内容</h2>
+					<AccountingManualContent markdown={entry.body} />
+				</section>
+			) : null}
 		</main>
 	);
 }
