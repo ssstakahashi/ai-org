@@ -15,6 +15,7 @@ flowchart TD
   Home --> BlogDrafts["/blog-drafts"]
   Home --> Board["/board"]
   Home --> AccountingManual["/accounting-manual"]
+  AccountingManual --> AccountingManualEntry["/accounting-manual/{no}"]
   Home --> Automations["/automations"]
   Home --> Apps["/apps"]
   Home --> Employees["/employees"]
@@ -37,6 +38,7 @@ flowchart TD
 | `/blog-drafts` | ブログ下書きの確認・承認＋ネタ参照 | トップ |
 | `/board` | 掲示板（シートリンク、VERSION 履歴） | トップ（情報） |
 | `/accounting-manual` | 会計マニュアル目次（法人税決算・申告 No.1〜62） | トップ（情報） |
+| `/accounting-manual/[no]` | 会計マニュアルの各項目（No.1〜62）。前後の項目と目次へ移動可 | 情報 |
 | `/automations` | 自動化カタログ / Spark / App Cron | トップ（組織） |
 | `/apps` | App リスト | トップ（App管理） |
 | `/apps/names` | App 名マスタ | App サブタブ |

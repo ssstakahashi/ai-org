@@ -495,3 +495,33 @@ export function accountingManualTocByChapter() {
 		entries: ACCOUNTING_MANUAL_TOC.filter((entry) => entry.chapterId === chapter.id),
 	}));
 }
+
+export function accountingManualPath(no: number) {
+	return `/accounting-manual/${no}`;
+}
+
+export function parseAccountingManualNo(raw: string): number | null {
+	if (!/^\d+$/.test(raw)) return null;
+	const no = Number(raw);
+	if (!Number.isInteger(no) || no < 1) return null;
+	return no;
+}
+
+export function getAccountingManualEntry(no: number) {
+	return ACCOUNTING_MANUAL_TOC.find((entry) => entry.no === no) ?? null;
+}
+
+export function getAccountingManualChapter(id: AccountingManualChapterId) {
+	return ACCOUNTING_MANUAL_CHAPTERS.find((chapter) => chapter.id === id) ?? null;
+}
+
+export function getAccountingManualNeighbors(no: number) {
+	const index = ACCOUNTING_MANUAL_TOC.findIndex((entry) => entry.no === no);
+	if (index < 0) {
+		return { prev: null, next: null };
+	}
+	return {
+		prev: ACCOUNTING_MANUAL_TOC[index - 1] ?? null,
+		next: ACCOUNTING_MANUAL_TOC[index + 1] ?? null,
+	};
+}

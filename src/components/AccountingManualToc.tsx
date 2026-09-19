@@ -1,4 +1,8 @@
-import { accountingManualTocByChapter } from "@/lib/accounting-manual";
+import Link from "next/link";
+import {
+	accountingManualPath,
+	accountingManualTocByChapter,
+} from "@/lib/accounting-manual";
 
 export function AccountingManualToc() {
 	const groups = accountingManualTocByChapter();
@@ -21,8 +25,22 @@ export function AccountingManualToc() {
 							<tbody>
 								{entries.map((entry) => (
 									<tr key={entry.no} id={`no-${entry.no}`}>
-										<td>No.{entry.no}</td>
-										<td className="title">{entry.title}</td>
+										<td>
+											<Link
+												href={accountingManualPath(entry.no)}
+												className="automation-link"
+											>
+												No.{entry.no}
+											</Link>
+										</td>
+										<td className="title">
+											<Link
+												href={accountingManualPath(entry.no)}
+												className="automation-link"
+											>
+												{entry.title}
+											</Link>
+										</td>
 										<td>{entry.summary}</td>
 										<td>{entry.page}</td>
 									</tr>
