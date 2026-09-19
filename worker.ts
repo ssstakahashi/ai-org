@@ -42,7 +42,7 @@ async function runXDueCron(env: CloudflareEnv) {
  * runner: program
  * status: active
  * trigger: Cloudflare Cron（10分ごと）
- * summary: Google Tasks（既定リスト ai-org）と業務台帳を双方向同期する。認証未設定なら何もしない。
+ * summary: Google Tasks（全リストを取得、新規の台帳タスクはリスト ai-org へ）と業務台帳を双方向同期する。認証未設定なら何もしない。
  * location: worker.ts → runGoogleTasksCron → syncGoogleTasks
  * href: /
  */

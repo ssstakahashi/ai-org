@@ -48,7 +48,7 @@ export function formatGoogleTasksSyncResult(result: GoogleTasksSyncCounts): stri
 			result.deferredGoogle ===
 		0
 	) {
-		parts.push("差分なし（Google Tasks のリスト「ai-org」を確認）");
+		parts.push("差分なし（Google Tasks を確認）");
 	}
 	return parts.join("。");
 }

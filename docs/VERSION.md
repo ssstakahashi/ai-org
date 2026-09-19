@@ -2,6 +2,11 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.62 (2026-09-19)
+
+- ブログ下書きに SideBusiness / Agri のネタシートを同じ画面で参照できるようにした
+- Google Tasks 同期を全リスト取得に対応した（新規の台帳タスクはリスト ai-org へ）
+
 ## 0.0.61 (2026-09-19)
 
 - 会計マニュアルの目次から各項目ページを開けるようにした

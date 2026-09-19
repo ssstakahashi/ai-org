@@ -16,7 +16,7 @@ import { formatInAppTz } from "@/lib/timezone";
  * runner: manual
  * status: manual
  * trigger: 業務台帳画面のボタン
- * summary: Google Tasks（ai-org リスト）と業務台帳を双方向同期する（手動）。
+ * summary: Google Tasks（全リストを取得、新規の台帳タスクはリスト ai-org へ）と業務台帳を双方向同期する（手動）。
  * location: SyncGoogleTasksButton → syncGoogleTasksNow
  * href: /
  */

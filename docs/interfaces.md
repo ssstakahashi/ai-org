@@ -35,7 +35,7 @@ flowchart TD
 | `/login` | パスワードログイン | なし |
 | `/` | 業務台帳（カレンダー / ガント / 看板）。Google Tasks OAuth callback もここ | トップ |
 | `/x-schedule` | X投稿スケジュール | トップ |
-| `/blog-drafts` | ブログ下書きの確認・承認＋ネタ参照 | トップ |
+| `/blog-drafts` | ブログ下書きの確認・承認＋ネタ参照（SideBusiness / Agri） | トップ |
 | `/board` | 掲示板（シートリンク、VERSION 履歴） | トップ（情報） |
 | `/accounting-manual` | 会計マニュアル目次（法人税決算・申告 No.1〜62） | トップ（情報） |
 | `/accounting-manual/[no]` | 会計マニュアルの各項目（No.1〜62）。前後の項目と目次へ移動可 | 情報 |
@@ -96,7 +96,7 @@ flowchart TD
 | Org rules | list / get / create / update / body 更新 / delete |
 | Tasks | list / create / update / status / delete |
 | X posts | list / create / update / status / delete / Sheets 同期 / 予約分投稿 / 即時投稿 |
-| Google Tasks | 今すぐ同期 / 最終実行の取得 / OAuth 完了 |
+| Google Tasks | 今すぐ同期 / 最終実行の取得 / OAuth 完了（全リスト取得、新規はリスト ai-org） |
 | Spark | シートから再取得 |
 | App names / groups / types / apps / crons / requirements | list / create / update / reorder / delete |
 | Blog | list / create / update / status / delete / 投稿先シート同期 |

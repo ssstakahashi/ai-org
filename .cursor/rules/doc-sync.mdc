@@ -1,0 +1,44 @@
+---
+description: コード変更時に docs 配下の仕様書を同じ回答内で同期する
+alwaysApply: true
+---
+
+# ドキュメント整合性維持ルール
+
+コードを変更・追加・削除したら、**同じ回答内で** `/docs` の仕様書を同期する。後回し禁止。コードと矛盾する記述を残さない。
+
+対象ファイル:
+
+- `docs/overview.md` … 目的・機能一覧・非機能
+- `docs/architecture.md` … スタック・構成・設計方針
+- `docs/database.md` … D1 スキーマ・ER・Sheets
+- `docs/interfaces.md` … 画面ルート・認証・API / Server Actions
+
+## 変更種別 → 更新先
+
+- テーブル / カラム / 型 / マイグレーション / Sheets ストア → `docs/database.md`
+- 機能追加・仕様変更・ビジネスロジック → `docs/overview.md`（Feature Matrix とユースケース）
+- 技術スタック・ディレクトリ方針・binding・状態管理・エラー方針 → `docs/architecture.md`
+- 画面ルート・ナビ・権限・Route Handler・Server Actions の境界 → `docs/interfaces.md`
+
+複数に該当する変更は、該当ファイルをすべて直す。
+
+## 手順
+
+1. コードを実装する。
+2. 上記4ファイルに影響があるか評価する。
+3. あるなら **差分追記** する（無関係な全面書き換え禁止）。
+4. 最終報告に必ず書く:
+   - 影響あり: 「仕様書更新:」＋ファイル名と要約
+   - 影響なし: 「仕様書更新: なし（理由）」
+
+## 対象外
+
+- `docs/VERSION.md` … コミット時ルール（`version-changelog-on-commit.mdc`）
+- `docs/cursor-automation-app-requirements.md` … その手順自体を変えたときだけ更新
+- UI/CSS（レイアウト、色、フォント、間隔）は従来どおり承認前提。見た目だけの変更なら仕様書は触らない
+
+## 禁止
+
+- 「後で更新します」と先送りすること
+- テンプレ例（Stripe / Supabase / 会員課金など）を事実でないのに書くこと

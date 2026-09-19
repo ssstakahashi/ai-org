@@ -2,6 +2,10 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { listBlogPosts } from "@/app/actions";
 import { AppHeader } from "@/components/AppHeader";
 import { BlogDraftsManager } from "@/components/BlogDraftsManager";
+import {
+	emptyBlogIdeas,
+	fetchBlogIdeasFromSheets,
+} from "@/lib/blog-ideas-sheets";
 import { syncBlogPostsWithSheet } from "@/lib/blog-posts-sheets-sync";
 import {
 	BLOG_POST_DESTINATION_OPTIONS,
@@ -14,7 +18,23 @@ export const dynamic = "force-dynamic";
 export default async function BlogDraftsPage() {
 	const { env } = await getCloudflareContext({ async: true });
 	const sheetSyncErrors: Partial<Record<BlogPostDestination, string>> = {};
-	if (isSheetsSyncConfigured(env)) {
+	const sheetsConfigured = isSheetsSyncConfigured(env);
+	const ideasPromise = sheetsConfigured
+		? fetchBlogIdeasFromSheets(env)
+				.then((ideas) => ({ ideas, error: null as string | null }))
+				.catch((error) => {
+					console.error("blog ideas sheet fetch failed", error);
+					return {
+						ideas: emptyBlogIdeas(),
+						error: error instanceof Error ? error.message : String(error),
+					};
+				})
+		: Promise.resolve({
+				ideas: emptyBlogIdeas(),
+				error: "Google Service Account が未設定です",
+			});
+
+	if (sheetsConfigured) {
 		for (const destination of BLOG_POST_DESTINATION_OPTIONS) {
 			try {
 				await syncBlogPostsWithSheet(env, destination);
@@ -26,15 +46,20 @@ export default async function BlogDraftsPage() {
 		}
 	}
 
-	const posts = await listBlogPosts();
+	const [posts, ideasResult] = await Promise.all([listBlogPosts(), ideasPromise]);
 
 	return (
 		<main className="page page-wide">
 			<AppHeader
 				title="ブログ下書き"
-				lede="スタジオフーズのHPと農業日誌アプリLPの下書きを確認し、公開前に承認します。"
+				lede="スタジオフーズのHPと農業日誌アプリLPの下書きを確認し、公開前に承認します。ブログネタ（SideBusiness / Agri）も同じ画面で参照できます。"
 			/>
-			<BlogDraftsManager posts={posts} sheetSyncErrors={sheetSyncErrors} />
+			<BlogDraftsManager
+				posts={posts}
+				sheetSyncErrors={sheetSyncErrors}
+				ideas={ideasResult.ideas}
+				ideasError={ideasResult.error}
+			/>
 		</main>
 	);
 }

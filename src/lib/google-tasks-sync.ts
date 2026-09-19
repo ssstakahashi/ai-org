@@ -8,10 +8,12 @@ import {
 	deleteGoogleTask,
 	insertGoogleTask,
 	insertGoogleTasklist,
+	listAllGoogleTasks,
 	listGoogleTasklists,
 	listGoogleTasks,
 	patchGoogleTask,
 	type GoogleTask,
+	type GoogleTaskOnList,
 	type GoogleTaskStatus,
 } from "@/lib/google-tasks";
 import { fromZonedParts, getZonedParts, toAppDateKey } from "@/lib/timezone";
@@ -239,6 +241,16 @@ function googleIsNewer(googleUpdated: string | undefined, localUpdated: string):
 
 function isAssigned(task: GoogleTask): boolean {
 	return task.assignmentInfo != null;
+}
+
+/** 未対応の Google 完了タスクは直近のみ取り込む（古い完了履歴で台帳を埋めない） */
+const IMPORT_COMPLETED_WITHIN_MS = 30 * 24 * 60 * 60 * 1000;
+
+function shouldImportUnmappedGoogle(task: GoogleTask): boolean {
+	if (task.deleted || task.hidden) return false;
+	if (task.status !== "completed") return true;
+	const updated = parseTimestamp(task.updated);
+	return updated > 0 && Date.now() - updated <= IMPORT_COMPLETED_WITHIN_MS;
 }
 
 function clipTitle(title: string): string {
@@ -476,6 +488,7 @@ async function applyGoogleToLocal(
 	local: LocalTaskRow,
 	google: GoogleTask,
 	map: SyncMapRow,
+	tasklistId: string,
 ): Promise<void> {
 	const title = clipTitle(google.title ?? "");
 	const body = clipNotes(google.notes ?? "");
@@ -494,7 +507,7 @@ async function applyGoogleToLocal(
 		.run();
 	await upsertMapping(db, {
 		task_id: local.id,
-		google_tasklist_id: map.google_tasklist_id,
+		google_tasklist_id: tasklistId || map.google_tasklist_id,
 		google_task_id: map.google_task_id,
 		etag: google.etag ?? "",
 		google_updated_at: google.updated ?? null,
@@ -562,6 +575,29 @@ async function pushLocal(
 	return { created: true, task: created };
 }
 
+async function pullGoogleTasks(
+	token: string,
+	env: GoogleTasksSyncEnv,
+	defaultTasklistId: string,
+): Promise<GoogleTaskOnList[]> {
+	const onlyId = env.GOOGLE_TASKS_LIST_ID?.trim();
+	if (onlyId) {
+		const tasks = await listGoogleTasks(token, onlyId);
+		return tasks.map((task) => ({ tasklistId: onlyId, tasklistTitle: "", task }));
+	}
+	try {
+		return await listAllGoogleTasks(token);
+	} catch (error) {
+		console.error("google tasks list all failed; falling back to default list", error);
+		const tasks = await listGoogleTasks(token, defaultTasklistId);
+		return tasks.map((task) => ({
+			tasklistId: defaultTasklistId,
+			tasklistTitle: env.GOOGLE_TASKS_LIST_TITLE?.trim() || GOOGLE_TASKS_DEFAULT_LIST_TITLE,
+			task,
+		}));
+	}
+}
+
 async function deleteLocalTask(db: D1Database, taskId: string): Promise<void> {
 	await db.batch([
 		db.prepare("DELETE FROM task_tags WHERE task_id = ?").bind(taskId),
@@ -585,19 +621,15 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 	const tasklistId = await ensureTasklist(token, env, db);
 	result.tasklistId = tasklistId;
 
-	const state = await loadState(db);
-	const overlapMs = 60_000;
-	const updatedMin =
-		state.last_updated_min && parseTimestamp(state.last_updated_min) > 0
-			? new Date(Math.max(0, parseTimestamp(state.last_updated_min) - overlapMs)).toISOString()
-			: undefined;
-
-	const googleTasks = await listGoogleTasks(token, tasklistId, { updatedMin });
-	result.pulled = googleTasks.length;
+	const pulled = await pullGoogleTasks(token, env, tasklistId);
+	result.pulled = pulled.length;
 
 	const googleById = new Map<string, GoogleTask>();
-	for (const task of googleTasks) {
-		if (task.id) googleById.set(task.id, task);
+	const listIdByGoogleId = new Map<string, string>();
+	for (const row of pulled) {
+		if (!row.task.id) continue;
+		googleById.set(row.task.id, row.task);
+		listIdByGoogleId.set(row.task.id, row.tasklistId);
 	}
 
 	const mappings = await loadMappings(db);
@@ -610,8 +642,10 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 	const seenGoogleIds = new Set<string>();
 	const googleWrites = createGoogleWriteBudget(result);
 
-	for (const google of googleTasks) {
+	for (const row of pulled) {
+		const google = row.task;
 		if (!google.id) continue;
+		const sourceListId = row.tasklistId || tasklistId;
 		seenGoogleIds.add(google.id);
 		const map = mapByGoogleId.get(google.id);
 
@@ -637,53 +671,59 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 		if (map) {
 			const local = localById.get(map.task_id);
 			if (!local) {
+				await deleteMappingByTaskId(db, map.task_id);
+				mapByTaskId.delete(map.task_id);
 				mapByGoogleId.delete(google.id);
-				continue;
-			}
-			const googleHash = hashFromGoogle(google);
-			const localHash = hashFromLocal(local);
-			if (googleHash === map.payload_hash && localHash === map.payload_hash) {
-				continue;
-			}
-			if (googleHash !== map.payload_hash && localHash !== map.payload_hash) {
-				if (googleIsNewer(google.updated, local.updated_at)) {
+			} else {
+				const googleHash = hashFromGoogle(google);
+				const localHash = hashFromLocal(local);
+				if (googleHash === map.payload_hash && localHash === map.payload_hash) {
+					continue;
+				}
+				if (googleHash !== map.payload_hash && localHash !== map.payload_hash) {
+					if (googleIsNewer(google.updated, local.updated_at)) {
+						try {
+							await applyGoogleToLocal(db, local, google, map, sourceListId);
+							result.updatedLocal += 1;
+						} catch (error) {
+							pushError(result, `update local ${local.id}`, error);
+						}
+					} else if (!isAssigned(google)) {
+						try {
+							const outcome = await googleWrites.run(async () => {
+								await pushLocal(token, sourceListId, db, local, map);
+							});
+							if (outcome === "wrote") result.updatedGoogle += 1;
+						} catch (error) {
+							pushError(result, `update google ${map.google_task_id}`, error);
+						}
+					}
+					continue;
+				}
+				if (googleHash !== map.payload_hash) {
 					try {
-						await applyGoogleToLocal(db, local, google, map);
+						await applyGoogleToLocal(db, local, google, map, sourceListId);
 						result.updatedLocal += 1;
 					} catch (error) {
 						pushError(result, `update local ${local.id}`, error);
 					}
-				} else {
-					try {
-						const outcome = await googleWrites.run(async () => {
-							await pushLocal(token, tasklistId, db, local, map);
-						});
-						if (outcome === "wrote") result.updatedGoogle += 1;
-					} catch (error) {
-						pushError(result, `update google ${map.google_task_id}`, error);
-					}
 				}
 				continue;
 			}
-			if (googleHash !== map.payload_hash) {
-				try {
-					await applyGoogleToLocal(db, local, google, map);
-					result.updatedLocal += 1;
-				} catch (error) {
-					pushError(result, `update local ${local.id}`, error);
-				}
-			}
-			continue;
 		}
 
-		if (isAssigned(google)) continue;
+		if (!shouldImportUnmappedGoogle(google)) continue;
 
 		if (!employeeId) {
-			pushError(result, `import ${google.id}`, new Error("担当従業員がいないため Google 側の新規タスクを取り込めません"));
+			pushError(
+				result,
+				`import ${google.id}`,
+				new Error("担当従業員がいないため Google 側の新規タスクを取り込めません"),
+			);
 			continue;
 		}
 		try {
-			const localId = await createLocalFromGoogle(env, tasklistId, google, employeeId);
+			const localId = await createLocalFromGoogle(env, sourceListId, google, employeeId);
 			result.createdLocal += 1;
 			const created = await db
 				.prepare(
@@ -715,12 +755,7 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 			continue;
 		}
 
-		if (updatedMin && !seenGoogleIds.has(map.google_task_id) && googleById.size > 0) {
-			const localHash = hashFromLocal(local);
-			if (localHash === map.payload_hash) continue;
-		}
-
-		if (!updatedMin && map.google_task_id && !googleById.has(map.google_task_id) && !seenGoogleIds.has(map.google_task_id)) {
+		if (map.google_task_id && !googleById.has(map.google_task_id) && !seenGoogleIds.has(map.google_task_id)) {
 			try {
 				const outcome = await googleWrites.run(async () => {
 					await pushLocal(token, tasklistId, db, local, null);
@@ -732,11 +767,15 @@ export async function syncGoogleTasks(env: GoogleTasksSyncEnv): Promise<GoogleTa
 			continue;
 		}
 
+		const google = googleById.get(map.google_task_id);
+		if (google && isAssigned(google)) continue;
+
 		const localHash = hashFromLocal(local);
 		if (localHash === map.payload_hash) continue;
 		try {
+			const writeListId = listIdByGoogleId.get(map.google_task_id) || map.google_tasklist_id || tasklistId;
 			const outcome = await googleWrites.run(async () => {
-				await pushLocal(token, tasklistId, db, local, map);
+				await pushLocal(token, writeListId, db, local, map);
 			});
 			if (outcome === "wrote") result.updatedGoogle += 1;
 		} catch (error) {
@@ -787,7 +826,7 @@ export async function pushLocalTaskToGoogle(env: GoogleTasksSyncEnv, taskId: str
 		.bind(taskId)
 		.first<SyncMapRow>();
 	if (map && hashFromLocal(local) === map.payload_hash) return false;
-	await pushLocal(token, tasklistId, env.DB, local, map);
+	await pushLocal(token, map?.google_tasklist_id || tasklistId, env.DB, local, map);
 	return true;
 }
 

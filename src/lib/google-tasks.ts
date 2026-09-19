@@ -84,10 +84,16 @@ export async function insertGoogleTasklist(token: string, title: string): Promis
 	});
 }
 
+export type GoogleTaskOnList = {
+	tasklistId: string;
+	tasklistTitle: string;
+	task: GoogleTask;
+};
+
 export async function listGoogleTasks(
 	token: string,
 	tasklistId: string,
-	options?: { updatedMin?: string },
+	options?: { updatedMin?: string; showAssigned?: boolean },
 ): Promise<GoogleTask[]> {
 	const items: GoogleTask[] = [];
 	let pageToken: string | undefined;
@@ -102,6 +108,8 @@ export async function listGoogleTasks(
 					showCompleted: "true",
 					showHidden: "true",
 					showDeleted: "true",
+					// Docs / Chat / Gmail からの割り当てタスクは既定では返らない
+					showAssigned: options?.showAssigned === false ? undefined : "true",
 					updatedMin: options?.updatedMin,
 				},
 			},
@@ -109,6 +117,27 @@ export async function listGoogleTasks(
 		if (page.items) items.push(...page.items);
 		pageToken = page.nextPageToken;
 	} while (pageToken);
+	return items;
+}
+
+/** ユーザーの全タスクリストからタスクを取得する */
+export async function listAllGoogleTasks(
+	token: string,
+	options?: { updatedMin?: string },
+): Promise<GoogleTaskOnList[]> {
+	const lists = await listGoogleTasklists(token);
+	const items: GoogleTaskOnList[] = [];
+	for (const list of lists) {
+		if (!list.id) continue;
+		const tasks = await listGoogleTasks(token, list.id, { updatedMin: options?.updatedMin });
+		for (const task of tasks) {
+			items.push({
+				tasklistId: list.id,
+				tasklistTitle: list.title ?? "",
+				task,
+			});
+		}
+	}
 	return items;
 }
 
