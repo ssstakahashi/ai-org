@@ -6,7 +6,7 @@ OpenAPI / Swagger は無い。画面は App Router、更新の大半は Server A
 
 ## 1. 画面一覧・遷移フロー
 
-ナビ正本は [src/lib/app-nav.ts](../src/lib/app-nav.ts)。`/login` 以外でトップナビを出す。トップレベルの「組織」はドロップダウン（サイドメニューでは見出し）で、小要素は従業員・組織ルール・自動化一覧。
+ナビ正本は [src/lib/app-nav.ts](../src/lib/app-nav.ts)。`/login` 以外でトップナビを出す。トップレベルの「情報」はドロップダウン（サイドメニューでは見出し）で、小要素は掲示板・会計マニュアル。「組織」はドロップダウン（サイドメニューでは見出し）で、小要素は従業員・組織ルール・自動化一覧。
 
 ```mermaid
 flowchart TD
@@ -14,6 +14,7 @@ flowchart TD
   Home --> XSchedule["/x-schedule"]
   Home --> BlogDrafts["/blog-drafts"]
   Home --> Board["/board"]
+  Home --> AccountingManual["/accounting-manual"]
   Home --> Automations["/automations"]
   Home --> Apps["/apps"]
   Home --> Employees["/employees"]
@@ -34,7 +35,8 @@ flowchart TD
 | `/` | 業務台帳（カレンダー / ガント / 看板）。Google Tasks OAuth callback もここ | トップ |
 | `/x-schedule` | X投稿スケジュール | トップ |
 | `/blog-drafts` | ブログ下書きの確認・承認＋ネタ参照 | トップ |
-| `/board` | 掲示板（シートリンク、VERSION 履歴） | トップ |
+| `/board` | 掲示板（シートリンク、VERSION 履歴） | トップ（情報） |
+| `/accounting-manual` | 会計マニュアル目次（法人税決算・申告 No.1〜62） | トップ（情報） |
 | `/automations` | 自動化カタログ / Spark / App Cron | トップ（組織） |
 | `/apps` | App リスト | トップ（App管理） |
 | `/apps/names` | App 名マスタ | App サブタブ |
