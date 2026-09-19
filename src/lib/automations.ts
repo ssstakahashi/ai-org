@@ -172,6 +172,29 @@ export const AUTOMATIONS: AutomationEntry[] = [
 	},
 	/**
 	 * @automation
+	 * id: blog-draft-ai-comments
+	 * name: ブログ下書きへのAIコメント
+	 * runner: cursor
+	 * status: active
+	 * trigger: 公開済以外の下書きに対する AI からの投入
+	 * summary: 未公開のブログ下書きに、複数のAIが複数コメントを投入する。確認は /blog-drafts。
+	 * location: POST /api/internal/blog-comments → /blog-drafts
+	 * href: /blog-drafts
+	 */
+	{
+		id: "blog-draft-ai-comments",
+		name: "ブログ下書きへのAIコメント",
+		runner: "cursor",
+		status: "active",
+		trigger: "公開済以外の下書きに対する AI からの投入",
+		summary:
+			"未公開のブログ下書きに、複数のAIが複数コメントを投入する。確認は /blog-drafts。",
+		location: "POST /api/internal/blog-comments → /blog-drafts",
+		href: "/blog-drafts",
+		source: LOCAL_AUTOMATION_SOURCE,
+	},
+	/**
+	 * @automation
 	 * id: blog-hp-sheet-sync-ui
 	 * name: スタジオフーズHPブログをスプレッドシートと同期
 	 * runner: manual

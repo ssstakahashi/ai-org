@@ -13,7 +13,7 @@ import {
 import { flushSync } from "react-dom";
 import { deleteBlogPost, updateBlogPostStatus } from "@/app/actions";
 import { BlogPostForm } from "@/components/BlogPostForm";
-import { blogHeroSrc, parseBlogFigures } from "@/lib/blog-posts";
+import { blogHeroSrc, listBlogPlannedImages, parseBlogFigures } from "@/lib/blog-posts";
 import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { mediaUrl } from "@/lib/media-upload";
 import { StatusIcon } from "@/components/StatusIcon";
@@ -23,6 +23,7 @@ import {
 } from "@/components/SyncStudiofoodsHpBlogSheetButton";
 import { recoverFromStaleServerAction } from "@/lib/server-action-client";
 import { BlogIdeasPanel } from "@/components/BlogIdeasPanel";
+import { BlogPostComments } from "@/components/BlogPostComments";
 import {
 	BLOG_DESTINATION_SHEET,
 	BLOG_IDEAS_SHEET_KEYS,
@@ -41,6 +42,7 @@ import {
 	BLOG_POST_STATUS_LABEL,
 	BLOG_POST_STATUS_OPTIONS,
 	type BlogPost,
+	type BlogPostComment,
 	type BlogPostDestination,
 	type BlogPostStatus,
 } from "@/lib/types";
@@ -49,6 +51,7 @@ type BlogDraftsTab = BlogPostDestination | BlogIdeasSheetKey;
 
 type Props = {
 	posts: BlogPost[];
+	commentsByPostId?: Record<string, BlogPostComment[]>;
 	sheetSyncErrors?: Partial<Record<BlogPostDestination, string>>;
 	ideas: Record<BlogIdeasSheetKey, BlogIdeaRow[]>;
 	ideasError?: string | null;
@@ -70,6 +73,14 @@ function truncate(text: string, max = 80) {
 	if (!trimmed) return "—";
 	if (trimmed.length <= max) return trimmed;
 	return `${trimmed.slice(0, max)}…`;
+}
+
+function commentCountHint(comments: BlogPostComment[]) {
+	if (comments.length === 0) return null;
+	const openCount = comments.filter((comment) => comment.status === "open").length;
+	return openCount > 0
+		? `AIコメント ${comments.length}件（未対応 ${openCount}）`
+		: `AIコメント ${comments.length}件（対応済）`;
 }
 
 function countByDestination(posts: BlogPost[]) {
@@ -152,6 +163,31 @@ function BlogDetailMedia({ post }: { post: BlogPost }) {
 				</div>
 			) : null}
 		</>
+	);
+}
+
+function BlogPlannedImagesCell({ post }: { post: BlogPost }) {
+	const images = listBlogPlannedImages(post);
+	if (images.length === 0) {
+		return <span className="no-image">なし</span>;
+	}
+	return (
+		<div className="blog-figure-list">
+			{images.map((image) => (
+				<a
+					key={image.src}
+					href={image.src}
+					target="_blank"
+					rel="noreferrer"
+					className="x-schedule-thumb"
+					title={image.title}
+					onClick={(event) => event.stopPropagation()}
+				>
+					{/* eslint-disable-next-line @next/next/no-img-element -- 使用予定画像の確認 */}
+					<img src={image.src} alt={image.alt} loading="lazy" />
+				</a>
+			))}
+		</div>
 	);
 }
 
@@ -245,7 +281,13 @@ function BlogPostStatusSelect({
 	);
 }
 
-export function BlogDraftsManager({ posts, sheetSyncErrors, ideas, ideasError }: Props) {
+export function BlogDraftsManager({
+	posts,
+	commentsByPostId = {},
+	sheetSyncErrors,
+	ideas,
+	ideasError,
+}: Props) {
 	const router = useRouter();
 	const [tab, setTab] = useState<BlogDraftsTab>(BLOG_POST_DESTINATION_DEFAULT);
 	const destination = isBlogIdeasSheetKey(tab) ? BLOG_POST_DESTINATION_DEFAULT : tab;
@@ -373,7 +415,7 @@ export function BlogDraftsManager({ posts, sheetSyncErrors, ideas, ideasError }:
 		{isBlogIdeasSheetKey(tab) ? (
 			<BlogIdeasPanel sheet={tab} rows={ideas[tab]} error={ideasError} />
 		) : (
-		<section className="panel">
+		<section className="panel blog-drafts">
 			<div className="panel-head">
 				<h2>下書き一覧（{visiblePosts.length}）</h2>
 				<div className="task-actions">
@@ -423,12 +465,15 @@ export function BlogDraftsManager({ posts, sheetSyncErrors, ideas, ideasError }:
 							<thead>
 								<tr>
 									<th>更新 / ステータス</th>
+									<th>画像</th>
 									<th>記事</th>
 									<th className="actions-col">操作</th>
 								</tr>
 							</thead>
 							<tbody>
-								{visiblePosts.map((post) => (
+								{visiblePosts.map((post) => {
+									const commentHint = commentCountHint(commentsByPostId[post.id] ?? []);
+									return (
 									<tr key={post.id} className={BLOG_POST_STATUS_CLASS[post.status]}>
 										<td className="meta-cell">
 											<p className="x-schedule-when">{formatWhen(post.updated_at)}</p>
@@ -442,6 +487,9 @@ export function BlogDraftsManager({ posts, sheetSyncErrors, ideas, ideasError }:
 												<p className="field-hint">AI自動作成</p>
 											) : null}
 										</td>
+										<td className="image-cell">
+											<BlogPlannedImagesCell post={post} />
+										</td>
 										<td className="content-cell">
 											<button
 												type="button"
@@ -454,6 +502,9 @@ export function BlogDraftsManager({ posts, sheetSyncErrors, ideas, ideasError }:
 												</p>
 												{post.category ? (
 													<p className="x-schedule-post-chars">{post.category}</p>
+												) : null}
+												{commentHint ? (
+													<p className="field-hint">{commentHint}</p>
 												) : null}
 											</button>
 										</td>
@@ -516,7 +567,8 @@ export function BlogDraftsManager({ posts, sheetSyncErrors, ideas, ideasError }:
 											</div>
 										</td>
 									</tr>
-								))}
+									);
+								})}
 							</tbody>
 						</table>
 					</div>
@@ -583,6 +635,10 @@ export function BlogDraftsManager({ posts, sheetSyncErrors, ideas, ideasError }:
 								{detailing.notes ? (
 									<p className="notes">メモ: {detailing.notes}</p>
 								) : null}
+								<BlogPostComments
+									comments={commentsByPostId[detailing.id] ?? []}
+									showEmpty={detailing.status !== "published"}
+								/>
 								<p className="field-hint">slug: {detailing.slug}</p>
 								<div className="task-actions task-detail-actions">
 									<div className="task-detail-actions-start">

@@ -1,11 +1,12 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { listBlogPosts } from "@/app/actions";
+import { listBlogPostComments, listBlogPosts } from "@/app/actions";
 import { AppHeader } from "@/components/AppHeader";
 import { BlogDraftsManager } from "@/components/BlogDraftsManager";
 import {
 	emptyBlogIdeas,
 	fetchBlogIdeasFromSheets,
 } from "@/lib/blog-ideas-sheets";
+import { groupBlogPostComments } from "@/lib/blog-post-comments";
 import { syncBlogPostsWithSheet } from "@/lib/blog-posts-sheets-sync";
 import {
 	BLOG_POST_DESTINATION_OPTIONS,
@@ -47,6 +48,9 @@ export default async function BlogDraftsPage() {
 	}
 
 	const [posts, ideasResult] = await Promise.all([listBlogPosts(), ideasPromise]);
+	const commentsByPostId = groupBlogPostComments(
+		await listBlogPostComments(posts.map((post) => post.id)),
+	);
 
 	return (
 		<main className="page page-wide">
@@ -56,6 +60,7 @@ export default async function BlogDraftsPage() {
 			/>
 			<BlogDraftsManager
 				posts={posts}
+				commentsByPostId={commentsByPostId}
 				sheetSyncErrors={sheetSyncErrors}
 				ideas={ideasResult.ideas}
 				ideasError={ideasResult.error}

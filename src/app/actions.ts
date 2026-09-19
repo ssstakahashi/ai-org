@@ -69,9 +69,11 @@ import {
 	type XPost,
 	X_POST_DESTINATION_DEFAULT,
 	type BlogPost,
+	type BlogPostComment,
 	type BlogPostDestination,
 	type BlogPostStatus,
 } from "@/lib/types";
+import { listBlogPostCommentsFromDb, parseBlogPostCommentStatus, updateBlogPostCommentStatusInDb } from "@/lib/blog-post-comments";
 import {
 	BLOG_FIGURE_MAX,
 	listBlogPostsFromDb,
@@ -3029,6 +3031,22 @@ export async function listBlogPosts(status?: BlogPostStatus): Promise<BlogPost[]
 	return listBlogPostsFromDb(db, status);
 }
 
+export async function listBlogPostComments(postIds?: string[]): Promise<BlogPostComment[]> {
+	const db = await getDb();
+	return listBlogPostCommentsFromDb(db, postIds);
+}
+
+export async function updateBlogPostCommentStatus(formData: FormData) {
+	const db = await getDb();
+	const id = formText(formData, "id");
+	const status = parseBlogPostCommentStatus(formData.get("status"));
+	if (!id) {
+		throw new Error("id が必要です");
+	}
+	await updateBlogPostCommentStatusInDb(db, id, status);
+	revalidateBlogPostPages();
+}
+
 async function allocateUniqueBlogSlug(
 	db: Awaited<ReturnType<typeof getDb>>,
 	desired: string,
@@ -3294,6 +3312,7 @@ export async function deleteBlogPost(formData: FormData) {
 	const id = formText(formData, "id");
 	if (!id) return;
 
+	await db.prepare("DELETE FROM blog_post_comments WHERE blog_post_id = ?").bind(id).run();
 	await db.prepare("DELETE FROM blog_posts WHERE id = ?").bind(id).run();
 	await removeBlogSheetById(id);
 	revalidateBlogPostPages();

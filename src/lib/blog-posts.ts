@@ -108,6 +108,40 @@ export function blogHeroSrc(
 	return url || null;
 }
 
+export type BlogPlannedImage = {
+	src: string;
+	alt: string;
+	title: string;
+};
+
+/** 公開時に使う TOP 画像と図表・グラフ */
+export function listBlogPlannedImages(
+	post: Pick<BlogPost, "title" | "thumbnail_key" | "thumbnail_url" | "figure_keys">,
+): BlogPlannedImage[] {
+	const images: BlogPlannedImage[] = [];
+	const seen = new Set<string>();
+	const heroSrc = blogHeroSrc(post);
+	if (heroSrc) {
+		seen.add(heroSrc);
+		images.push({
+			src: heroSrc,
+			alt: `${post.title} の TOP画像`,
+			title: "TOP画像を開く",
+		});
+	}
+	for (const figure of parseBlogFigures(post.figure_keys)) {
+		const src = mediaUrl(figure.key);
+		if (seen.has(src)) continue;
+		seen.add(src);
+		images.push({
+			src,
+			alt: figure.name,
+			title: figure.name,
+		});
+	}
+	return images;
+}
+
 function withDestination(post: BlogPost): BlogPost {
 	return {
 		...post,

@@ -17,6 +17,7 @@ function isInternalApiPath(pathname: string) {
 		pathname === "/api/internal/automation-ingest" ||
 		pathname === "/api/internal/requirements" ||
 		pathname === "/api/internal/blog-drafts" ||
+		pathname === "/api/internal/blog-comments" ||
 		pathname === "/api/internal/spark-automations"
 	);
 }

@@ -2204,6 +2204,41 @@ button.ghost {
 	background: color-mix(in srgb, var(--status-failed) 14%, white);
 }
 
+.blog-drafts {
+	--status-draft: #5f6b74;
+	--status-approved: #1a6fb5;
+	--status-done: #1b7a3d;
+	--status-failed: #c2410c;
+}
+
+.blog-drafts .status-badge.status-draft,
+.blog-drafts .x-schedule-status-select.status-draft {
+	color: #4b5563;
+	border-color: #c5cad1;
+	background: #eef1f4;
+}
+
+.blog-drafts .status-badge.status-approved,
+.blog-drafts .x-schedule-status-select.status-approved {
+	color: #155e95;
+	border-color: #8fc4e8;
+	background: #dceefb;
+}
+
+.blog-drafts .status-badge.status-done,
+.blog-drafts .x-schedule-status-select.status-done {
+	color: #146c39;
+	border-color: #7dcc9a;
+	background: #d7f0e0;
+}
+
+.blog-drafts .status-badge.status-failed,
+.blog-drafts .x-schedule-status-select.status-failed {
+	color: #b42318;
+	border-color: #f0a090;
+	background: #fde8e3;
+}
+
 .x-schedule-table .title {
 	font-weight: 600;
 	min-width: 8rem;

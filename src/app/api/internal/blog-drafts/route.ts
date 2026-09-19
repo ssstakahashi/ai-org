@@ -14,6 +14,10 @@ import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyIngestSecret } from "@/lib/automation-ingest";
 import {
+	groupBlogPostComments,
+	listBlogPostCommentsFromDb,
+} from "@/lib/blog-post-comments";
+import {
 	listBlogPostsFromDb,
 	parseBlogDraftIngest,
 	parseBlogPostDestination,
@@ -78,7 +82,18 @@ export async function GET(request: NextRequest) {
 
 	try {
 		const posts = await listBlogPostsFromDb(env.DB, status, destination);
-		return NextResponse.json({ ok: true, posts });
+		const comments = await listBlogPostCommentsFromDb(
+			env.DB,
+			posts.map((post) => post.id),
+		);
+		const commentsByPostId = groupBlogPostComments(comments);
+		return NextResponse.json({
+			ok: true,
+			posts: posts.map((post) => ({
+				...post,
+				comments: commentsByPostId[post.id] ?? [],
+			})),
+		});
 	} catch (error) {
 		console.error("blog-drafts list failed", error);
 		return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

@@ -26,7 +26,7 @@ AI従業員が動く「会社」の司令塔。Cloudflare 上の Next.js アプ�
 |---|---|---|
 | 業務台帳 `/` | `tasks` | AI従業員の各種業務タスク |
 | X投稿スケジュール `/x-schedule` | `x_posts` | 投稿文・画像・予約・投稿結果 |
-| ブログ下書き `/blog-drafts` | `blog_posts` | AI作成の公式ブログ下書きの確認・承認 |
+| ブログ下書き `/blog-drafts` | `blog_posts` / `blog_post_comments` | AI作成の公式ブログ下書きの確認・承認。未公開記事へのAIコメント |
 
 ## 開発
 
@@ -112,7 +112,8 @@ npx wrangler secret put AUTOMATION_INGEST_SECRET
 - `POST /api/internal/automation-ingest` — 外部アプリからの自動化カタログ push
 - `GET /api/internal/requirements` — App 要件定義の export（Cursor Automation 用）
 - `POST /api/internal/blog-drafts` — 公式ブログ下書きの投入（Grok Bot 用）
-- `GET /api/internal/blog-drafts` — 下書き一覧（`status` で絞り込み可）
+- `GET /api/internal/blog-drafts` — 下書き一覧（`status` で絞り込み可。各記事に `comments` を含む）
+- `GET` / `POST /api/internal/blog-comments` — 未公開下書きへの AI コメント一覧 / 投入
 - `GET /api/internal/spark-automations` — Google Spark 自動化の現在値
 - `POST /api/internal/spark-automations` — スプレッドシートから Spark 自動化を再取得
 
@@ -162,6 +163,18 @@ curl -sS -X POST \
 ```
 
 同じ `slug`（または `id`）で再投入すると下書きに戻して上書きします。承認済み一覧の取得は `GET /api/internal/blog-drafts?status=approved` です。
+
+未公開（下書き / 承認済 / 差戻し）の記事には、複数の AI が複数コメントを投入できます。公開済への投入は拒否します。コメントは `status=open`（未対応）で入り、`/blog-drafts` の確認ダイアログで対応済にできます。
+
+```bash
+curl -sS -X POST \
+  -H "Authorization: Bearer $AUTOMATION_INGEST_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"blog_post_id":"blog_...","employee_id":"emp-dev","source":"grokbot","body":"見出しを短くした方がよいです。"}' \
+  "https://<ai-org-host>/api/internal/blog-comments"
+```
+
+`slug`（必要なら `destination`）でも指定できます。`employee_id` は AI 従業員マスタの id です。
 
 ## X 自動投稿
 

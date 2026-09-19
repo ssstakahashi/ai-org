@@ -236,6 +236,43 @@ export type BlogPost = {
 	updated_at: string;
 };
 
+/** 未公開ブログ下書きへの AI コメント（1記事に複数可） */
+export type BlogPostCommentStatus = "open" | "done";
+
+export type BlogPostComment = {
+	id: string;
+	blog_post_id: string;
+	employee_id: string | null;
+	author_name: string;
+	source: string;
+	body: string;
+	status: BlogPostCommentStatus;
+	created_at: string;
+	employee_name: string | null;
+	employee_color: string | null;
+	employee_text_color: string | null;
+};
+
+export const BLOG_POST_COMMENT_STATUS_OPTIONS = [
+	"open",
+	"done",
+] as const satisfies readonly BlogPostCommentStatus[];
+
+export const BLOG_POST_COMMENT_STATUS_LABEL: Record<BlogPostCommentStatus, string> = {
+	open: "未対応",
+	done: "対応済",
+};
+
+export const BLOG_POST_COMMENT_STATUS_ICON: Record<BlogPostCommentStatus, TaskStatus> = {
+	open: "draft",
+	done: "done",
+};
+
+export const BLOG_POST_COMMENT_STATUS_CLASS: Record<BlogPostCommentStatus, string> = {
+	open: "status-draft",
+	done: "status-done",
+};
+
 export const BLOG_POST_STATUS_LABEL: Record<BlogPostStatus, string> = {
 	draft: "下書き",
 	approved: "承認済",

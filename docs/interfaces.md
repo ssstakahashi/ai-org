@@ -35,7 +35,7 @@ flowchart TD
 | `/login` | パスワードログイン | なし |
 | `/` | 業務台帳（カレンダー / ガント / 看板）。Google Tasks OAuth callback もここ | トップ |
 | `/x-schedule` | X投稿スケジュール | トップ |
-| `/blog-drafts` | ブログ下書きの確認・承認＋ネタ参照（SideBusiness / Agri） | トップ |
+| `/blog-drafts` | ブログ下書きの確認・承認＋ネタ参照（SideBusiness / Agri）。一覧表に使用予定画像（TOP / 図表）を表示。未公開記事の AI コメント確認（未対応／対応済） | トップ |
 | `/board` | 掲示板（シートリンク、VERSION 履歴） | トップ（情報） |
 | `/accounting-manual` | 会計マニュアル目次（法人税決算・申告 No.1〜62） | トップ（情報） |
 | `/accounting-manual/[no]` | 会計マニュアルの各項目（No.1〜62）。前後の項目と目次へ移動可 | 情報 |
@@ -81,7 +81,8 @@ flowchart TD
 | `POST` | `/api/x-post/analyze-image` | 画像から X 投稿文を提案（Gemini） | セッション |
 | `POST` | `/api/internal/automation-ingest` | 外部アプリから自動化カタログを push | ingest secret |
 | `GET` | `/api/internal/requirements` | 承認済み App 要件を Markdown export | ingest secret |
-| `GET` / `POST` | `/api/internal/blog-drafts` | ブログ下書きの一覧 / 外部投入 | ingest secret |
+| `GET` / `POST` | `/api/internal/blog-drafts` | ブログ下書きの一覧（コメント付き） / 外部投入 | ingest secret |
+| `GET` / `POST` | `/api/internal/blog-comments` | ブログ下書きコメントの一覧 / 外部投入（公開済は拒否） | ingest secret |
 | `GET` / `POST` | `/api/internal/spark-automations` | Spark 自動化の取得 / シート pull | ingest secret |
 
 要件 export のクエリと手順: [cursor-automation-app-requirements.md](./cursor-automation-app-requirements.md)。
@@ -99,6 +100,6 @@ flowchart TD
 | Google Tasks | 今すぐ同期 / 最終実行の取得 / OAuth 完了（全リスト取得、新規はリスト ai-org） |
 | Spark | シートから再取得 |
 | App names / groups / types / apps / crons / requirements | list / create / update / reorder / delete |
-| Blog | list / create / update / status / delete / 投稿先シート同期 |
+| Blog | list / create / update / status / delete / コメント一覧・対応状況 / 投稿先シート同期 |
 
 即時 X 投稿や「予約分をいま投稿」は Server Action から呼べるが、毎分 Cron の X API 投稿は停止中。
