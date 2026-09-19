@@ -1,5 +1,6 @@
 import {
 	parseMarkdownPreview,
+	svgMarkupToDataUrl,
 	type BlockNode,
 	type InlineNode,
 } from "@/lib/markdown-preview";
@@ -56,6 +57,27 @@ function Inline({ nodes }: { nodes: InlineNode[] }) {
 				return <br key={key} />;
 		}
 	});
+}
+
+export function MarkdownSvgImage({
+	markup,
+	caption,
+}: {
+	markup: string;
+	caption?: string;
+}) {
+	return (
+		<div>
+			{/* eslint-disable-next-line @next/next/no-img-element -- 本文中の SVG を画像として確認 */}
+			<img
+				src={svgMarkupToDataUrl(markup)}
+				alt={caption || "図"}
+				className="markdown-preview-image"
+				loading="lazy"
+			/>
+			{caption ? <p className="field-hint">{caption}</p> : null}
+		</div>
+	);
 }
 
 function Block({ block }: { block: BlockNode }) {
@@ -131,6 +153,8 @@ function Block({ block }: { block: BlockNode }) {
 					<code>{block.text}</code>
 				</pre>
 			);
+		case "svg":
+			return <MarkdownSvgImage markup={block.markup} caption={block.caption} />;
 		case "hr":
 			return <hr />;
 	}

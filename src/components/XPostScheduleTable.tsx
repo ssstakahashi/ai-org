@@ -17,6 +17,7 @@ import { RunDuePostsButton } from "@/components/RunDuePostsButton";
 import { SyncXPostsToSheetButton } from "@/components/SyncXPostsToSheetButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusIcon } from "@/components/StatusIcon";
+import { XPostComments } from "@/components/XPostComments";
 import { XPostForm } from "@/components/XPostForm";
 import { mediaUrl } from "@/lib/media-upload";
 import { recoverFromStaleServerAction } from "@/lib/server-action-client";
@@ -29,11 +30,13 @@ import {
 	X_POST_STATUS_LABEL,
 	type TaskStatus,
 	type XPost,
+	type XPostComment,
 	type XPostDestination,
 } from "@/lib/types";
 
 type Props = {
 	posts: XPost[];
+	commentsByPostId?: Record<string, XPostComment[]>;
 };
 
 const STATUS_ORDER: TaskStatus[] = ["draft", "approved", "scheduled", "done", "failed"];
@@ -80,6 +83,14 @@ function countByStatus(posts: XPost[]) {
 
 function canPostNow(status: TaskStatus) {
 	return status === "scheduled" || status === "approved" || status === "failed";
+}
+
+function commentCountHint(comments: XPostComment[]) {
+	if (comments.length === 0) return null;
+	const openCount = comments.filter((comment) => comment.status === "open").length;
+	return openCount > 0
+		? `AIコメント ${comments.length}件（未対応 ${openCount}）`
+		: `AIコメント ${comments.length}件（対応済）`;
 }
 
 function ActionButtonIcon({ children }: { children: ReactNode }) {
@@ -177,7 +188,7 @@ function XPostStatusSelect({
 	);
 }
 
-export function XPostScheduleTable({ posts }: Props) {
+export function XPostScheduleTable({ posts, commentsByPostId = {} }: Props) {
 	const router = useRouter();
 	const [tab, setTab] = useState<XPostDestination>(X_POST_DESTINATION_DEFAULT);
 	const destinationCounts = countByDestination(posts);
@@ -304,6 +315,7 @@ export function XPostScheduleTable({ posts }: Props) {
 						<tbody>
 							{visiblePosts.map((post) => {
 								const bodyLength = xPostLengthInfo(post.body);
+								const commentHint = commentCountHint(commentsByPostId[post.id] ?? []);
 								return (
 									<tr key={post.id} className={`status-${post.status}`}>
 										<td className="meta-cell">
@@ -370,6 +382,9 @@ export function XPostScheduleTable({ posts }: Props) {
 												>
 													{formatXPostLengthInfo(bodyLength)}
 												</p>
+												{commentHint ? (
+													<p className="field-hint">{commentHint}</p>
+												) : null}
 											</button>
 										</td>
 										<td className="actions-col">
@@ -510,6 +525,10 @@ export function XPostScheduleTable({ posts }: Props) {
 							{detailing.status === "failed" && detailing.last_error ? (
 								<p className="last-error">{detailing.last_error}</p>
 							) : null}
+							<XPostComments
+								comments={commentsByPostId[detailing.id] ?? []}
+								showEmpty={detailing.status !== "done"}
+							/>
 							<div className="task-actions task-detail-actions">
 								<div className="task-detail-actions-end">
 									<button

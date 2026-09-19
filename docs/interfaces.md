@@ -34,8 +34,8 @@ flowchart TD
 |---|---|---|
 | `/login` | パスワードログイン | なし |
 | `/` | 業務台帳（カレンダー / ガント / 看板）。Google Tasks OAuth callback もここ | トップ |
-| `/x-schedule` | X投稿スケジュール | トップ |
-| `/blog-drafts` | ブログ下書きの確認・承認＋ネタ参照（SideBusiness / Agri）。一覧表に使用予定画像（TOP / 図表）を表示。未公開記事の AI コメント確認（未対応／対応済） | トップ |
+| `/x-schedule` | X投稿スケジュール。投稿済以外の記事の AI コメント確認（未対応／対応済） | トップ |
+| `/blog-drafts` | ブログ下書きの確認・承認＋ネタ参照（SideBusiness / Agri）。一覧表に使用予定画像（TOP / 図表）を表示。確認ポップアップは本文中のインライン SVG を画像として表示。未公開記事の AI コメント確認（未対応／対応済） | トップ |
 | `/board` | 掲示板（シートリンク、VERSION 履歴） | トップ（情報） |
 | `/accounting-manual` | 会計マニュアル目次（法人税決算・申告 No.1〜62） | トップ（情報） |
 | `/accounting-manual/[no]` | 会計マニュアルの各項目（No.1〜62）。前後の項目と目次へ移動可 | 情報 |
@@ -83,6 +83,8 @@ flowchart TD
 | `GET` | `/api/internal/requirements` | 承認済み App 要件を Markdown export | ingest secret |
 | `GET` / `POST` | `/api/internal/blog-drafts` | ブログ下書きの一覧（コメント付き） / 外部投入 | ingest secret |
 | `GET` / `POST` | `/api/internal/blog-comments` | ブログ下書きコメントの一覧 / 外部投入（公開済は拒否） | ingest secret |
+| `GET` | `/api/internal/x-posts` | X投稿一覧（`status` / `destination` で絞り込み可。各投稿に `comments` を含む） | ingest secret |
+| `GET` / `POST` | `/api/internal/x-comments` | X投稿コメントの一覧 / 外部投入（投稿済は拒否） | ingest secret |
 | `GET` / `POST` | `/api/internal/spark-automations` | Spark 自動化の取得 / シート pull | ingest secret |
 
 要件 export のクエリと手順: [cursor-automation-app-requirements.md](./cursor-automation-app-requirements.md)。
@@ -96,7 +98,7 @@ flowchart TD
 | Employees / Categories / Tags / Task groups / Pages | list / create / update / delete（Employees は reorder あり） |
 | Org rules | list / get / create / update / body 更新 / delete |
 | Tasks | list / create / update / status / delete |
-| X posts | list / create / update / status / delete / Sheets 同期 / 予約分投稿 / 即時投稿 |
+| X posts | list / create / update / status / delete / Sheets 同期 / 予約分投稿 / 即時投稿 / コメント一覧・対応状況 |
 | Google Tasks | 今すぐ同期 / 最終実行の取得 / OAuth 完了（全リスト取得、新規はリスト ai-org） |
 | Spark | シートから再取得 |
 | App names / groups / types / apps / crons / requirements | list / create / update / reorder / delete |

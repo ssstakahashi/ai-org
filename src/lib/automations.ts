@@ -148,6 +148,29 @@ export const AUTOMATIONS: AutomationEntry[] = [
 	},
 	/**
 	 * @automation
+	 * id: x-schedule-ai-comments
+	 * name: X投稿へのAIコメント
+	 * runner: cursor
+	 * status: active
+	 * trigger: 投稿済以外の X 投稿に対する AI からの投入
+	 * summary: X投稿に、複数のAIが複数コメントを投入する。確認は /x-schedule。対応状況は未対応／対応済。
+	 * location: POST /api/internal/x-comments → /x-schedule
+	 * href: /x-schedule
+	 */
+	{
+		id: "x-schedule-ai-comments",
+		name: "X投稿へのAIコメント",
+		runner: "cursor",
+		status: "active",
+		trigger: "投稿済以外の X 投稿に対する AI からの投入",
+		summary:
+			"X投稿に、複数のAIが複数コメントを投入する。確認は /x-schedule。対応状況は未対応／対応済。",
+		location: "POST /api/internal/x-comments → /x-schedule",
+		href: "/x-schedule",
+		source: LOCAL_AUTOMATION_SOURCE,
+	},
+	/**
+	 * @automation
 	 * id: grokbot-studiofoods-blog-draft
 	 * name: スタジオフーズ公式ブログ下書き（月水金）
 	 * runner: cursor

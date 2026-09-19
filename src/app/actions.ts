@@ -67,6 +67,7 @@ import {
 	type RecurrenceEditScope,
 	type TaskWithEmployee,
 	type XPost,
+	type XPostComment,
 	X_POST_DESTINATION_DEFAULT,
 	type BlogPost,
 	type BlogPostComment,
@@ -74,6 +75,11 @@ import {
 	type BlogPostStatus,
 } from "@/lib/types";
 import { listBlogPostCommentsFromDb, parseBlogPostCommentStatus, updateBlogPostCommentStatusInDb } from "@/lib/blog-post-comments";
+import {
+	listXPostCommentsFromDb,
+	parseXPostCommentStatus,
+	updateXPostCommentStatusInDb,
+} from "@/lib/x-post-comments";
 import {
 	BLOG_FIGURE_MAX,
 	listBlogPostsFromDb,
@@ -85,10 +91,8 @@ import {
 	type BlogFigure,
 } from "@/lib/blog-posts";
 import {
+	listXPostsFromDb,
 	parseXPostDestination,
-	withXPostDestination,
-	X_POST_ORDER,
-	X_POST_SELECT,
 } from "@/lib/x-posts";
 
 type TaskRow = Omit<TaskWithEmployee, "tags" | "links">;
@@ -729,10 +733,23 @@ async function resolveSeriesTaskIds(
 /** X投稿一覧（スケジュール管理用） */
 export async function listXPosts(): Promise<XPost[]> {
 	const db = await getDb();
-	const { results } = await db
-		.prepare(`${X_POST_SELECT} ${X_POST_ORDER}`)
-		.all<XPost>();
-	return (results ?? []).map(withXPostDestination);
+	return listXPostsFromDb(db);
+}
+
+export async function listXPostComments(postIds?: string[]): Promise<XPostComment[]> {
+	const db = await getDb();
+	return listXPostCommentsFromDb(db, postIds);
+}
+
+export async function updateXPostCommentStatus(formData: FormData) {
+	const db = await getDb();
+	const id = formText(formData, "id");
+	const status = parseXPostCommentStatus(formData.get("status"));
+	if (!id) {
+		throw new Error("id が必要です");
+	}
+	await updateXPostCommentStatusInDb(db, id, status);
+	revalidateXPostPages();
 }
 
 function parseNewTagNames(raw: string): string[] {
@@ -1935,6 +1952,7 @@ export async function deleteXPost(formData: FormData) {
 		await media.delete(row.image_key);
 	}
 
+	await db.prepare("DELETE FROM x_post_comments WHERE x_post_id = ?").bind(id).run();
 	await db.prepare("DELETE FROM x_posts WHERE id = ?").bind(id).run();
 	const { env } = await getCloudflareContext({ async: true });
 	queueXPostSheetRemoval(env, id);

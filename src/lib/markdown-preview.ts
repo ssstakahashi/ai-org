@@ -14,6 +14,7 @@ export type BlockNode =
 	| { type: "list"; ordered: boolean; items: InlineNode[][] }
 	| { type: "table"; headers: InlineNode[][]; rows: InlineNode[][][] }
 	| { type: "code"; text: string }
+	| { type: "svg"; markup: string; caption?: string }
 	| { type: "hr" };
 
 function splitCells(line: string): string[] {
@@ -61,6 +62,70 @@ function quoteText(line: string) {
 function fenceLang(line: string) {
 	const match = line.trim().match(/^```(.*)$/);
 	return match ? match[1]!.trim() : null;
+}
+
+function htmlBlockOpen(line: string): "figure" | "svg" | null {
+	const match = line.trim().match(/^<(figure|svg)\b/i);
+	if (!match) return null;
+	return match[1]!.toLowerCase() as "figure" | "svg";
+}
+
+function consumeHtmlElement(
+	lines: string[],
+	start: number,
+	tag: string,
+): { html: string; next: number } | null {
+	const close = new RegExp(`</${tag}\\s*>`, "i");
+	const chunks: string[] = [];
+	let index = start;
+	while (index < lines.length) {
+		chunks.push(lines[index] ?? "");
+		const html = chunks.join("\n");
+		if (close.test(html)) {
+			return { html, next: index + 1 };
+		}
+		index += 1;
+	}
+	return null;
+}
+
+function stripTags(value: string): string {
+	return value.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+}
+
+function extractFigcaption(html: string): string | undefined {
+	const match = html.match(/<figcaption\b[^>]*>([\s\S]*?)<\/figcaption\s*>/i);
+	if (!match) return undefined;
+	const caption = stripTags(match[1] ?? "");
+	return caption || undefined;
+}
+
+function extractSvgMarkup(text: string): string | null {
+	const match = text.match(/<svg\b[\s\S]*?<\/svg\s*>/i);
+	if (!match) return null;
+	let markup = match[0]!;
+	markup = markup
+		.replace(/<script\b[\s\S]*?<\/script>/gi, "")
+		.replace(/\bon\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+	if (!/\sxmlns\s*=/i.test(markup)) {
+		markup = markup.replace(/<svg\b/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+	}
+	return markup;
+}
+
+function parseSvgHtmlBlock(html: string): { markup: string; caption?: string } | null {
+	const markup = extractSvgMarkup(html);
+	if (!markup) return null;
+	return { markup, caption: extractFigcaption(html) };
+}
+
+function isSvgFenceLang(lang: string): boolean {
+	const value = lang.trim().toLowerCase();
+	return value === "svg" || value === "xml" || value.startsWith("svg ");
+}
+
+export function svgMarkupToDataUrl(markup: string): string {
+	return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`;
 }
 
 export function safeHref(href: string): string | null {
@@ -226,6 +291,7 @@ function startsNewBlock(line: string) {
 	if (headingMatch(line)) return true;
 	if (isHr(line)) return true;
 	if (fenceLang(line) !== null) return true;
+	if (htmlBlockOpen(line)) return true;
 	if (quoteText(line) !== null) return true;
 	const ul = unorderedItem(line);
 	if (ul && ul.indent === 0) return true;
@@ -273,8 +339,25 @@ export function parseMarkdownPreview(markdown: string): BlockNode[] {
 				index += 1;
 			}
 			if (index < lines.length) index += 1;
-			blocks.push({ type: "code", text: codeLines.join("\n") });
+			const text = codeLines.join("\n");
+			const svg = isSvgFenceLang(fence) ? parseSvgHtmlBlock(text) : null;
+			if (svg) {
+				blocks.push({ type: "svg", markup: svg.markup, caption: svg.caption });
+			} else {
+				blocks.push({ type: "code", text });
+			}
 			continue;
+		}
+
+		const htmlTag = htmlBlockOpen(line);
+		if (htmlTag) {
+			const consumed = consumeHtmlElement(lines, index, htmlTag);
+			const svg = consumed ? parseSvgHtmlBlock(consumed.html) : null;
+			if (consumed && svg) {
+				blocks.push({ type: "svg", markup: svg.markup, caption: svg.caption });
+				index = consumed.next;
+				continue;
+			}
 		}
 
 		if (isHr(line)) {

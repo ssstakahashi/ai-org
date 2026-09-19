@@ -166,6 +166,46 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
 
 export const X_POST_STATUS_LABEL = TASK_STATUS_LABEL;
 
+export const X_POST_STATUS_OPTIONS = [
+	"draft",
+	"approved",
+	"scheduled",
+	"done",
+	"failed",
+] as const satisfies readonly TaskStatus[];
+
+/** X投稿への AI コメント（1記事に複数可） */
+export type XPostCommentStatus = "open" | "done";
+
+export type XPostComment = {
+	id: string;
+	x_post_id: string;
+	employee_id: string | null;
+	author_name: string;
+	source: string;
+	body: string;
+	status: XPostCommentStatus;
+	created_at: string;
+	employee_name: string | null;
+	employee_color: string | null;
+	employee_text_color: string | null;
+};
+
+export const X_POST_COMMENT_STATUS_OPTIONS = [
+	"open",
+	"done",
+] as const satisfies readonly XPostCommentStatus[];
+
+export const X_POST_COMMENT_STATUS_LABEL: Record<XPostCommentStatus, string> = {
+	open: "未対応",
+	done: "対応済",
+};
+
+export const X_POST_COMMENT_STATUS_CLASS: Record<XPostCommentStatus, string> = {
+	open: "status-draft",
+	done: "status-done",
+};
+
 export type AppRequirementStatus =
 	| "draft"
 	| "approved"

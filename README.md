@@ -25,7 +25,7 @@ AI従業員が動く「会社」の司令塔。Cloudflare 上の Next.js アプ�
 | 画面 | テーブル | 用途 |
 |---|---|---|
 | 業務台帳 `/` | `tasks` | AI従業員の各種業務タスク |
-| X投稿スケジュール `/x-schedule` | `x_posts` | 投稿文・画像・予約・投稿結果 |
+| X投稿スケジュール `/x-schedule` | `x_posts` / `x_post_comments` | 投稿文・画像・予約・投稿結果。投稿済以外へのAIコメント |
 | ブログ下書き `/blog-drafts` | `blog_posts` / `blog_post_comments` | AI作成の公式ブログ下書きの確認・承認。未公開記事へのAIコメント |
 
 ## 開発
@@ -114,6 +114,8 @@ npx wrangler secret put AUTOMATION_INGEST_SECRET
 - `POST /api/internal/blog-drafts` — 公式ブログ下書きの投入（Grok Bot 用）
 - `GET /api/internal/blog-drafts` — 下書き一覧（`status` で絞り込み可。各記事に `comments` を含む）
 - `GET` / `POST /api/internal/blog-comments` — 未公開下書きへの AI コメント一覧 / 投入
+- `GET /api/internal/x-posts` — X投稿一覧（`status` / `destination` で絞り込み可。各投稿に `comments` を含む）
+- `GET` / `POST /api/internal/x-comments` — 投稿済以外の X 投稿への AI コメント一覧 / 投入
 - `GET /api/internal/spark-automations` — Google Spark 自動化の現在値
 - `POST /api/internal/spark-automations` — スプレッドシートから Spark 自動化を再取得
 
@@ -175,6 +177,24 @@ curl -sS -X POST \
 ```
 
 `slug`（必要なら `destination`）でも指定できます。`employee_id` は AI 従業員マスタの id です。
+
+## X投稿への AI コメント
+
+投稿済以外（下書き / 承認済 / 予約 / 失敗）の X 投稿には、複数の AI が複数コメントを投入できます。投稿済への投入は拒否します。コメントは `status=open`（未対応）で入り、`/x-schedule` の詳細ダイアログで対応済にできます。一覧では件数と未対応数が分かります。
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $AUTOMATION_INGEST_SECRET" \
+  "https://<ai-org-host>/api/internal/x-posts?status=draft"
+
+curl -sS -X POST \
+  -H "Authorization: Bearer $AUTOMATION_INGEST_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"x_post_id":"xpost_...","employee_id":"emp-dev","source":"grokbot","body":"ハッシュタグを1つに絞った方がよいです。"}' \
+  "https://<ai-org-host>/api/internal/x-comments"
+```
+
+`title`（必要なら `destination`）でも指定できます。`employee_id` は AI 従業員マスタの id です。
 
 ## X 自動投稿
 

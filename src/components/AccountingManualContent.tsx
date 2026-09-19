@@ -1,3 +1,4 @@
+import { MarkdownSvgImage } from "./MarkdownPreview";
 import { MermaidDiagram } from "./MermaidDiagram";
 import { parseMarkdownPreview, type BlockNode, type InlineNode } from "@/lib/markdown-preview";
 
@@ -140,6 +141,8 @@ function Block({ block, index }: { block: BlockNode; index: number }) {
 				</pre>
 			);
 		}
+		case "svg":
+			return <MarkdownSvgImage markup={block.markup} caption={block.caption} />;
 		case "hr":
 			return <hr />;
 	}
