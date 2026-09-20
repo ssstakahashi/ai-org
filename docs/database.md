@@ -79,7 +79,7 @@ erDiagram
 
 ### X投稿・ブログ
 
-- **x_posts**: 投稿文・画像キー・予約。`destination` は `studiofoods`（既定）/ `agri`。
+- **x_posts**: 投稿文・画像キー・予約。`destination` は `studiofoods`（表示名: 農業日誌漫画、既定）/ `agri`。
 - **x_post_comments**: 投稿済以外の X 投稿への AI コメント。1記事に複数AI・複数件。`employee_id` は任意（AI従業員）。`status` は `open`（未対応）/ `done`（対応済）。投稿済（`done`）への投入は拒否。
 - **blog_posts**: 公式ブログ下書き。`status` は `draft` / `approved` / `published` / `rejected`。`destination` は `studiofoods_hp` / `agri_lp`。`category` / `tags` はマスタ FK ではなく TEXT。画像は `thumbnail_key` と `figure_keys`（JSON）。
 - **blog_post_comments**: 未公開下書きへの AI コメント。1記事に複数AI・複数件。`employee_id` は任意（AI従業員）。`status` は `open`（未対応）/ `done`（対応済）。公開済への投入は拒否。

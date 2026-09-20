@@ -134,7 +134,7 @@ export const X_POST_DESTINATION_OPTIONS = ["studiofoods", "agri"] as const;
 export type XPostDestination = (typeof X_POST_DESTINATION_OPTIONS)[number];
 
 export const X_POST_DESTINATION_LABEL: Record<XPostDestination, string> = {
-	studiofoods: "スタジオフーズ",
+	studiofoods: "農業日誌漫画",
 	agri: "Agri",
 };
 
