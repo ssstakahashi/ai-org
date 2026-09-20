@@ -2051,6 +2051,11 @@ button.ghost {
 }
 
 .x-schedule {
+	--status-draft: #475569;
+	--status-approved: #1d4ed8;
+	--status-scheduled: #c2410c;
+	--status-done: #047857;
+	--status-failed: #b91c1c;
 	display: grid;
 	gap: 1rem;
 }
@@ -2202,6 +2207,141 @@ button.ghost {
 	color: var(--status-failed);
 	border-color: color-mix(in srgb, var(--status-failed) 40%, var(--line));
 	background: color-mix(in srgb, var(--status-failed) 14%, white);
+}
+
+.x-schedule .status-badge.status-draft,
+.x-schedule .x-schedule-status-select.status-draft,
+.x-schedule .status-option.status-draft {
+	color: #334155;
+	border-color: #94a3b8;
+	background: #e2e8f0;
+}
+
+.x-schedule .status-badge.status-approved,
+.x-schedule .x-schedule-status-select.status-approved,
+.x-schedule .status-option.status-approved {
+	color: #1e40af;
+	border-color: #60a5fa;
+	background: #dbeafe;
+}
+
+.x-schedule .status-badge.status-scheduled,
+.x-schedule .x-schedule-status-select.status-scheduled,
+.x-schedule .status-option.status-scheduled {
+	color: #9a3412;
+	border-color: #fb923c;
+	background: #ffedd5;
+}
+
+.x-schedule .status-badge.status-done,
+.x-schedule .x-schedule-status-select.status-done,
+.x-schedule .status-option.status-done {
+	color: #065f46;
+	border-color: #34d399;
+	background: #d1fae5;
+}
+
+.x-schedule .status-badge.status-failed,
+.x-schedule .x-schedule-status-select.status-failed,
+.x-schedule .status-option.status-failed {
+	color: #991b1b;
+	border-color: #f87171;
+	background: #fee2e2;
+}
+
+.x-schedule .status-option.status-draft:has(input:checked) {
+	color: #fff;
+	background: #475569;
+	border-color: #475569;
+}
+
+.x-schedule .status-option.status-approved:has(input:checked) {
+	color: #fff;
+	background: #1d4ed8;
+	border-color: #1d4ed8;
+}
+
+.x-schedule .status-option.status-scheduled:has(input:checked) {
+	color: #fff;
+	background: #c2410c;
+	border-color: #c2410c;
+}
+
+.x-schedule .status-option.status-done:has(input:checked) {
+	color: #fff;
+	background: #047857;
+	border-color: #047857;
+}
+
+.x-schedule .status-option.status-failed:has(input:checked) {
+	color: #fff;
+	background: #b91c1c;
+	border-color: #b91c1c;
+}
+
+.x-schedule-summary li.status-draft {
+	border-color: #94a3b8;
+	background: #f1f5f9;
+}
+
+.x-schedule-summary li.status-approved {
+	border-color: #93c5fd;
+	background: #eff6ff;
+}
+
+.x-schedule-summary li.status-scheduled {
+	border-color: #fdba74;
+	background: #fff7ed;
+}
+
+.x-schedule-summary li.status-done {
+	border-color: #6ee7b7;
+	background: #ecfdf5;
+}
+
+.x-schedule-summary li.status-failed {
+	border-color: #fca5a5;
+	background: #fef2f2;
+}
+
+.x-schedule-table tbody tr.status-draft td {
+	background: #f8fafc;
+}
+
+.x-schedule-table tbody tr.status-approved td {
+	background: #eff6ff;
+}
+
+.x-schedule-table tbody tr.status-scheduled td {
+	background: #fff7ed;
+}
+
+.x-schedule-table tbody tr.status-done td {
+	background: #ecfdf5;
+}
+
+.x-schedule-table tbody tr.status-failed td {
+	background: #fef2f2;
+}
+
+.x-schedule-table tbody tr.status-draft td:first-child {
+	box-shadow: inset 4px 0 0 #64748b;
+}
+
+.x-schedule-table tbody tr.status-approved td:first-child {
+	box-shadow: inset 4px 0 0 #2563eb;
+}
+
+.x-schedule-table tbody tr.status-scheduled td:first-child {
+	box-shadow: inset 4px 0 0 #ea580c;
+}
+
+.x-schedule-table tbody tr.status-done td:first-child {
+	box-shadow: inset 4px 0 0 #059669;
+}
+
+.x-schedule-table tbody tr.status-failed td:first-child {
+	box-shadow: inset 4px 0 0 #dc2626;
 }
 
 .blog-drafts {
