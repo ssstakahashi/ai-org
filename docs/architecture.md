@@ -27,7 +27,7 @@ flowchart LR
 
 ## 2. 技術スタック
 
-- **Frontend**: Next.js 16 App Router、React 19、Tailwind CSS 4、TypeScript 5
+- **Frontend**: Next.js 16 App Router、React 19、Tailwind CSS 4、TypeScript 5。会計マニュアルのフロー図はクライアントで mermaid 11.6.0（jsDelivr ESM）を SVG 描画する
 - **Backend**: 同じ Next.js（Server Actions + Route Handlers）。別言語の API サーバはない
 - **Hosting**: Cloudflare Workers + OpenNext（`@opennextjs/cloudflare`）
 - **DB**: Cloudflare D1（SQLite、binding `DB`、database `ai-org`）。ORM なし、生 SQL

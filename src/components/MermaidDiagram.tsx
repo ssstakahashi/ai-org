@@ -7,39 +7,90 @@ type Props = {
 	className?: string;
 };
 
+type MermaidApi = {
+	initialize: (config: Record<string, unknown>) => void;
+	render: (
+		id: string,
+		code: string,
+	) => Promise<{ svg: string; bindFunctions?: (el: Element) => void }>;
+};
+
+let mermaidLoader: Promise<MermaidApi> | null = null;
+let renderQueue: Promise<unknown> = Promise.resolve();
+let diagramSeq = 0;
+
+function loadMermaid(): Promise<MermaidApi> {
+	if (!mermaidLoader) {
+		mermaidLoader = import(
+			/* webpackIgnore: true */ "https://cdn.jsdelivr.net/npm/mermaid@11.6.0/dist/mermaid.esm.min.mjs"
+		).then((mod: { default?: MermaidApi }) => {
+			const mermaid = mod.default;
+			if (!mermaid || typeof mermaid.render !== "function") {
+				throw new Error("Failed to load mermaid");
+			}
+			mermaid.initialize({
+				startOnLoad: false,
+				theme: "default",
+				securityLevel: "strict",
+			});
+			return mermaid;
+		});
+	}
+	return mermaidLoader;
+}
+
+function nextDiagramId() {
+	diagramSeq += 1;
+	return `accountingMermaid${diagramSeq}`;
+}
+
+function quoteSpecialLabels(code: string) {
+	return code
+		.replace(/(\b[\w-]+)\[(?!")([^\]]+)\]/g, (match, id: string, text: string) =>
+			/[(){}%<>/=]/.test(text) || text.includes("<br")
+				? `${id}["${text.replace(/"/g, "#quot;")}"]`
+				: match,
+		)
+		.replace(/(\b[\w-]+)\{(?!")([^{}]+)\}/g, (match, id: string, text: string) =>
+			/[()%]/.test(text) || text.includes("<br")
+				? `${id}{"${text.replace(/"/g, "#quot;")}"}`
+				: match,
+		)
+		.replace(/\|(?!")([^|\n]+)\|/g, (match, text: string) =>
+			/[()%]/.test(text) ? `|"${text.replace(/"/g, "#quot;")}"|` : match,
+		);
+}
+
+function renderQueued(id: string, code: string) {
+	const task = async () => {
+		const mermaid = await loadMermaid();
+		return mermaid.render(id, code);
+	};
+	const result = renderQueue.then(task, task);
+	renderQueue = result.then(
+		() => undefined,
+		() => undefined,
+	);
+	return result;
+}
+
 export function MermaidDiagram({ code, className }: Props) {
 	const ref = useRef<HTMLDivElement>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
+		setError(null);
 
 		async function renderDiagram() {
 			try {
-				// @ts-expect-error -- mermaid は CDN から読み込む
-				if (typeof window.mermaid === "undefined") {
-					const script = document.createElement("script");
-					script.src = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-					script.type = "module";
-					await new Promise<void>((resolve, reject) => {
-						script.onload = () => resolve();
-						script.onerror = () => reject(new Error("Failed to load mermaid"));
-						document.head.appendChild(script);
-					});
-
-					// @ts-expect-error -- mermaid を初期化
-					await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");
-					// @ts-expect-error -- mermaid を設定
-					window.mermaid.initialize({ startOnLoad: false, theme: "default" });
-				}
-
-				if (cancelled || !ref.current) return;
-
-				ref.current.innerHTML = "";
-				// @ts-expect-error -- mermaid.render を使用
-				const { svg } = await window.mermaid.render(`mermaid-${Date.now()}`, code);
+				const { svg, bindFunctions } = await renderQueued(
+					nextDiagramId(),
+					quoteSpecialLabels(code),
+				);
 				if (cancelled || !ref.current) return;
 				ref.current.innerHTML = svg;
+				bindFunctions?.(ref.current);
 			} catch (err) {
 				if (!cancelled) {
 					setError(err instanceof Error ? err.message : String(err));
