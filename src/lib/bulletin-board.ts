@@ -59,4 +59,12 @@ export const BULLETIN_SHEETS: BulletinSheet[] = [
 		title: "ブログネタ",
 		url: BLOG_IDEAS_SHEET_URL,
 	},
+	{
+		title: "法人税申告書と決算書の作成手順_令和2年版_内容",
+		url: "https://docs.google.com/spreadsheets/d/1Uzo5_AJ7hrpGbHvpNeuEI068vGCxm8hRm9MXqdXBmdU/edit?gid=1097702778#gid=1097702778",
+	},
+	{
+		title: "農業_ブログ記事_投稿管理",
+		url: AGRI_LP_BLOG_SHEET_URL,
+	},
 ];
