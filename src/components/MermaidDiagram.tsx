@@ -15,26 +15,29 @@ type MermaidApi = {
 	) => Promise<{ svg: string; bindFunctions?: (el: Element) => void }>;
 };
 
+const MERMAID_CDN =
+	"https://cdn.jsdelivr.net/npm/mermaid@11.6.0/dist/mermaid.esm.min.mjs";
+
 let mermaidLoader: Promise<MermaidApi> | null = null;
 let renderQueue: Promise<unknown> = Promise.resolve();
 let diagramSeq = 0;
 
 function loadMermaid(): Promise<MermaidApi> {
 	if (!mermaidLoader) {
-		mermaidLoader = import(
-			/* webpackIgnore: true */ "https://cdn.jsdelivr.net/npm/mermaid@11.6.0/dist/mermaid.esm.min.mjs"
-		).then((mod: { default?: MermaidApi }) => {
-			const mermaid = mod.default;
-			if (!mermaid || typeof mermaid.render !== "function") {
-				throw new Error("Failed to load mermaid");
-			}
-			mermaid.initialize({
-				startOnLoad: false,
-				theme: "default",
-				securityLevel: "strict",
-			});
-			return mermaid;
-		});
+		mermaidLoader = import(/* webpackIgnore: true */ MERMAID_CDN).then(
+			(mod: { default?: MermaidApi }) => {
+				const mermaid = mod.default;
+				if (!mermaid || typeof mermaid.render !== "function") {
+					throw new Error("Failed to load mermaid");
+				}
+				mermaid.initialize({
+					startOnLoad: false,
+					theme: "default",
+					securityLevel: "strict",
+				});
+				return mermaid;
+			},
+		);
 	}
 	return mermaidLoader;
 }
