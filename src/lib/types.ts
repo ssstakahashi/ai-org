@@ -129,7 +129,12 @@ export type TaskWithEmployee = Task & {
 };
 
 /** X投稿の投稿先アカウント。増やすときは OPTIONS と LABEL を追加する */
-export const X_POST_DESTINATION_OPTIONS = ["studiofoods", "agri", "mieru"] as const;
+export const X_POST_DESTINATION_OPTIONS = [
+	"studiofoods",
+	"agri",
+	"mieru",
+	"studiofoods_official",
+] as const;
 
 export type XPostDestination = (typeof X_POST_DESTINATION_OPTIONS)[number];
 
@@ -137,6 +142,7 @@ export const X_POST_DESTINATION_LABEL: Record<XPostDestination, string> = {
 	studiofoods: "農業日誌漫画",
 	agri: "Agri",
 	mieru: "MIERU会計",
+	studiofoods_official: "スタジオフーズ",
 };
 
 export const X_POST_DESTINATION_DEFAULT: XPostDestination = "studiofoods";
