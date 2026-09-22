@@ -2155,7 +2155,7 @@ button.ghost {
 
 .x-schedule-table .meta-cell {
 	min-width: 9rem;
-	white-space: nowrap;
+	white-space: normal;
 }
 
 .x-schedule-when {
@@ -2164,10 +2164,33 @@ button.ghost {
 	font-variant-numeric: tabular-nums;
 	font-size: 0.85rem;
 	line-height: 1.35;
+	white-space: nowrap;
 }
 
 .x-schedule-status {
 	margin-top: 0.4rem;
+}
+
+.x-schedule-status .status-options {
+	width: max-content;
+	max-width: 11rem;
+}
+
+.x-schedule-status .status-option {
+	padding: 0.3rem 0.55rem;
+	gap: 0.3rem;
+	font-family: inherit;
+	font-size: 0.8rem;
+	line-height: 1.2;
+}
+
+.x-schedule-status .status-options.is-pending {
+	opacity: 0.65;
+	pointer-events: none;
+}
+
+.x-schedule .status-option.is-current {
+	font-weight: 600;
 }
 
 .x-schedule-status-select {
@@ -2249,31 +2272,36 @@ button.ghost {
 	background: #fee2e2;
 }
 
-.x-schedule .status-option.status-draft:has(input:checked) {
+.x-schedule .status-option.status-draft:has(input:checked),
+.x-schedule .status-option.status-draft.is-current {
 	color: #fff;
 	background: #475569;
 	border-color: #475569;
 }
 
-.x-schedule .status-option.status-approved:has(input:checked) {
+.x-schedule .status-option.status-approved:has(input:checked),
+.x-schedule .status-option.status-approved.is-current {
 	color: #fff;
 	background: #1d4ed8;
 	border-color: #1d4ed8;
 }
 
-.x-schedule .status-option.status-scheduled:has(input:checked) {
+.x-schedule .status-option.status-scheduled:has(input:checked),
+.x-schedule .status-option.status-scheduled.is-current {
 	color: #fff;
 	background: #c2410c;
 	border-color: #c2410c;
 }
 
-.x-schedule .status-option.status-done:has(input:checked) {
+.x-schedule .status-option.status-done:has(input:checked),
+.x-schedule .status-option.status-done.is-current {
 	color: #fff;
 	background: #047857;
 	border-color: #047857;
 }
 
-.x-schedule .status-option.status-failed:has(input:checked) {
+.x-schedule .status-option.status-failed:has(input:checked),
+.x-schedule .status-option.status-failed.is-current {
 	color: #fff;
 	background: #b91c1c;
 	border-color: #b91c1c;

@@ -7,7 +7,6 @@ import {
 	useRef,
 	useState,
 	useTransition,
-	type ChangeEvent,
 	type ReactNode,
 } from "react";
 import { flushSync } from "react-dom";
@@ -147,9 +146,8 @@ function XPostStatusSelect({
 		setStatus(post.status);
 	}, [post.status]);
 
-	function handleChange(event: ChangeEvent<HTMLSelectElement>) {
-		const next = event.target.value as TaskStatus;
-		if (next === status) return;
+	function handleSelect(next: TaskStatus) {
+		if (next === status || pending) return;
 		const previous = status;
 		setStatus(next);
 		onMessage(null);
@@ -171,20 +169,29 @@ function XPostStatusSelect({
 	}
 
 	return (
-		<select
-			className={`x-schedule-status-select status-${status}`}
-			value={status}
-			disabled={pending}
+		<div
+			className={`status-options x-schedule-status-options${pending ? " is-pending" : ""}`}
+			role="group"
 			aria-label={`${post.title} のステータス`}
-			onChange={handleChange}
 			onClick={(event) => event.stopPropagation()}
 		>
-			{STATUS_ORDER.map((value) => (
-				<option key={value} value={value}>
-					{X_POST_STATUS_LABEL[value]}
-				</option>
-			))}
-		</select>
+			{STATUS_ORDER.map((value) => {
+				const current = status === value;
+				return (
+					<button
+						key={value}
+						type="button"
+						className={`status-option status-${value}${current ? " is-current" : ""}`}
+						aria-pressed={current}
+						disabled={pending}
+						onClick={() => handleSelect(value)}
+					>
+						<StatusIcon status={value} />
+						<span>{X_POST_STATUS_LABEL[value]}</span>
+					</button>
+				);
+			})}
+		</div>
 	);
 }
 
