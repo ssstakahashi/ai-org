@@ -6,13 +6,14 @@ OpenAPI / Swagger は無い。画面は App Router、更新の大半は Server A
 
 ## 1. 画面一覧・遷移フロー
 
-ナビ正本は [src/lib/app-nav.ts](../src/lib/app-nav.ts)。`/login` 以外でトップナビを出す。トップレベルの「投稿」はドロップダウン（サイドメニューでは見出し）で、小要素はブログ下書き・X投稿スケジュール。「情報」はドロップダウン（サイドメニューでは見出し）で、小要素は掲示板・会計マニュアル。「組織」はドロップダウン（サイドメニューでは見出し）で、小要素は従業員・組織ルール・自動化一覧。
+ナビ正本は [src/lib/app-nav.ts](../src/lib/app-nav.ts)。`/login` 以外でトップナビを出す。トップレベルの「投稿」はドロップダウン（サイドメニューでは見出し）で、小要素はブログ下書き・ネタ・X投稿スケジュール。「情報」はドロップダウン（サイドメニューでは見出し）で、小要素は掲示板・会計マニュアル。「組織」はドロップダウン（サイドメニューでは見出し）で、小要素は従業員・組織ルール・自動化一覧。
 
 ```mermaid
 flowchart TD
   Login["/login"] --> Home["/"]
   Home --> XSchedule["/x-schedule"]
   Home --> BlogDrafts["/blog-drafts"]
+  Home --> BlogIdeas["/blog-ideas"]
   Home --> Board["/board"]
   Home --> AccountingManual["/accounting-manual"]
   AccountingManual --> AccountingManualEntry["/accounting-manual/{no}"]
@@ -35,8 +36,9 @@ flowchart TD
 | `/login` | パスワードログイン | なし |
 | `/` | 業務台帳（カレンダー / ガント / 看板）。Google Tasks OAuth callback もここ | トップ |
 | `/x-schedule` | X投稿スケジュール（タブ: 農業日誌漫画 / Agri / MIERU会計 / スタジオフーズ）。一覧のステータスは全候補をボタン表示し、ワンクリックで更新。投稿済以外の記事の AI コメント確認（未対応／対応済） | トップ（投稿） |
-| `/blog-drafts` | ブログ下書きの確認・承認＋ネタ参照（SideBusiness / Agri）。一覧表に使用予定画像（TOP / 図表）を表示。確認ポップアップは本文中のインライン SVG を画像として表示。未公開記事の AI コメント確認（未対応／対応済） | トップ（投稿） |
-| `/board` | 掲示板（シートリンク、VERSION 履歴） | トップ（情報） |
+| `/blog-drafts` | ブログ下書きの確認・承認。一覧表に使用予定画像（TOP / 図表）を表示。確認ポップアップは本文中のインライン SVG を画像として表示。未公開記事の AI コメント確認（未対応／対応済） | トップ（投稿） |
+| `/blog-ideas` | ネタの CSV アップロードと参照（タブ: SideBusiness / Agri / 税務 / DX / 業務プロセス改革 / M＆A / 行政手続き）。各ネタの転用先（ブログ / X の媒体）を記録 | トップ（投稿） |
+| `/board` | 掲示板（投稿管理シートのリンク、VERSION 履歴） | トップ（情報） |
 | `/accounting-manual` | 会計マニュアル目次（法人税決算・申告 No.1〜62） | トップ（情報） |
 | `/accounting-manual/[no]` | 会計マニュアルの各項目（No.1〜62）。前後の項目と目次へ移動可 | 情報 |
 | `/automations` | 自動化カタログ / Spark / App Cron | トップ（組織） |
@@ -91,7 +93,7 @@ flowchart TD
 
 ### Server Actions（要約）
 
-正本は [src/app/actions.ts](../src/app/actions.ts)。ドメイン単位の CRUD が中心。
+正本は [src/app/actions.ts](../src/app/actions.ts)。ネタのアップロードと転用先は [src/app/blog-ideas/actions.ts](../src/app/blog-ideas/actions.ts)。
 
 | ドメイン | 主な操作 |
 |---|---|
@@ -103,5 +105,6 @@ flowchart TD
 | Spark | シートから再取得 |
 | App names / groups / types / apps / crons / requirements | list / create / update / reorder / delete |
 | Blog | list / create / update / status / delete / コメント一覧・対応状況 / 投稿先シート同期 |
+| ネタ | list / CSV アップロード / 転用先（ブログ・X の媒体）の付与と解除 |
 
 即時 X 投稿や「予約分をいま投稿」は Server Action から呼べるが、毎分 Cron の X API 投稿は停止中。

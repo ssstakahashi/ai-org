@@ -1,28 +1,43 @@
 "use client";
 
 import {
+	useActionState,
 	useCallback,
+	useEffect,
 	useRef,
 	useState,
+	useTransition,
 	type ReactNode,
 } from "react";
 import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
-import { StatusIcon } from "@/components/StatusIcon";
 import {
-	BLOG_IDEAS_SHEET_LABEL,
-	BLOG_IDEAS_SHEET_URL,
-	type BlogIdeasSheetKey,
-} from "@/lib/bulletin-board";
-import type { BlogIdeaRow } from "@/lib/blog-ideas-sheets";
+	setBlogIdeaUseAction,
+	uploadBlogIdeasAction,
+	type UploadBlogIdeasState,
+} from "@/app/blog-ideas/actions";
+import { StatusIcon } from "@/components/StatusIcon";
+import { BLOG_IDEAS_SHEET_LABEL, type BlogIdeasSheetKey } from "@/lib/bulletin-board";
+import {
+	BLOG_IDEA_MEDIA_OPTIONS,
+	BLOG_IDEA_MEDIUM_LABEL,
+	formatBlogIdeaUse,
+	type BlogIdeaMedium,
+} from "@/lib/blog-ideas";
+import type { BlogIdeaRow, BlogIdeaUse } from "@/lib/blog-ideas-sheets";
 
 type Props = {
 	sheet: BlogIdeasSheetKey;
 	rows: BlogIdeaRow[];
-	error?: string | null;
 };
 
 const URL_RE = /(https?:\/\/[^\s<>;、,）)]+)/g;
+const uploadInitial: UploadBlogIdeasState = {
+	error: null,
+	ok: false,
+	inserted: 0,
+	updated: 0,
+};
 
 function truncate(text: string, max = 80) {
 	const trimmed = text.trim();
@@ -60,21 +75,95 @@ function ActionButtonIcon({ children }: { children: ReactNode }) {
 	return <span className="x-schedule-action-icon">{children}</span>;
 }
 
-export function BlogIdeasPanel({ sheet, rows, error }: Props) {
+function BlogIdeasUpload({ sheet }: { sheet: BlogIdeasSheetKey }) {
+	const router = useRouter();
+	const [uploadState, uploadAction, uploadPending] = useActionState(
+		uploadBlogIdeasAction,
+		uploadInitial,
+	);
+
+	useEffect(() => {
+		if (!uploadState.ok) return;
+		router.refresh();
+	}, [uploadState, router]);
+
+	return (
+		<>
+			<form action={uploadAction} className="task-form">
+				<input type="hidden" name="topic" value={sheet} />
+				<label>
+					<span>CSV アップロード</span>
+					<input type="file" name="file" accept=".csv,text/csv" required />
+				</label>
+				<button type="submit" className="primary" disabled={uploadPending}>
+					{uploadPending ? "取り込み中…" : "アップロード"}
+				</button>
+			</form>
+			<p className="field-hint">
+				UTF-8 の CSV です。1行目はヘッダー（No. / 記事タイトル案またはネタ / カテゴリ /
+				概要）。同じ No. は上書きし、転用先の記録は残します。
+			</p>
+			{uploadState.error ? <p className="run-due-message">{uploadState.error}</p> : null}
+			{uploadState.ok ? (
+				<p className="field-hint">
+					{uploadState.inserted} 件追加、{uploadState.updated} 件更新しました。
+				</p>
+			) : null}
+		</>
+	);
+}
+
+function hasUse(uses: BlogIdeaUse[], medium: BlogIdeaMedium, destination: string) {
+	return uses.some((use) => use.medium === medium && use.destination === destination);
+}
+
+export function BlogIdeasPanel({ sheet, rows }: Props) {
 	const router = useRouter();
 	const detailDialogRef = useRef<HTMLDialogElement>(null);
 	const [detailing, setDetailing] = useState<BlogIdeaRow | null>(null);
-
+	const [useError, setUseError] = useState<string | null>(null);
+	const [usePending, startUseTransition] = useTransition();
 	const closeDetailDialog = useCallback(() => {
 		detailDialogRef.current?.close();
 		setDetailing(null);
+		setUseError(null);
 	}, []);
 
 	function openDetail(row: BlogIdeaRow) {
 		flushSync(() => {
+			setUseError(null);
 			setDetailing(row);
 		});
 		detailDialogRef.current?.showModal();
+	}
+
+	function toggleUse(medium: BlogIdeaMedium, destination: string, enabled: boolean) {
+		if (!detailing) return;
+		const ideaId = detailing.id;
+		setUseError(null);
+		setDetailing((current) => {
+			if (!current || current.id !== ideaId) return current;
+			const uses = enabled
+				? [...current.uses, { medium, destination }]
+				: current.uses.filter(
+						(use) => !(use.medium === medium && use.destination === destination),
+					);
+			return { ...current, uses };
+		});
+		startUseTransition(async () => {
+			try {
+				const formData = new FormData();
+				formData.set("idea_id", ideaId);
+				formData.set("medium", medium);
+				formData.set("destination", destination);
+				formData.set("enabled", enabled ? "1" : "0");
+				await setBlogIdeaUseAction(formData);
+				router.refresh();
+			} catch (error) {
+				setUseError(error instanceof Error ? error.message : "転用先の更新に失敗しました");
+				router.refresh();
+			}
+		});
 	}
 
 	return (
@@ -90,24 +179,13 @@ export function BlogIdeasPanel({ sheet, rows, error }: Props) {
 				</div>
 			</div>
 			<div className="x-schedule">
-				<p className="field-hint">
-					<a
-						href={BLOG_IDEAS_SHEET_URL}
-						className="automation-link"
-						target="_blank"
-						rel="noreferrer"
-					>
-						ブログネタ
-					</a>
-					の {BLOG_IDEAS_SHEET_LABEL[sheet]} シートです。
-				</p>
-				{error ? <p className="run-due-message">{error}</p> : null}
+				<BlogIdeasUpload key={sheet} sheet={sheet} />
 
-				{!error && rows.length === 0 ? (
+				{rows.length === 0 ? (
 					<p className="empty">
 						{BLOG_IDEAS_SHEET_LABEL[sheet]} のネタはまだありません。
 					</p>
-				) : rows.length > 0 ? (
+				) : (
 					<div className="x-schedule-scroll">
 						<table className="x-schedule-table">
 							<thead>
@@ -135,6 +213,11 @@ export function BlogIdeasPanel({ sheet, rows, error }: Props) {
 												{row.category ? (
 													<p className="x-schedule-post-chars">{row.category}</p>
 												) : null}
+												<p className="field-hint">
+													{row.uses.length > 0
+														? row.uses.map(formatBlogIdeaUse).join(" / ")
+														: "未転用"}
+												</p>
 											</button>
 										</td>
 										<td className="actions-col">
@@ -159,7 +242,7 @@ export function BlogIdeasPanel({ sheet, rows, error }: Props) {
 							</tbody>
 						</table>
 					</div>
-				) : null}
+				)}
 
 				<dialog
 					ref={detailDialogRef}
@@ -188,6 +271,42 @@ export function BlogIdeasPanel({ sheet, rows, error }: Props) {
 									<p key={item.label} className="notes">
 										{item.label}: <TextWithLinks text={item.value} />
 									</p>
+								))}
+								<p className="notes">転用先</p>
+								<p className="field-hint">
+									使った媒体にチェックします。ブログと X の両方を付けられます。
+								</p>
+								{useError ? <p className="run-due-message">{useError}</p> : null}
+								{(["blog", "x"] as const).map((medium) => (
+									<div key={medium}>
+										<p className="notes">{BLOG_IDEA_MEDIUM_LABEL[medium]}</p>
+										{BLOG_IDEA_MEDIA_OPTIONS.filter((option) => option.medium === medium).map(
+											(option) => (
+												<label
+													key={`${option.medium}:${option.destination}`}
+													className="inline-check"
+												>
+													<input
+														type="checkbox"
+														checked={hasUse(
+															detailing.uses,
+															option.medium,
+															option.destination,
+														)}
+														disabled={usePending}
+														onChange={(event) =>
+															toggleUse(
+																option.medium,
+																option.destination,
+																event.target.checked,
+															)
+														}
+													/>
+													{option.label}
+												</label>
+											),
+										)}
+									</div>
 								))}
 							</div>
 						) : null}

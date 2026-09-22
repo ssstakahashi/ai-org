@@ -1,18 +1,16 @@
-import { getGoogleAccessToken } from "@/lib/google-auth";
 import {
-	BLOG_IDEAS_SHEET_ID,
-	BLOG_IDEAS_SHEET_KEYS,
 	BLOG_IDEAS_SHEET_TITLE,
 	type BlogIdeasSheetKey,
 } from "@/lib/bulletin-board";
-import {
-	isSheetsSyncConfigured,
-	type SheetsSyncEnv,
-} from "@/lib/x-post-sheets-sync";
 
 export type BlogIdeaDetail = {
 	label: string;
 	value: string;
+};
+
+export type BlogIdeaUse = {
+	medium: "blog" | "x";
+	destination: string;
 };
 
 export type BlogIdeaRow = {
@@ -25,6 +23,7 @@ export type BlogIdeaRow = {
 	summary: string;
 	badge: string;
 	details: BlogIdeaDetail[];
+	uses: BlogIdeaUse[];
 };
 
 export type BlogIdeasBySheet = Record<BlogIdeasSheetKey, BlogIdeaRow[]>;
@@ -119,11 +118,6 @@ function cell(row: string[], index: number | undefined): string {
 	return (row[index] ?? "").trim();
 }
 
-function escapeSheetTitle(title: string): string {
-	if (/^[A-Za-z0-9_]+$/.test(title)) return title;
-	return `'${title.replace(/'/g, "''")}'`;
-}
-
 function findLayout<T extends string>(
 	rows: string[][],
 	aliases: Record<T, string[]>,
@@ -146,7 +140,7 @@ function findLayout<T extends string>(
 		}
 	}
 	throw new Error(
-		`「${sheetLabel}」シートに必要な列（${required.join(" / ")}）が見つかりません。1行目付近にヘッダーを置いてください。`,
+		`「${sheetLabel}」に必要な列（${required.join(" / ")}）が見つかりません。1行目付近にヘッダーを置いてください。`,
 	);
 }
 
@@ -199,6 +193,7 @@ export function parseSideBusinessRows(rows: string[][]): BlogIdeaRow[] {
 			summary: cell(row, summaryIndex) || cell(row, revenueIndex),
 			badge: "",
 			details: detailsFromRow(row, columns, ["title", "no"]),
+			uses: [],
 		});
 	}
 	return ideas;
@@ -235,87 +230,139 @@ export function parseAgriRows(rows: string[][]): BlogIdeaRow[] {
 			summary: cell(row, audienceIndex) || cell(row, plusIndex),
 			badge: cell(row, xPostIndex) || cell(row, markIndex),
 			details: detailsFromRow(row, columns, ["title", "no"]),
+			uses: [],
 		});
 	}
 	return ideas;
 }
 
-async function sheetsFetch<T>(path: string, token: string): Promise<T> {
-	const response = await fetch(`https://sheets.googleapis.com/v4/${path}`, {
-		headers: {
-			Authorization: `Bearer ${token}`,
-			"Content-Type": "application/json",
-		},
-	});
-	if (!response.ok) {
-		const text = await response.text();
-		throw new Error(`Google Sheets API failed (${response.status}): ${text.slice(0, 500)}`);
-	}
-	return (await response.json()) as T;
+const TOPIC_TITLE_ALIASES = [
+	"記事タイトル案",
+	"タイトル案",
+	"タイトル",
+	"ビジネス・副業ネタ",
+	"副業ネタ",
+	"ネタ",
+];
+const TOPIC_NO_ALIASES = ["no.", "no", "番号"];
+const TOPIC_CATEGORY_ALIASES = ["カテゴリ", "カテゴリー", "category"];
+const TOPIC_SUMMARY_ALIASES = [
+	"概要",
+	"概要・ビジネスモデル",
+	"ビジネスモデル",
+	"対象（誰にとって）",
+	"プラス影響",
+];
+
+function headerMatches(header: string, aliases: string[]): boolean {
+	const normalized = normalizeHeader(header);
+	return aliases.some((alias) => normalizeHeader(alias) === normalized);
 }
 
-async function getAccessToken(env: SheetsSyncEnv): Promise<string> {
-	const email = env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim();
-	const privateKey = env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.trim();
-	if (!email || !privateKey) {
-		throw new Error("Google Service Account が未設定です");
-	}
-	return getGoogleAccessToken(email, privateKey);
+function findHeaderIndex(headers: string[], aliases: string[]): number {
+	return headers.findIndex((header) => headerMatches(header, aliases));
 }
 
-async function loadSheetValues(token: string, sheetTitle: string): Promise<string[][]> {
-	const data = await sheetsFetch<{
-		sheets?: { properties?: { sheetId?: number; title?: string } }[];
-	}>(`spreadsheets/${BLOG_IDEAS_SHEET_ID}?fields=sheets(properties(sheetId,title))`, token);
-
-	const wanted = sheetTitle.toLowerCase();
-	const sheet =
-		data.sheets?.find((item) => item.properties?.title === sheetTitle) ??
-		data.sheets?.find((item) => item.properties?.title?.toLowerCase() === wanted);
-	const title = sheet?.properties?.title;
-	if (!title) {
-		const available =
-			data.sheets
-				?.map((item) => item.properties?.title)
-				.filter((value): value is string => Boolean(value))
-				.join(", ") || "なし";
-		throw new Error(`シート「${sheetTitle}」が見つかりません（存在するシート: ${available}）`);
-	}
-
-	const range = `${escapeSheetTitle(title)}`;
-	const values = await sheetsFetch<{ values?: string[][] }>(
-		`spreadsheets/${BLOG_IDEAS_SHEET_ID}/values/${encodeURIComponent(range)}`,
-		token,
-	);
-	return values.values ?? [];
-}
-
-export function emptyBlogIdeas(): BlogIdeasBySheet {
-	return { sidebusiness: [], agri: [] };
-}
-
-export async function fetchBlogIdeasFromSheets(env: SheetsSyncEnv): Promise<BlogIdeasBySheet> {
-	if (!isSheetsSyncConfigured(env)) {
-		throw new Error("Google Service Account が未設定です");
-	}
-
-	try {
-		const token = await getAccessToken(env);
-		const [sidebusinessRows, agriRows] = await Promise.all(
-			BLOG_IDEAS_SHEET_KEYS.map((key) => loadSheetValues(token, BLOG_IDEAS_SHEET_TITLE[key])),
-		);
-		return {
-			sidebusiness: parseSideBusinessRows(sidebusinessRows),
-			agri: parseAgriRows(agriRows),
-		};
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		if (message.includes("403") || message.includes("PERMISSION_DENIED")) {
-			const email = env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim() || "Service Account";
-			throw new Error(
-				`スプレッドシートを ${email} に「閲覧者」で共有してください。${message}`,
-			);
+/** 税務 / DX など、列構成が共通のネタシート */
+export function parseTopicRows(rows: string[][], sheet: BlogIdeasSheetKey): BlogIdeaRow[] {
+	const sheetLabel = BLOG_IDEAS_SHEET_TITLE[sheet];
+	let headerIndex = -1;
+	for (let i = 0; i < Math.min(rows.length, 5); i += 1) {
+		if (findHeaderIndex(rows[i] ?? [], TOPIC_TITLE_ALIASES) >= 0) {
+			headerIndex = i;
+			break;
 		}
-		throw error;
 	}
+	if (headerIndex < 0) {
+		throw new Error(
+			`「${sheetLabel}」にタイトル列が見つかりません。1行目付近にヘッダーを置いてください。`,
+		);
+	}
+
+	const headers = (rows[headerIndex] ?? []).map((header) => header.trim());
+	const titleIndex = findHeaderIndex(headers, TOPIC_TITLE_ALIASES);
+	const noIndex = findHeaderIndex(headers, TOPIC_NO_ALIASES);
+	const categoryIndex = findHeaderIndex(headers, TOPIC_CATEGORY_ALIASES);
+	const summaryIndex = findHeaderIndex(headers, TOPIC_SUMMARY_ALIASES);
+
+	const ideas: BlogIdeaRow[] = [];
+	for (let i = headerIndex + 1; i < rows.length; i += 1) {
+		const row = rows[i] ?? [];
+		const title = cell(row, titleIndex);
+		if (!title) continue;
+		const no = noIndex >= 0 ? cell(row, noIndex) : "";
+		const details: BlogIdeaDetail[] = [];
+		for (let col = 0; col < headers.length; col += 1) {
+			if (col === titleIndex || col === noIndex) continue;
+			const label = headers[col];
+			const value = cell(row, col);
+			if (!label || !value) continue;
+			details.push({ label, value });
+		}
+		ideas.push({
+			id: `${sheet}-${no || i + 1}`,
+			sheet,
+			rowNumber: i + 1,
+			no,
+			title,
+			category: categoryIndex >= 0 ? cell(row, categoryIndex) : "",
+			summary: summaryIndex >= 0 ? cell(row, summaryIndex) : "",
+			badge: "",
+			details,
+			uses: [],
+		});
+	}
+	return ideas;
 }
+
+export function parseRowsForSheet(key: BlogIdeasSheetKey, rows: string[][]): BlogIdeaRow[] {
+	if (key === "sidebusiness") return parseSideBusinessRows(rows);
+	if (key === "agri") return parseAgriRows(rows);
+	return parseTopicRows(rows, key);
+}
+
+/** UTF-8 CSV（先頭 BOM 可）。引用符内のカンマと改行を残す。 */
+export function parseCsv(text: string): string[][] {
+	const source = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+	const rows: string[][] = [];
+	let row: string[] = [];
+	let field = "";
+	let quoted = false;
+	for (let i = 0; i < source.length; i += 1) {
+		const char = source[i];
+		if (quoted) {
+			if (char === '"') {
+				if (source[i + 1] === '"') {
+					field += '"';
+					i += 1;
+				} else {
+					quoted = false;
+				}
+			} else {
+				field += char;
+			}
+			continue;
+		}
+		if (char === '"') {
+			quoted = true;
+			continue;
+		}
+		if (char === ",") {
+			row.push(field);
+			field = "";
+			continue;
+		}
+		if (char === "\n") {
+			row.push(field);
+			field = "";
+			if (row.some((value) => value.trim())) rows.push(row);
+			row = [];
+			continue;
+		}
+		field += char;
+	}
+	row.push(field);
+	if (row.some((value) => value.trim())) rows.push(row);
+	return rows;
+}
+

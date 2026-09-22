@@ -29,21 +29,35 @@ export const BLOG_DESTINATION_SHEET: Record<
 	},
 };
 
-export const BLOG_IDEAS_SHEET_ID = "1ifDEbo3E8tuDW1CvcZEoHxkfVM9faS8qc4D1hi6pLkM";
-export const BLOG_IDEAS_SHEET_URL =
-	"https://docs.google.com/spreadsheets/d/1ifDEbo3E8tuDW1CvcZEoHxkfVM9faS8qc4D1hi6pLkM/edit?gid=0#gid=0";
-
-export const BLOG_IDEAS_SHEET_KEYS = ["sidebusiness", "agri"] as const;
+export const BLOG_IDEAS_SHEET_KEYS = [
+	"sidebusiness",
+	"agri",
+	"tax",
+	"dx",
+	"process",
+	"ma",
+	"admin",
+] as const;
 export type BlogIdeasSheetKey = (typeof BLOG_IDEAS_SHEET_KEYS)[number];
 
 export const BLOG_IDEAS_SHEET_TITLE: Record<BlogIdeasSheetKey, string> = {
 	sidebusiness: "SideBusiness",
 	agri: "Agri",
+	tax: "税務",
+	dx: "DX",
+	process: "業務プロセス改革",
+	ma: "M＆A",
+	admin: "行政手続き",
 };
 
 export const BLOG_IDEAS_SHEET_LABEL: Record<BlogIdeasSheetKey, string> = {
 	sidebusiness: "SideBusiness",
 	agri: "Agri",
+	tax: "税務",
+	dx: "DX",
+	process: "業務プロセス改革",
+	ma: "M＆A",
+	admin: "行政手続き",
 };
 
 export function isBlogIdeasSheetKey(value: string): value is BlogIdeasSheetKey {
@@ -54,9 +68,5 @@ export const BULLETIN_SHEETS: BulletinSheet[] = [
 	{
 		title: "ブログ記事_投稿管理",
 		url: STUDIOFOODS_HP_BLOG_SHEET_URL,
-	},
-	{
-		title: "ブログネタ",
-		url: BLOG_IDEAS_SHEET_URL,
 	},
 ];

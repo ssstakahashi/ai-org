@@ -2,9 +2,9 @@
 
 関連: [overview.md](./overview.md) · [architecture.md](./architecture.md) · [interfaces.md](./interfaces.md)
 
-正本は `migrations/*.sql`（Cloudflare D1 = SQLite）。最新は `0038_x_post_comments.sql`。型の要約は [src/lib/types.ts](../src/lib/types.ts)。ORM / Prisma はない。
+正本は `migrations/*.sql`（Cloudflare D1 = SQLite）。最新は `0040_blog_ideas.sql`。型の要約は [src/lib/types.ts](../src/lib/types.ts)。ORM / Prisma はない。
 
-テーブル数は 24。日時は TEXT（`datetime('now')` / ISO）。ID はアプリ側で `prefix_uuid`。
+テーブル数は 26。日時は TEXT（`datetime('now')` / ISO）。ID はアプリ側で `prefix_uuid`。
 
 ## 1. ER図
 
@@ -34,6 +34,7 @@ erDiagram
   employees ||--o{ x_post_comments : authors
   blog_posts ||--o{ blog_post_comments : has
   x_posts ||--o{ x_post_comments : has
+  blog_ideas ||--o{ blog_idea_uses : reused
 ```
 
 Sheets 同期は D1 外（後述）。
@@ -83,6 +84,8 @@ erDiagram
 - **x_post_comments**: 投稿済以外の X 投稿への AI コメント。1記事に複数AI・複数件。`employee_id` は任意（AI従業員）。`status` は `open`（未対応）/ `done`（対応済）。投稿済（`done`）への投入は拒否。
 - **blog_posts**: 公式ブログ下書き。`status` は `draft` / `approved` / `published` / `rejected`。`destination` は `studiofoods_hp` / `agri_lp`。`category` / `tags` はマスタ FK ではなく TEXT。画像は `thumbnail_key` と `figure_keys`（JSON）。
 - **blog_post_comments**: 未公開下書きへの AI コメント。1記事に複数AI・複数件。`employee_id` は任意（AI従業員）。`status` は `open`（未対応）/ `done`（対応済）。公開済への投入は拒否。
+- **blog_ideas**: ネタ。`topic` は `sidebusiness` / `agri` / `tax` / `dx` / `process` / `ma` / `admin`。本文以外の列は `details`（JSON）。CSV アップロードが入力で、同じ `topic` + `no`（No. が空ならタイトル）は上書きする。
+- **blog_idea_uses**: ネタの転用先。`medium` は `blog` / `x`。`destination` はブログなら `studiofoods_hp` / `agri_lp`、X なら `studiofoods` / `agri` / `mieru` / `studiofoods_official`。同一ネタに複数可。`(idea_id, medium, destination)` は一意。
 
 ### App 管理
 
@@ -107,5 +110,4 @@ erDiagram
 | X投稿転記 | `X_POST_SHEET_ID` | `x_posts` と双方向 |
 | ブログ投稿管理（SF HP） | `STUDIOFOODS_HP_BLOG_SHEET_ID` | `blog_posts`（`studiofoods_hp`）と同期 |
 | ブログ投稿管理（Agri LP） | `AGRI_LP_BLOG_SHEET_ID` | `blog_posts`（`agri_lp`）と同期 |
-| ブログネタ | `BLOG_IDEAS_SHEET_ID` | D1 テーブルなし。タブ SideBusiness / Agri |
 | Spark 自動化 | `SPARK_SHEET_ID` | 行 → `remote_automations`（`source=spark`） |

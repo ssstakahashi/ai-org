@@ -22,16 +22,8 @@ import {
 	SyncStudiofoodsHpBlogSheetButton,
 } from "@/components/SyncStudiofoodsHpBlogSheetButton";
 import { recoverFromStaleServerAction } from "@/lib/server-action-client";
-import { BlogIdeasPanel } from "@/components/BlogIdeasPanel";
 import { BlogPostComments } from "@/components/BlogPostComments";
-import {
-	BLOG_DESTINATION_SHEET,
-	BLOG_IDEAS_SHEET_KEYS,
-	BLOG_IDEAS_SHEET_LABEL,
-	isBlogIdeasSheetKey,
-	type BlogIdeasSheetKey,
-} from "@/lib/bulletin-board";
-import type { BlogIdeaRow } from "@/lib/blog-ideas-sheets";
+import { BLOG_DESTINATION_SHEET } from "@/lib/bulletin-board";
 import { formatInAppTz } from "@/lib/timezone";
 import {
 	BLOG_POST_DESTINATION_DEFAULT,
@@ -47,14 +39,10 @@ import {
 	type BlogPostStatus,
 } from "@/lib/types";
 
-type BlogDraftsTab = BlogPostDestination | BlogIdeasSheetKey;
-
 type Props = {
 	posts: BlogPost[];
 	commentsByPostId?: Record<string, BlogPostComment[]>;
 	sheetSyncErrors?: Partial<Record<BlogPostDestination, string>>;
-	ideas: Record<BlogIdeasSheetKey, BlogIdeaRow[]>;
-	ideasError?: string | null;
 };
 
 function formatWhen(value: string) {
@@ -285,16 +273,12 @@ export function BlogDraftsManager({
 	posts,
 	commentsByPostId = {},
 	sheetSyncErrors,
-	ideas,
-	ideasError,
 }: Props) {
 	const router = useRouter();
-	const [tab, setTab] = useState<BlogDraftsTab>(BLOG_POST_DESTINATION_DEFAULT);
-	const destination = isBlogIdeasSheetKey(tab) ? BLOG_POST_DESTINATION_DEFAULT : tab;
+	const [tab, setTab] = useState<BlogPostDestination>(BLOG_POST_DESTINATION_DEFAULT);
+	const destination = tab;
 	const destinationCounts = countByDestination(posts);
-	const visiblePosts = isBlogIdeasSheetKey(tab)
-		? []
-		: posts.filter((post) => post.destination === tab);
+	const visiblePosts = posts.filter((post) => post.destination === tab);
 	const counts = countByStatus(visiblePosts);
 	const createDialogRef = useRef<HTMLDialogElement>(null);
 	const detailDialogRef = useRef<HTMLDialogElement>(null);
@@ -396,25 +380,7 @@ export function BlogDraftsManager({
 						</button>
 					);
 				})}
-				{BLOG_IDEAS_SHEET_KEYS.map((value) => {
-					const active = tab === value;
-					return (
-						<button
-							key={value}
-							type="button"
-							role="tab"
-							aria-selected={active}
-							className={active ? "view-tab active" : "view-tab"}
-							onClick={() => setTab(value)}
-						>
-							{BLOG_IDEAS_SHEET_LABEL[value]}（{ideas[value].length}）
-						</button>
-					);
-				})}
 			</div>
-		{isBlogIdeasSheetKey(tab) ? (
-			<BlogIdeasPanel sheet={tab} rows={ideas[tab]} error={ideasError} />
-		) : (
 		<section className="panel blog-drafts">
 			<div className="panel-head">
 				<h2>下書き一覧（{visiblePosts.length}）</h2>
@@ -717,7 +683,6 @@ export function BlogDraftsManager({
 				</dialog>
 			</div>
 		</section>
-		)}
 		</>
 	);
 }
