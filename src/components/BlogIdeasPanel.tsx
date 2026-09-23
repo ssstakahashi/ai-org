@@ -19,8 +19,10 @@ import {
 import { StatusIcon } from "@/components/StatusIcon";
 import { BLOG_IDEAS_SHEET_LABEL, type BlogIdeasSheetKey } from "@/lib/bulletin-board";
 import {
+	BLOG_IDEA_DRAFT_COVERAGE_LABEL,
 	BLOG_IDEA_MEDIA_OPTIONS,
 	BLOG_IDEA_MEDIUM_LABEL,
+	blogIdeaDraftCoverage,
 	formatBlogIdeaUse,
 	type BlogIdeaMedium,
 } from "@/lib/blog-ideas";
@@ -192,6 +194,7 @@ export function BlogIdeasPanel({ sheet, rows }: Props) {
 								<tr>
 									<th>No.</th>
 									<th>ネタ</th>
+									<th>下書き</th>
 									<th className="actions-col">操作</th>
 								</tr>
 							</thead>
@@ -213,12 +216,17 @@ export function BlogIdeasPanel({ sheet, rows }: Props) {
 												{row.category ? (
 													<p className="x-schedule-post-chars">{row.category}</p>
 												) : null}
-												<p className="field-hint">
-													{row.uses.length > 0
-														? row.uses.map(formatBlogIdeaUse).join(" / ")
-														: "未転用"}
-												</p>
 											</button>
+										</td>
+										<td className="meta-cell">
+											<p className="x-schedule-when">
+												{BLOG_IDEA_DRAFT_COVERAGE_LABEL[blogIdeaDraftCoverage(row.uses)]}
+											</p>
+											{row.uses.length > 0 ? (
+												<p className="field-hint">
+													{row.uses.map(formatBlogIdeaUse).join(" / ")}
+												</p>
+											) : null}
 										</td>
 										<td className="actions-col">
 											<div className="x-schedule-actions">

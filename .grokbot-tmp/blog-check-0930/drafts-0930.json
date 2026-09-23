@@ -1,0 +1,105 @@
+[
+  {
+    "results": [
+      {
+        "id": "blog_29a9efa8-49ab-45ef-875c-62b6d81e1229",
+        "slug": "wage-increase-tax-credit-sme-checklist-2026",
+        "destination": "studiofoods_hp",
+        "status": "draft",
+        "notes": "毎日下書き 2026-09-22。柱⑥税制・賃上げ促進税制の現場チェック。task=task_blog_2026-09-22_tax。本番へは出さない。destination=studiofoods_hp。図表SVG2枚。",
+        "updated_at": "2026-09-22 09:20:00",
+        "body_len": 12250
+      },
+      {
+        "id": "blog_b1ed9305-e947-4a61-98b3-9e897bc68651",
+        "slug": "ebook-preservation-minimum-ops-for-sme",
+        "destination": "studiofoods_hp",
+        "status": "draft",
+        "notes": "毎日下書き 2026-09-21。柱⑤バックオフィス・電子帳簿保存法の最小運用。task=task_blog_2026-09-21_backoffice。本番へは出さない。destination=studiofoods_hp。図表SVG2枚。\n外部チェック 2026-09-21 09:30 OK\n最終構成 2026-09-22: (A)探す時間/(B)合规専門家を冒頭二分／判定フロー表／真実性・可視性の最小節／OS検索≠法令検索／提出フォルダ責任者をチェック必須／内部リンクを関連へ／零細向けパニック回避",
+        "updated_at": "2026-09-22 00:38:28",
+        "body_len": 10500
+      },
+      {
+        "id": "blog_ef9bb734-2bb0-4492-8822-836403aacf4c",
+        "slug": "kurayoshi-weekly-decision-board-from-diary",
+        "destination": "studiofoods_hp",
+        "status": "draft",
+        "notes": "毎日下書き 2026-09-20。柱④農業DX・倉吉続き（週次判断ボード）。task=task_blog_2026-09-20_agri-dx。本番へは出さない。destination=studiofoods_hp。図表SVG2枚。\n外部チェック 2026-09-20 09:30 修正: 本文中盤の文字化け修復、44.9%直後の読点、未公開sodate記事への本番リンクをサービスページへ\n最終構成 2026-09-21: 導入率≠運用成熟を明記／口頭優先の仮説例と代理指標／日次・週次・エスカレーション／上限のスケーリング表／SODATE対比／紙・スプシでも可とCTA格下げ\nPointingOut反映 2026-09-21: ①44.9%表現を「導入割合は44.9%にのぼる一方で」へ／CTAを「ご相談ください」に整備 ②「その粒度で大丈夫」「一緒に育てています」を実務トーンへ ③小さく続ける節の83.1%統計を外し省力化の文脈記述へ ④施設栽培にビニールハウス促成・抑制栽培等を補足\n最終構成 2026-09-22: 統計を付録へ圧縮／成功条件（月曜紙1枚）＋口頭優先エピソード先頭／未検証の運用提案を宣言／1枚テンプレ表／繁忙期休止・再開／安全・品質は枠外当日／閾値見直し週次必須／読者一文固定／処方箋トーン緩和・CTA維持",
+        "updated_at": "2026-09-22 00:26:35",
+        "body_len": 10043
+      },
+      {
+        "id": "blog_f1b3c847-92e1-45df-bb21-789a4210d3f8",
+        "slug": "forced-watermelon-vertical-cultivation-fertilizer-reduction-kumamoto",
+        "destination": "agri_lp",
+        "status": "draft",
+        "notes": "Google Docs: https://docs.google.com/document/d/1IVKh_9U6_YqY9S1wraJkja7JbAOJGY8JOODAQ7RyvhE/edit\n外部チェック 2026-09-22 08:00 コメントあり（着果率の具体数値・有意表現・減肥の条件・全国シェア出典）\n最終構成 2026-09-22: No.101942の着果率35.6%／70%前後・a当たり100〜124個・交配収穫前進化を本文化／空洞果は「地這いより少ない」に修正／減肥に有機単用・植え替え減収と黒ボク以外要確認を注記／全国トップ・日本一表現を削除／劇的・イノベーション・極めて実践的を抑制／CTAを比例化",
+        "updated_at": "2026-09-22 00:22:44",
+        "body_len": 3596
+      },
+      {
+        "id": "blog_b2d58e39-1603-49a8-9d04-142f1cf87431",
+        "slug": "israel-precision-drip-irrigation-fertigation-japan-yield-water-saving",
+        "destination": "agri_lp",
+        "status": "draft",
+        "notes": "Google Docs: https://docs.google.com/document/d/1CNqZaOnLrVj9AYyq_yVxSqaGPVGgfuU1YXoEKXteeGM/edit\n外部チェック 2026-09-21 08:00 コメントあり（水消費30〜50%等の数値出典整合）\n最終構成 2026-09-21: 節水％を出典どおり条件付きに修正／施肥は一般論と岡山ナス事例を分離／コストは構成による目安と注記／損益感度・反対意見・水質検査・カップテスト・過湿停止を追加／アプリは末尾CTAに圧縮\n外部チェック 2026-09-21 09:30 OK（最終構成を出典再検証）\n最終構成 2026-09-22: リードを未検証の導入前チェックリストへ／自圃場コンテキストを外部数字の前に／感度に改善0・半額＋メンテ工数／岡山ナスを参考枠＋スイカ移転表（否・条件付き・要実測）／発注前ゲート（カップテスト・排水ルール・1作記録）／結論を倉吉砂丘・ハウス果菜に限定／CTAを記録の器として軟化",
+        "updated_at": "2026-09-22 00:20:50",
+        "body_len": 5469
+      },
+      {
+        "id": "blog_ef65365b-2d82-43ac-85ba-08648e173d65",
+        "slug": "cloudflare-tunnel-minimum-for-smb",
+        "destination": "studiofoods_hp",
+        "status": "draft",
+        "notes": "Cloudflare・月水金シリーズ。2026-09-18。題材=Tunnel最小導入（ポート公開しない届け方・Accessとの役割分担）。\nPointingOut反映 2026-09-19: 助詞修正、向きやすい環境の具体例、まとめにサービス案内を追加\n外部チェック 2026-09-20 修正: CF公式URLをcanonical化、WAFとレート制限の役割表記を分離\n最終構成 2026-09-22: ベンダー開示・禁止事項ボックス・コマンド無しチェックリスト・コネクタ冗長・VPN比較表・SVG1枚化",
+        "updated_at": "2026-09-22 00:18:58",
+        "body_len": 7963
+      },
+      {
+        "id": "blog_02f3ea13-6ceb-40d5-9d29-12f84ce2d03e",
+        "slug": "cloudflare-ssl-tls-full-strict-minimum-for-smb",
+        "destination": "studiofoods_hp",
+        "status": "draft",
+        "notes": "Cloudflare・月水金シリーズ。2026-09-21。題材=SSL/TLS最小導入（Full strict・Always Use HTTPS・HSTSの順序）。\n外部チェック 2026-09-21 09:30 修正: Fullモード説明を現行公式（訪問者スキーム追従）に合わせて調整\n最終構成 2026-09-22: 記事単独スコープ・preflight・526ランブック・Full失敗例・ホスティング分岐・HSTSサブドメイン・SVG削減・自社/業者境界・バイアス開示",
+        "updated_at": "2026-09-22 00:18:57",
+        "body_len": 9154
+      },
+      {
+        "id": "blog_8157b522-d475-4067-a9f0-11a1e7b4568c",
+        "slug": "ai-staff-short-approval-gate",
+        "destination": "studiofoods_hp",
+        "status": "draft",
+        "notes": "毎日下書き 2026-09-17。柱①AI社員・運用。task=task_blog_2026-09-17_ai-staff。本番へは出さない。destination=studiofoods_hp。 PointingOut反映 2026-09-17：事実チェックの数値表現を具体化／対象外領域の免責注記チェックを明確化／まとめにCTA追加\n外部チェック 2026-09-20 OK\n外部チェック 2026-09-22 08:00 OK",
+        "updated_at": "2026-09-21 23:20:56",
+        "body_len": 2723
+      },
+      {
+        "id": "blog_592bbdcf-dea5-4b39-a29c-b703122eeebf",
+        "slug": "sodate-monthly-priority-board",
+        "destination": "studiofoods_hp",
+        "status": "draft",
+        "notes": "毎日下書き 2026-09-19。柱③SODATE・月次優先ボード。task=task_blog_2026-09-19_sodate。本番へは出さない。destination=studiofoods_hp。図表SVG2枚。\n外部チェック 2026-09-20 修正: 本文末尾の余分な#を削除\nわかりやすさ改稿 2026-09-20: 結論・三箱・月末デモを先に。JUAS/IPAは末尾補足へ。\n外部チェック 2026-09-20 再チェックOK（改稿後）\\n最終構成 2026-09-20: 批評反映。配分と容量の切り分け、汎用ボード先行＋SODATE当てはめ分離、件数→ポイント／スパイク、緊急枠15%＋事後レビュー、三箱の副作用と共同ファシリ・四半期枠見直し、JUAS/IPAは直接証拠でない旨を明記。\nPointingOut反映 2026-09-20: 末尾#削除確認済／前提未確定はPoC・事前コンサルへ（一括へ直投げしない）／週次スプリント＋pt上限の目安追記／まとめにサービス一覧・お問い合わせ導線\n外部チェック 2026-09-22 08:00 OK",
+        "updated_at": "2026-09-21 23:20:56",
+        "body_len": 10860
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "APAC",
+      "served_by_colo": "NRT",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.6159
+      },
+      "duration": 0.6159,
+      "changes": 0,
+      "last_row_id": 69412,
+      "changed_db": false,
+      "size_after": 25595904,
+      "rows_read": 19,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]

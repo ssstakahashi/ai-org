@@ -12,7 +12,7 @@ export default async function BlogIdeasPage() {
 		<main className="page page-wide">
 			<AppHeader
 				title="ネタ"
-				lede="CSV でネタを取り込みます。各ネタがブログと X のどの媒体に転用されたかを記録します。"
+				lede="CSV でネタを取り込みます。一覧の「下書き」列で、ブログ下書き・X下書き・両方のどれに転用したか分かります。"
 			/>
 			<BlogIdeasManager ideas={ideas} />
 		</main>

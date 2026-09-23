@@ -93,6 +93,24 @@ export function formatBlogIdeaUse(use: BlogIdeaUse): string {
 	return option ? `${medium}: ${option.label}` : `${medium}: ${use.destination}`;
 }
 
+export type BlogIdeaDraftCoverage = "none" | "blog" | "x" | "both";
+
+export const BLOG_IDEA_DRAFT_COVERAGE_LABEL: Record<BlogIdeaDraftCoverage, string> = {
+	none: "未転用",
+	blog: "ブログ下書き",
+	x: "X下書き",
+	both: "両方",
+};
+
+export function blogIdeaDraftCoverage(uses: BlogIdeaUse[]): BlogIdeaDraftCoverage {
+	const hasBlog = uses.some((use) => use.medium === "blog");
+	const hasX = uses.some((use) => use.medium === "x");
+	if (hasBlog && hasX) return "both";
+	if (hasBlog) return "blog";
+	if (hasX) return "x";
+	return "none";
+}
+
 function parseDetails(value: string): BlogIdeaDetail[] {
 	try {
 		const parsed = JSON.parse(value) as unknown;
