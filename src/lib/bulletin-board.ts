@@ -69,4 +69,8 @@ export const BULLETIN_SHEETS: BulletinSheet[] = [
 		title: "ブログ記事_投稿管理",
 		url: STUDIOFOODS_HP_BLOG_SHEET_URL,
 	},
+	{
+		title: "農業_ブログ記事_投稿管理",
+		url: "https://docs.google.com/spreadsheets/d/1ldiQSqDbmASnr_k7bCScXwe4ITZSIb4wQ8bP39Wnysc/edit?gid=0#gid=0",
+	},
 ];
