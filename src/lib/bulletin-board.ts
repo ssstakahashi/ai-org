@@ -37,6 +37,7 @@ export const BLOG_IDEAS_SHEET_KEYS = [
 	"process",
 	"ma",
 	"admin",
+	"compare",
 ] as const;
 export type BlogIdeasSheetKey = (typeof BLOG_IDEAS_SHEET_KEYS)[number];
 
@@ -48,6 +49,7 @@ export const BLOG_IDEAS_SHEET_TITLE: Record<BlogIdeasSheetKey, string> = {
 	process: "業務プロセス改革",
 	ma: "M＆A",
 	admin: "労務",
+	compare: "3社比較",
 };
 
 export const BLOG_IDEAS_SHEET_LABEL: Record<BlogIdeasSheetKey, string> = {
@@ -58,6 +60,7 @@ export const BLOG_IDEAS_SHEET_LABEL: Record<BlogIdeasSheetKey, string> = {
 	process: "業務プロセス改革",
 	ma: "M＆A",
 	admin: "労務",
+	compare: "3社比較",
 };
 
 export function isBlogIdeasSheetKey(value: string): value is BlogIdeasSheetKey {
