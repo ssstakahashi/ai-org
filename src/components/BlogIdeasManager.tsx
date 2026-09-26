@@ -8,12 +8,14 @@ import {
 	type BlogIdeasSheetKey,
 } from "@/lib/bulletin-board";
 import type { BlogIdeaRow } from "@/lib/blog-ideas-sheets";
+import type { Tag } from "@/lib/types";
 
 type Props = {
 	ideas: Record<BlogIdeasSheetKey, BlogIdeaRow[]>;
+	tags: Tag[];
 };
 
-export function BlogIdeasManager({ ideas }: Props) {
+export function BlogIdeasManager({ ideas, tags }: Props) {
 	const [tab, setTab] = useState<BlogIdeasSheetKey>(BLOG_IDEAS_SHEET_KEYS[0]);
 
 	return (
@@ -35,7 +37,7 @@ export function BlogIdeasManager({ ideas }: Props) {
 					);
 				})}
 			</div>
-			<BlogIdeasPanel sheet={tab} rows={ideas[tab]} />
+			<BlogIdeasPanel sheet={tab} rows={ideas[tab]} tags={tags} />
 		</>
 	);
 }

@@ -3,11 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/lib/db";
 import {
+	addBlogIdeaTagsByName,
 	ideasFromCsv,
 	isBlogIdeaMedium,
+	setBlogIdeaTag,
 	setBlogIdeaUse,
 	upsertBlogIdeaRows,
 } from "@/lib/blog-ideas";
+import type { Tag } from "@/lib/types";
 import { isBlogIdeasSheetKey } from "@/lib/bulletin-board";
 import { parseBlogPostDestination } from "@/lib/blog-posts";
 import { parseXPostDestination } from "@/lib/x-posts";
@@ -21,6 +24,12 @@ export type UploadBlogIdeasState = {
 
 function revalidateIdeas() {
 	revalidatePath("/blog-ideas");
+}
+
+function revalidateIdeaTags() {
+	revalidateIdeas();
+	revalidatePath("/tags");
+	revalidatePath("/pages/tags");
 }
 
 export async function uploadBlogIdeasAction(
@@ -66,4 +75,28 @@ export async function setBlogIdeaUseAction(formData: FormData) {
 	const db = await getDb();
 	await setBlogIdeaUse(db, ideaId, medium, parsed, enabled);
 	revalidateIdeas();
+}
+
+export async function setBlogIdeaTagAction(formData: FormData) {
+	const ideaId = String(formData.get("idea_id") ?? "").trim();
+	const tagId = String(formData.get("tag_id") ?? "").trim();
+	const enabled = String(formData.get("enabled") ?? "") === "1";
+	if (!ideaId || !tagId) {
+		throw new Error("タグの指定が不正です");
+	}
+	const db = await getDb();
+	await setBlogIdeaTag(db, ideaId, tagId, enabled);
+	revalidateIdeaTags();
+}
+
+export async function addBlogIdeaTagsAction(formData: FormData): Promise<Tag[]> {
+	const ideaId = String(formData.get("idea_id") ?? "").trim();
+	const names = String(formData.get("names") ?? "");
+	if (!ideaId) {
+		throw new Error("ネタが見つかりません");
+	}
+	const db = await getDb();
+	const tags = await addBlogIdeaTagsByName(db, ideaId, names);
+	revalidateIdeaTags();
+	return tags;
 }

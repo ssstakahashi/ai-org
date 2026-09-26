@@ -47,7 +47,7 @@ export const BLOG_IDEAS_SHEET_TITLE: Record<BlogIdeasSheetKey, string> = {
 	dx: "DX",
 	process: "業務プロセス改革",
 	ma: "M＆A",
-	admin: "行政手続き",
+	admin: "労務",
 };
 
 export const BLOG_IDEAS_SHEET_LABEL: Record<BlogIdeasSheetKey, string> = {
@@ -57,7 +57,7 @@ export const BLOG_IDEAS_SHEET_LABEL: Record<BlogIdeasSheetKey, string> = {
 	dx: "DX",
 	process: "業務プロセス改革",
 	ma: "M＆A",
-	admin: "行政手続き",
+	admin: "労務",
 };
 
 export function isBlogIdeasSheetKey(value: string): value is BlogIdeasSheetKey {

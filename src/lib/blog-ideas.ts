@@ -17,6 +17,7 @@ import {
 	X_POST_DESTINATION_LABEL,
 	X_POST_DESTINATION_OPTIONS,
 	type BlogPostDestination,
+	type Tag,
 	type XPostDestination,
 } from "@/lib/types";
 
@@ -64,6 +65,10 @@ type UseRecord = {
 	idea_id: string;
 	medium: string;
 	destination: string;
+};
+
+type IdeaTagRecord = Tag & {
+	idea_id: string;
 };
 
 export function emptyBlogIdeas(): BlogIdeasByTopic {
@@ -155,6 +160,14 @@ export async function listBlogIdeas(db: D1Database): Promise<BlogIdeasByTopic> {
 	const { results: useRows } = await db
 		.prepare(`SELECT idea_id, medium, destination FROM blog_idea_uses`)
 		.all<UseRecord>();
+	const { results: tagRows } = await db
+		.prepare(
+			`SELECT bt.idea_id, tg.id, tg.name, tg.color, tg.text_color, tg.created_at
+			 FROM blog_idea_tags bt
+			 JOIN tags tg ON tg.id = bt.tag_id
+			 ORDER BY tg.name ASC`,
+		)
+		.all<IdeaTagRecord>();
 
 	const usesByIdea = new Map<string, BlogIdeaUse[]>();
 	for (const record of useRows ?? []) {
@@ -163,6 +176,19 @@ export async function listBlogIdeas(db: D1Database): Promise<BlogIdeasByTopic> {
 		const list = usesByIdea.get(record.idea_id) ?? [];
 		list.push(use);
 		usesByIdea.set(record.idea_id, list);
+	}
+
+	const tagsByIdea = new Map<string, Tag[]>();
+	for (const record of tagRows ?? []) {
+		const list = tagsByIdea.get(record.idea_id) ?? [];
+		list.push({
+			id: record.id,
+			name: record.name,
+			color: record.color,
+			text_color: record.text_color,
+			created_at: record.created_at,
+		});
+		tagsByIdea.set(record.idea_id, list);
 	}
 
 	for (const record of ideaRows ?? []) {
@@ -178,6 +204,7 @@ export async function listBlogIdeas(db: D1Database): Promise<BlogIdeasByTopic> {
 			badge: record.badge,
 			details: parseDetails(record.details),
 			uses: usesByIdea.get(record.id) ?? [],
+			tags: tagsByIdea.get(record.id) ?? [],
 		});
 	}
 
@@ -290,4 +317,91 @@ export async function setBlogIdeaUse(
 		)
 		.bind(ideaId, medium, destination)
 		.run();
+}
+
+const TAG_SELECT = `SELECT id, name, color, text_color, created_at FROM tags`;
+
+function parseTagNames(raw: string): string[] {
+	return [
+		...new Set(
+			raw
+				.split(/[,、]/)
+				.map((name) => name.trim())
+				.filter(Boolean),
+		),
+	];
+}
+
+async function requireBlogIdea(db: D1Database, ideaId: string): Promise<void> {
+	const idea = await db
+		.prepare(`SELECT id FROM blog_ideas WHERE id = ?`)
+		.bind(ideaId)
+		.first<{ id: string }>();
+	if (!idea) {
+		throw new Error("ネタが見つかりません");
+	}
+}
+
+export async function setBlogIdeaTag(
+	db: D1Database,
+	ideaId: string,
+	tagId: string,
+	enabled: boolean,
+): Promise<void> {
+	await requireBlogIdea(db, ideaId);
+	const tag = await db
+		.prepare(`SELECT id FROM tags WHERE id = ?`)
+		.bind(tagId)
+		.first<{ id: string }>();
+	if (!tag) {
+		throw new Error("タグが見つかりません");
+	}
+	if (enabled) {
+		await db
+			.prepare(`INSERT OR IGNORE INTO blog_idea_tags (idea_id, tag_id) VALUES (?, ?)`)
+			.bind(ideaId, tagId)
+			.run();
+		return;
+	}
+	await db
+		.prepare(`DELETE FROM blog_idea_tags WHERE idea_id = ? AND tag_id = ?`)
+		.bind(ideaId, tagId)
+		.run();
+}
+
+export async function addBlogIdeaTagsByName(
+	db: D1Database,
+	ideaId: string,
+	rawNames: string,
+): Promise<Tag[]> {
+	const names = parseTagNames(rawNames);
+	if (names.length === 0) {
+		throw new Error("タグ名は必須です");
+	}
+	await requireBlogIdea(db, ideaId);
+
+	const attached: Tag[] = [];
+	for (const name of names) {
+		let tag = await db
+			.prepare(`${TAG_SELECT} WHERE lower(name) = lower(?)`)
+			.bind(name)
+			.first<Tag>();
+		if (!tag) {
+			const id = newId("tag");
+			await db
+				.prepare(`INSERT INTO tags (id, name, color, text_color) VALUES (?, ?, '', '')`)
+				.bind(id, name)
+				.run();
+			tag = await db.prepare(`${TAG_SELECT} WHERE id = ?`).bind(id).first<Tag>();
+		}
+		if (!tag) {
+			throw new Error("タグを保存できませんでした");
+		}
+		await db
+			.prepare(`INSERT OR IGNORE INTO blog_idea_tags (idea_id, tag_id) VALUES (?, ?)`)
+			.bind(ideaId, tag.id)
+			.run();
+		attached.push(tag);
+	}
+	return attached;
 }

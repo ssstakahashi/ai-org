@@ -37,7 +37,7 @@ flowchart TD
 | `/` | 業務台帳（カレンダー / ガント / 看板）。Google Tasks OAuth callback もここ | トップ |
 | `/x-schedule` | X投稿スケジュール（タブ: 農業日誌漫画 / Agri / MIERU会計 / スタジオフーズ）。一覧のステータスは全候補をボタン表示し、ワンクリックで更新。投稿済以外の記事の AI コメント確認（未対応／対応済） | トップ（投稿） |
 | `/blog-drafts` | ブログ下書きの確認・承認。一覧表に使用予定画像（TOP / 図表）を表示。確認ポップアップは本文中のインライン SVG を画像として表示。未公開記事の AI コメント確認（未対応／対応済） | トップ（投稿） |
-| `/blog-ideas` | ネタの CSV アップロードと参照（タブ: SideBusiness / Agri / 税務 / DX / 業務プロセス改革 / M＆A / 行政手続き）。一覧の「下書き」列に、未転用 / ブログ下書き / X下書き / 両方を出す。各ネタの転用先（ブログ / X の媒体）を記録 | トップ（投稿） |
+| `/blog-ideas` | ネタの CSV アップロードと参照（タブ: SideBusiness / Agri / 税務 / DX / 業務プロセス改革 / M＆A / 労務）。一覧の「下書き」列に、未転用 / ブログ下書き / X下書き / 両方を出す。各ネタの転用先（ブログ / X の媒体）とタグ（ページ台帳と同じマスタ）を記録 | トップ（投稿） |
 | `/board` | 掲示板（投稿管理シートのリンク、VERSION 履歴） | トップ（情報） |
 | `/accounting-manual` | 会計マニュアル目次（法人税決算・申告 No.1〜62） | トップ（情報） |
 | `/accounting-manual/[no]` | 会計マニュアルの各項目（No.1〜62）。前後の項目と目次へ移動可 | 情報 |
@@ -93,7 +93,7 @@ flowchart TD
 
 ### Server Actions（要約）
 
-正本は [src/app/actions.ts](../src/app/actions.ts)。ネタのアップロードと転用先は [src/app/blog-ideas/actions.ts](../src/app/blog-ideas/actions.ts)。
+正本は [src/app/actions.ts](../src/app/actions.ts)。ネタのアップロード・転用先・タグは [src/app/blog-ideas/actions.ts](../src/app/blog-ideas/actions.ts)。
 
 | ドメイン | 主な操作 |
 |---|---|
@@ -105,6 +105,6 @@ flowchart TD
 | Spark | シートから再取得 |
 | App names / groups / types / apps / crons / requirements | list / create / update / reorder / delete |
 | Blog | list / create / update / status / delete / コメント一覧・対応状況 / 投稿先シート同期 |
-| ネタ | list / CSV アップロード / 転用先（ブログ・X の媒体）の付与と解除 |
+| ネタ | list / CSV アップロード / 転用先（ブログ・X の媒体）の付与と解除 / タグの付与・解除・新規追加 |
 
 即時 X 投稿や「予約分をいま投稿」は Server Action から呼べるが、毎分 Cron の X API 投稿は停止中。

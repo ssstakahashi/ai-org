@@ -2,6 +2,7 @@ import {
 	BLOG_IDEAS_SHEET_TITLE,
 	type BlogIdeasSheetKey,
 } from "@/lib/bulletin-board";
+import type { Tag } from "@/lib/types";
 
 export type BlogIdeaDetail = {
 	label: string;
@@ -24,6 +25,7 @@ export type BlogIdeaRow = {
 	badge: string;
 	details: BlogIdeaDetail[];
 	uses: BlogIdeaUse[];
+	tags: Tag[];
 };
 
 export type BlogIdeasBySheet = Record<BlogIdeasSheetKey, BlogIdeaRow[]>;
@@ -194,6 +196,7 @@ export function parseSideBusinessRows(rows: string[][]): BlogIdeaRow[] {
 			badge: "",
 			details: detailsFromRow(row, columns, ["title", "no"]),
 			uses: [],
+			tags: [],
 		});
 	}
 	return ideas;
@@ -231,6 +234,7 @@ export function parseAgriRows(rows: string[][]): BlogIdeaRow[] {
 			badge: cell(row, xPostIndex) || cell(row, markIndex),
 			details: detailsFromRow(row, columns, ["title", "no"]),
 			uses: [],
+			tags: [],
 		});
 	}
 	return ideas;
@@ -310,6 +314,7 @@ export function parseTopicRows(rows: string[][], sheet: BlogIdeasSheetKey): Blog
 			badge: "",
 			details,
 			uses: [],
+			tags: [],
 		});
 	}
 	return ideas;

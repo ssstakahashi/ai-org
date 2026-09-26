@@ -1704,6 +1704,7 @@ export async function updateTag(formData: FormData) {
 		.run();
 
 	revalidateTaskPages();
+	revalidatePath("/blog-ideas");
 }
 
 export async function deleteTag(formData: FormData) {
@@ -1713,8 +1714,10 @@ export async function deleteTag(formData: FormData) {
 
 	await db.prepare("DELETE FROM task_tags WHERE tag_id = ?").bind(id).run();
 	await db.prepare("DELETE FROM page_tags WHERE tag_id = ?").bind(id).run();
+	await db.prepare("DELETE FROM blog_idea_tags WHERE tag_id = ?").bind(id).run();
 	await db.prepare("DELETE FROM tags WHERE id = ?").bind(id).run();
 	revalidateTaskPages();
+	revalidatePath("/blog-ideas");
 }
 
 function readPageTagIds(formData: FormData): { selectedTagIds: string[]; newTagNames: string[] } {

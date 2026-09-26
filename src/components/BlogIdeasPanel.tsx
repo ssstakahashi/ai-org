@@ -7,17 +7,21 @@ import {
 	useRef,
 	useState,
 	useTransition,
+	type FormEvent,
 	type ReactNode,
 } from "react";
 import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
+	addBlogIdeaTagsAction,
+	setBlogIdeaTagAction,
 	setBlogIdeaUseAction,
 	uploadBlogIdeasAction,
 	type UploadBlogIdeasState,
 } from "@/app/blog-ideas/actions";
 import { StatusIcon } from "@/components/StatusIcon";
 import { BLOG_IDEAS_SHEET_LABEL, type BlogIdeasSheetKey } from "@/lib/bulletin-board";
+import { masterTintStyle } from "@/lib/colors";
 import {
 	BLOG_IDEA_DRAFT_COVERAGE_LABEL,
 	BLOG_IDEA_MEDIA_OPTIONS,
@@ -27,10 +31,12 @@ import {
 	type BlogIdeaMedium,
 } from "@/lib/blog-ideas";
 import type { BlogIdeaRow, BlogIdeaUse } from "@/lib/blog-ideas-sheets";
+import type { Tag } from "@/lib/types";
 
 type Props = {
 	sheet: BlogIdeasSheetKey;
 	rows: BlogIdeaRow[];
+	tags: Tag[];
 };
 
 const URL_RE = /(https?:\/\/[^\s<>;、,）)]+)/g;
@@ -103,7 +109,7 @@ function BlogIdeasUpload({ sheet }: { sheet: BlogIdeasSheetKey }) {
 			</form>
 			<p className="field-hint">
 				UTF-8 の CSV です。1行目はヘッダー（No. / 記事タイトル案またはネタ / カテゴリ /
-				概要）。同じ No. は上書きし、転用先の記録は残します。
+				概要）。同じ No. は上書きし、転用先とタグの記録は残します。
 			</p>
 			{uploadState.error ? <p className="run-due-message">{uploadState.error}</p> : null}
 			{uploadState.ok ? (
@@ -119,21 +125,54 @@ function hasUse(uses: BlogIdeaUse[], medium: BlogIdeaMedium, destination: string
 	return uses.some((use) => use.medium === medium && use.destination === destination);
 }
 
-export function BlogIdeasPanel({ sheet, rows }: Props) {
+function sortTags(tags: Tag[]): Tag[] {
+	return [...tags].sort((a, b) => a.name.localeCompare(b.name, "ja"));
+}
+
+function IdeaTagChips({ tags }: { tags: Tag[] }) {
+	if (tags.length === 0) return null;
+	return (
+		<span className="tag-list">
+			{tags.map((tag) => (
+				<span
+					key={tag.id}
+					className="tag-chip"
+					style={masterTintStyle(tag.color, tag.text_color)}
+				>
+					{tag.name}
+				</span>
+			))}
+		</span>
+	);
+}
+
+export function BlogIdeasPanel({ sheet, rows, tags }: Props) {
 	const router = useRouter();
 	const detailDialogRef = useRef<HTMLDialogElement>(null);
 	const [detailing, setDetailing] = useState<BlogIdeaRow | null>(null);
+	const [availableTags, setAvailableTags] = useState(tags);
+	const [newTagName, setNewTagName] = useState("");
 	const [useError, setUseError] = useState<string | null>(null);
+	const [tagError, setTagError] = useState<string | null>(null);
 	const [usePending, startUseTransition] = useTransition();
+	const [tagPending, startTagTransition] = useTransition();
+
+	useEffect(() => {
+		setAvailableTags(tags);
+	}, [tags]);
 	const closeDetailDialog = useCallback(() => {
 		detailDialogRef.current?.close();
 		setDetailing(null);
 		setUseError(null);
+		setTagError(null);
+		setNewTagName("");
 	}, []);
 
 	function openDetail(row: BlogIdeaRow) {
 		flushSync(() => {
 			setUseError(null);
+			setTagError(null);
+			setNewTagName("");
 			setDetailing(row);
 		});
 		detailDialogRef.current?.showModal();
@@ -163,6 +202,65 @@ export function BlogIdeasPanel({ sheet, rows }: Props) {
 				router.refresh();
 			} catch (error) {
 				setUseError(error instanceof Error ? error.message : "転用先の更新に失敗しました");
+				router.refresh();
+			}
+		});
+	}
+
+	function toggleTag(tag: Tag, enabled: boolean) {
+		if (!detailing) return;
+		const ideaId = detailing.id;
+		setTagError(null);
+		setDetailing((current) => {
+			if (!current || current.id !== ideaId) return current;
+			const next = enabled
+				? sortTags([...current.tags.filter((item) => item.id !== tag.id), tag])
+				: current.tags.filter((item) => item.id !== tag.id);
+			return { ...current, tags: next };
+		});
+		startTagTransition(async () => {
+			try {
+				const formData = new FormData();
+				formData.set("idea_id", ideaId);
+				formData.set("tag_id", tag.id);
+				formData.set("enabled", enabled ? "1" : "0");
+				await setBlogIdeaTagAction(formData);
+				router.refresh();
+			} catch (error) {
+				setTagError(error instanceof Error ? error.message : "タグの更新に失敗しました");
+				router.refresh();
+			}
+		});
+	}
+
+	function addTags(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		if (!detailing) return;
+		const names = newTagName.trim();
+		if (!names) return;
+		const ideaId = detailing.id;
+		setTagError(null);
+		startTagTransition(async () => {
+			try {
+				const formData = new FormData();
+				formData.set("idea_id", ideaId);
+				formData.set("names", names);
+				const created = await addBlogIdeaTagsAction(formData);
+				setNewTagName("");
+				setAvailableTags((current) => {
+					const byId = new Map(current.map((tag) => [tag.id, tag]));
+					for (const tag of created) byId.set(tag.id, tag);
+					return sortTags([...byId.values()]);
+				});
+				setDetailing((current) => {
+					if (!current || current.id !== ideaId) return current;
+					const byId = new Map(current.tags.map((tag) => [tag.id, tag]));
+					for (const tag of created) byId.set(tag.id, tag);
+					return { ...current, tags: sortTags([...byId.values()]) };
+				});
+				router.refresh();
+			} catch (error) {
+				setTagError(error instanceof Error ? error.message : "タグの追加に失敗しました");
 				router.refresh();
 			}
 		});
@@ -216,6 +314,7 @@ export function BlogIdeasPanel({ sheet, rows }: Props) {
 												{row.category ? (
 													<p className="x-schedule-post-chars">{row.category}</p>
 												) : null}
+												<IdeaTagChips tags={row.tags} />
 											</button>
 										</td>
 										<td className="meta-cell">
@@ -274,6 +373,7 @@ export function BlogIdeasPanel({ sheet, rows }: Props) {
 									{detailing.category ? <span>{detailing.category}</span> : null}
 									{detailing.badge ? <span>{detailing.badge}</span> : null}
 								</div>
+								<IdeaTagChips tags={detailing.tags} />
 								<h3 className="task-detail-title">{detailing.title}</h3>
 								{detailing.details.map((item) => (
 									<p key={item.label} className="notes">
@@ -316,6 +416,47 @@ export function BlogIdeasPanel({ sheet, rows }: Props) {
 										)}
 									</div>
 								))}
+								<fieldset className="tag-fieldset">
+									<legend>タグ</legend>
+									<p className="field-hint">
+										ページ台帳と同じタグです。チェックで付け外しできます。
+									</p>
+									{tagError ? <p className="run-due-message">{tagError}</p> : null}
+									{availableTags.length > 0 ? (
+										<div className="tag-options">
+											{availableTags.map((tag) => (
+												<label
+													key={tag.id}
+													className="tag-option"
+													style={masterTintStyle(tag.color, tag.text_color)}
+												>
+													<input
+														type="checkbox"
+														checked={detailing.tags.some((item) => item.id === tag.id)}
+														disabled={tagPending}
+														onChange={(event) => toggleTag(tag, event.target.checked)}
+													/>
+													<span>{tag.name}</span>
+												</label>
+											))}
+										</div>
+									) : (
+										<p className="field-hint">まだタグがありません。下の欄から追加できます。</p>
+									)}
+									<form onSubmit={addTags}>
+										<label className="new-tag-field">
+											<span>新規タグ（カンマ区切りで追加）</span>
+											<input
+												value={newTagName}
+												placeholder="例: 季節, 事例"
+												onChange={(event) => setNewTagName(event.target.value)}
+											/>
+										</label>
+										<button type="submit" disabled={tagPending || !newTagName.trim()}>
+											{tagPending ? "保存中…" : "追加"}
+										</button>
+									</form>
+								</fieldset>
 							</div>
 						) : null}
 					</div>
