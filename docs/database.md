@@ -84,12 +84,12 @@ erDiagram
 
 ### X投稿・ブログ
 
-- **x_posts**: 投稿文・画像キー・予約。`destination` は `studiofoods`（表示名: 農業日誌漫画、既定）/ `agri` / `mieru`（表示名: MIERU会計）/ `studiofoods_official`（表示名: スタジオフーズ）。
+- **x_posts**: 投稿文・画像キー・予約。`destination` は `studiofoods`（表示名: @MIERUagri_漫画、既定）/ `agri`（表示名: @MIERUagri）/ `mieru`（表示名: @MIERUkaikei）/ `mieru_manga`（表示名: @MIERUkaikei_漫画）/ `studiofoods_official`（表示名: @studio_foods）。
 - **x_post_comments**: 投稿済以外の X 投稿への AI コメント。1記事に複数AI・複数件。`employee_id` は任意（AI従業員）。`status` は `open`（未対応）/ `done`（対応済）。投稿済（`done`）への投入は拒否。
 - **blog_posts**: 公式ブログ下書き。`status` は `draft` / `approved` / `published` / `rejected`。`destination` は `studiofoods_hp` / `agri_lp`。`category` / `tags` はマスタ FK ではなく TEXT。画像は `thumbnail_key` と `figure_keys`（JSON）。
 - **blog_post_comments**: 未公開下書きへの AI コメント。1記事に複数AI・複数件。`employee_id` は任意（AI従業員）。`status` は `open`（未対応）/ `done`（対応済）。公開済への投入は拒否。
 - **blog_ideas**: ネタ。`topic` は `sidebusiness` / `agri` / `tax` / `dx` / `process` / `ma` / `admin` / `compare`。本文以外の列は `details`（JSON）。CSV アップロードが入力で、同じ `topic` + `no`（No. が空ならタイトル）は上書きする。
-- **blog_idea_uses**: ネタの転用先。`medium` は `blog` / `x`。`destination` はブログなら `studiofoods_hp` / `agri_lp`、X なら `studiofoods` / `agri` / `mieru` / `studiofoods_official`。同一ネタに複数可。`(idea_id, medium, destination)` は一意。
+- **blog_idea_uses**: ネタの転用先。`medium` は `blog` / `x`。`destination` はブログなら `studiofoods_hp` / `agri_lp`、X なら `studiofoods` / `agri` / `mieru` / `mieru_manga` / `studiofoods_official`。同一ネタに複数可。`(idea_id, medium, destination)` は一意。
 - **blog_idea_tags**: ネタとタグマスタ（`tags`。タスク・ページと共通）の中間。CSV の同じ No. 上書きでは残る。
 
 ### App 管理

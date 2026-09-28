@@ -133,16 +133,18 @@ export const X_POST_DESTINATION_OPTIONS = [
 	"studiofoods",
 	"agri",
 	"mieru",
+	"mieru_manga",
 	"studiofoods_official",
 ] as const;
 
 export type XPostDestination = (typeof X_POST_DESTINATION_OPTIONS)[number];
 
 export const X_POST_DESTINATION_LABEL: Record<XPostDestination, string> = {
-	studiofoods: "農業日誌漫画",
-	agri: "Agri",
-	mieru: "MIERU会計",
-	studiofoods_official: "スタジオフーズ",
+	studiofoods: "@MIERUagri_漫画",
+	agri: "@MIERUagri",
+	mieru: "@MIERUkaikei",
+	mieru_manga: "@MIERUkaikei_漫画",
+	studiofoods_official: "@studio_foods",
 };
 
 export const X_POST_DESTINATION_DEFAULT: XPostDestination = "studiofoods";
