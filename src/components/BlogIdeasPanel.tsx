@@ -4,6 +4,7 @@ import {
 	useActionState,
 	useCallback,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 	useTransition,
@@ -19,6 +20,7 @@ import {
 	uploadBlogIdeasAction,
 	type UploadBlogIdeasState,
 } from "@/app/blog-ideas/actions";
+import { SideBusinessQuadrantMap } from "@/components/SideBusinessQuadrantMap";
 import { StatusIcon } from "@/components/StatusIcon";
 import { BLOG_IDEAS_SHEET_LABEL, type BlogIdeasSheetKey } from "@/lib/bulletin-board";
 import { masterTintStyle } from "@/lib/colors";
@@ -31,6 +33,11 @@ import {
 	type BlogIdeaMedium,
 } from "@/lib/blog-ideas";
 import type { BlogIdeaRow, BlogIdeaUse } from "@/lib/blog-ideas-sheets";
+import {
+	SIDE_BUSINESS_QUADRANTS,
+	formatAxisUsd,
+	scoreSideBusinessIdeas,
+} from "@/lib/sidebusiness-quadrant";
 import type { Tag } from "@/lib/types";
 
 type Props = {
@@ -156,6 +163,14 @@ export function BlogIdeasPanel({ sheet, rows, tags }: Props) {
 	const [tagError, setTagError] = useState<string | null>(null);
 	const [usePending, startUseTransition] = useTransition();
 	const [tagPending, startTagTransition] = useTransition();
+	const sidePlacement = useMemo(
+		() => (sheet === "sidebusiness" ? scoreSideBusinessIdeas(rows) : null),
+		[sheet, rows],
+	);
+	const detailPlacement =
+		detailing && sidePlacement
+			? (sidePlacement.points.find((point) => point.id === detailing.id) ?? null)
+			: null;
 
 	useEffect(() => {
 		setAvailableTags(tags);
@@ -281,6 +296,10 @@ export function BlogIdeasPanel({ sheet, rows, tags }: Props) {
 			<div className="x-schedule">
 				<BlogIdeasUpload key={sheet} sheet={sheet} />
 
+				{sheet === "sidebusiness" ? (
+					<SideBusinessQuadrantMap rows={rows} onSelect={openDetail} />
+				) : null}
+
 				{rows.length === 0 ? (
 					<p className="empty">
 						{BLOG_IDEAS_SHEET_LABEL[sheet]} のネタはまだありません。
@@ -375,6 +394,17 @@ export function BlogIdeasPanel({ sheet, rows, tags }: Props) {
 								</div>
 								<IdeaTagChips tags={detailing.tags} />
 								<h3 className="task-detail-title">{detailing.title}</h3>
+								{detailPlacement ? (
+									<p className="notes">
+										{SIDE_BUSINESS_QUADRANTS[detailPlacement.quadrant].label}
+										（{SIDE_BUSINESS_QUADRANTS[detailPlacement.quadrant].hint}）· 参入難易度{" "}
+										{detailPlacement.difficultyLabel} · 副業時の月収目安{" "}
+										{formatAxisUsd(detailPlacement.monthlyUsd)}
+										{detailPlacement.mainMonthlyUsd
+											? ` · 本業化 ${formatAxisUsd(detailPlacement.mainMonthlyUsd)}`
+											: ""}
+									</p>
+								) : null}
 								{detailing.details.map((item) => (
 									<p key={item.label} className="notes">
 										{item.label}: <TextWithLinks text={item.value} />

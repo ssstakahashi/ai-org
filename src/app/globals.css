@@ -3997,6 +3997,100 @@ a.automation-link:hover {
 	}
 }
 
+.idea-quadrant {
+	display: grid;
+	gap: 0.35rem;
+	margin: 0 0 1rem;
+}
+
+.idea-quadrant-lead {
+	margin: 0;
+}
+
+.idea-quadrant-counts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1rem;
+	font-size: 0.8rem;
+	color: var(--muted);
+}
+
+.idea-quadrant-plot {
+	position: relative;
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: 12px;
+}
+
+.idea-quadrant-plot svg {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.idea-quadrant-axis {
+	stroke: var(--foreground);
+	stroke-width: 1;
+	stroke-dasharray: 4 4;
+	opacity: 0.45;
+}
+
+.idea-quadrant-region,
+.idea-quadrant-axis-label,
+.idea-quadrant-tick {
+	fill: var(--muted);
+	font-size: 12px;
+	pointer-events: none;
+}
+
+.idea-quadrant-axis-label {
+	fill: var(--foreground);
+	font-size: 13px;
+}
+
+.idea-quadrant-hit {
+	fill: transparent;
+	cursor: pointer;
+}
+
+.idea-quadrant-dot {
+	fill: var(--accent);
+	stroke: #fff;
+	stroke-width: 1.5;
+	pointer-events: none;
+}
+
+.idea-quadrant-plot g:focus {
+	outline: none;
+}
+
+.idea-quadrant-plot g:focus .idea-quadrant-dot,
+.idea-quadrant-plot g:hover .idea-quadrant-dot {
+	stroke: var(--foreground);
+	stroke-width: 2;
+}
+
+.idea-quadrant-tip {
+	position: absolute;
+	z-index: 2;
+	width: min(16rem, calc(100% - 1rem));
+	padding: 0.4rem 0.55rem;
+	background: #fff;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	font-size: 0.75rem;
+	line-height: 1.45;
+	pointer-events: none;
+}
+
+.idea-quadrant-tip p {
+	margin: 0;
+}
+
+.idea-quadrant-tip-title {
+	font-weight: 700;
+}
+
 @media (max-width: 720px) {
 	.automation-legend li {
 		grid-template-columns: 1fr;
