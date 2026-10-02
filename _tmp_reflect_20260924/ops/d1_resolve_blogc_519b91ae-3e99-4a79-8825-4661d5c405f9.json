@@ -1,0 +1,1 @@
+{"database_id": "34b349f2-ca97-4ecc-9540-c04e7c9e2696", "sql": "UPDATE blog_post_comments SET status = 'resolved' WHERE id = ?", "params": ["blogc_519b91ae-3e99-4a79-8825-4661d5c405f9"]}

@@ -1,0 +1,1 @@
+Full (strict)・Always Use HTTPS・HSTSの順序と、Go/No-Go、Full暫定の期限、HSTS初期値（preload当面禁止）、526切り戻しを中小向けに整理します。

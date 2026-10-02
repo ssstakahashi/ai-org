@@ -1,0 +1,62 @@
+[
+  {
+    "file": "d1_update_ai-staff-short-approval-gate.json",
+    "changes": 1,
+    "body_len": 4135,
+    "status": "approved"
+  },
+  {
+    "file": "d1_update_cloudflare-ssl-tls-full-strict-minimum-for-smb.json",
+    "changes": 1,
+    "body_len": 10377,
+    "status": "draft"
+  },
+  {
+    "file": "d1_update_ebook-preservation-minimum-ops-for-sme.json",
+    "changes": 1,
+    "body_len": 15604,
+    "status": "approved"
+  },
+  {
+    "file": "d1_update_kurayoshi-weekly-decision-board-from-diary.json",
+    "changes": 1,
+    "body_len": 13119,
+    "status": "approved"
+  },
+  {
+    "file": "d1_update_mieru-ar-aging-priority-for-sme.json",
+    "changes": 1,
+    "body_len": 10959,
+    "status": "approved"
+  },
+  {
+    "file": "d1_update_sodate-monthly-priority-board.json",
+    "changes": 1,
+    "body_len": 11479,
+    "status": "approved"
+  },
+  {
+    "file": "d1_resolve_blogc_3fdc2abe-0946-4c8e-aaa9-9d82009f4fc8.json",
+    "changes": 1
+  },
+  {
+    "file": "d1_resolve_blogc_4c0a0058-6df5-444c-8c16-f9288e2f291e.json",
+    "changes": 1
+  },
+  {
+    "file": "d1_resolve_blogc_519b91ae-3e99-4a79-8825-4661d5c405f9.json",
+    "changes": 1
+  },
+  {
+    "file": "d1_resolve_blogc_55442493-4a56-40c9-b5fa-ce2f5edfa356.json",
+    "changes": 1
+  },
+  {
+    "file": "d1_resolve_blogc_ce8e8b80-a409-4c4f-83b6-e0fcb4687144.json",
+    "changes": 1
+  },
+  {
+    "file": "d1_resolve_blogc_f143b68f-3b36-475d-bbba-1829e530d801.json",
+    "changes": 1
+  }
+]

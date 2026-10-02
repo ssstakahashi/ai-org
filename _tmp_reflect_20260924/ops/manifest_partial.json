@@ -1,0 +1,80 @@
+[
+  {
+    "id": "blog_8157b522-d475-4067-a9f0-11a1e7b4568c",
+    "status_new": "approved",
+    "status_old": "approved",
+    "comment_ids": [
+      "blogc_519b91ae-3e99-4a79-8825-4661d5c405f9"
+    ],
+    "excerpt": "範囲を決めたあとに崩れやすいのが、人が確認しないまま外へ出すこと。成果物タイプ別に短い承認ゲートとP0必須を置き、AI完結層は週次抜き取りで締める中小向けの運用規範を整理します（効果未測定）。",
+    "note_add": "批評家コメント反映 2026-09-24: タイプ別ゲート時間／P0-P2重大度／AI完結の抜き取り率・遡及／急ぎでもP0維持／差し戻し文の型／効果未測定の明示",
+    "slug": "ai-staff-short-approval-gate",
+    "body_len": 4135,
+    "updated_at": "2026-09-24 12:38:06"
+  },
+  {
+    "id": "blog_02f3ea13-6ceb-40d5-9d29-12f84ce2d03e",
+    "status_new": "draft",
+    "status_old": "draft",
+    "comment_ids": [
+      "blogc_55442493-4a56-40c9-b5fa-ce2f5edfa356"
+    ],
+    "excerpt": "Full (strict)・Always Use HTTPS・HSTSの順序と、Go/No-Go、Full暫定の期限、HSTS初期値（preload当面禁止）、526切り戻しを中小向けに整理します。",
+    "note_add": "批評家コメント反映 2026-09-24: 対象外箱集約／Go/No-Go／Full暫定30日・担当・再挑戦日／HSTS初期値・preload禁止／526匿名失敗例",
+    "slug": "cloudflare-ssl-tls-full-strict-minimum-for-smb",
+    "body_len": 10377,
+    "updated_at": "2026-09-24 12:38:06"
+  },
+  {
+    "id": "blog_b1ed9305-e947-4a61-98b3-9e897bc68651",
+    "status_new": "approved",
+    "status_old": "approved",
+    "comment_ids": [
+      "blogc_f143b68f-3b36-475d-bbba-1829e530d801"
+    ],
+    "excerpt": "電子帳簿保存法は、現場の「探す時間」と合规の最終判断を分けて考えると動きやすいです。やってはいけないリスト、事務処理規程の前倒し、検索不要措置の誤適用防止、証憑量帯、中立な関連導線まで含めた最小運用を整理します。",
+    "note_add": "批評家コメント反映 2026-09-24: A/Bの今日やる・禁止／規程警告を図1直後／5,000万の自社判定禁止／証憑量帯／提出責任者は条件付き／MIERUは別問題と明示",
+    "slug": "ebook-preservation-minimum-ops-for-sme",
+    "body_len": 15604,
+    "updated_at": "2026-09-24 12:38:06"
+  },
+  {
+    "id": "blog_ef9bb734-2bb0-4492-8822-836403aacf4c",
+    "status_new": "approved",
+    "status_old": "approved",
+    "comment_ids": [
+      "blogc_ce8e8b80-a409-4c4f-83b6-e0fcb4687144"
+    ],
+    "excerpt": "日誌とセンサーを始めたあとに残りやすいのが、「数字はあるのに来週の作業が決まらない」状態です。前後データ未掲載の運用仮説として、週1回30分の三欄ボード・緊急/様子見境界・時間予算上限を整理します。",
+    "note_add": "批評家コメント反映 2026-09-24: 前後データ未掲載を明示／緊急・様子見境界表／件数＋時間予算／向かない条件／SODATE売り込み緩和・まとめを仮説表現へ",
+    "slug": "kurayoshi-weekly-decision-board-from-diary",
+    "body_len": 13119,
+    "updated_at": "2026-09-24 12:38:06"
+  },
+  {
+    "id": "blog_0e6ab93b-870c-4f0b-80c4-b989f9e55b00",
+    "status_new": "approved",
+    "status_old": "published",
+    "comment_ids": [
+      "blogc_3fdc2abe-0946-4c8e-aaa9-9d82009f4fc8"
+    ],
+    "excerpt": "請求と消込を一本にしたあとに残りやすいのが、未回収の順番の属人化です。超過日数の年齢帯に加え残高・セグメント・紛争を見る複合優先と、回収効果の限界・禁止督促を中小向けに整理します（Excelでも可／MIERUはアルファ版の一例）。",
+    "note_add": "批評家コメント反映 2026-09-24: 複合優先（日数×残高×セグメント×紛争）／DIは動機であり効果証明でない／禁止督促／Excel先行・製品は後段／反映後 status=approved（再公開待ち）",
+    "slug": "mieru-ar-aging-priority-for-sme",
+    "body_len": 10959,
+    "updated_at": "2026-09-24 12:38:06"
+  },
+  {
+    "id": "blog_592bbdcf-dea5-4b39-a29c-b703122eeebf",
+    "status_new": "approved",
+    "status_old": "approved",
+    "comment_ids": [
+      "blogc_4c0a0058-6df5-444c-8c16-f9288e2f291e"
+    ],
+    "excerpt": "定額枠の「足りない」感は、優先未共有と枠容量不足が混ざりがちです。数値例は仮置きキャリブレーション、緊急枠の残%可視化、発注者記入のやらない欄、容量レーンの増枠プロセスまで含めて整理します。",
+    "note_add": "批評家コメント反映 2026-09-24: 数値例を仮置きラベル／初月キャリブレーション／緊急枠残%必須／やらないは発注者記入／容量レーン三択手順／JUASは証拠でないと再強調",
+    "slug": "sodate-monthly-priority-board",
+    "body_len": 11479,
+    "updated_at": "2026-09-24 12:38:06"
+  }
+]

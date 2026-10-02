@@ -1,0 +1,90 @@
+{
+  "published_count": 12,
+  "new": [
+    "sodate-carve-first-requirement.md",
+    "ai-staff-scope-beyond-inquiries.md",
+    "mieru-invoice-to-reconciliation.md",
+    "cloudflare-access-zero-trust-minimum-for-smb.md",
+    "kurayoshi-one-farm-diary-sensor.md",
+    "invoice-backoffice-pitfalls-after-registration.md",
+    "cloudflare-waf-minimum-for-smb.md",
+    "depreciation-40man-defense-surtax-2026.md",
+    "social-insurance-106man-wall-premium-adjust-2026.md",
+    "cloudflare-bot-fight-mode-minimum-for-smb.md",
+    "minimum-wage-1177yen-raise-2026-sme-checklist.md",
+    "cloudflare-tunnel-minimum-for-smb.md"
+  ],
+  "updated": [],
+  "skipped": [],
+  "problems": [],
+  "orphans": null,
+  "orphan_note": "Could not list destination directory (TCC Operation not permitted on listdir/ls). Orphan detection skipped. Known filenames were read/written individually.",
+  "dest": "/Users/user/Documents/共有ナレッジ/100_ブログ/01_スタジオフーズHP/05_公開",
+  "verified_sample": [
+    {
+      "file": "sodate-carve-first-requirement.md",
+      "bytes": 9279,
+      "sha256": "ff4bd92f26a3"
+    },
+    {
+      "file": "ai-staff-scope-beyond-inquiries.md",
+      "bytes": 11941,
+      "sha256": "9c9e5e9dfba0"
+    },
+    {
+      "file": "mieru-invoice-to-reconciliation.md",
+      "bytes": 6711,
+      "sha256": "335fb83c8740"
+    },
+    {
+      "file": "cloudflare-access-zero-trust-minimum-for-smb.md",
+      "bytes": 6810,
+      "sha256": "c4e3ec97b5a6"
+    },
+    {
+      "file": "kurayoshi-one-farm-diary-sensor.md",
+      "bytes": 8594,
+      "sha256": "d8851024483f"
+    },
+    {
+      "file": "invoice-backoffice-pitfalls-after-registration.md",
+      "bytes": 9007,
+      "sha256": "9bed265d9c52"
+    },
+    {
+      "file": "cloudflare-waf-minimum-for-smb.md",
+      "bytes": 7656,
+      "sha256": "44044530105e"
+    },
+    {
+      "file": "depreciation-40man-defense-surtax-2026.md",
+      "bytes": 10290,
+      "sha256": "29c556443ef5"
+    },
+    {
+      "file": "social-insurance-106man-wall-premium-adjust-2026.md",
+      "bytes": 14181,
+      "sha256": "1ac67e209496"
+    },
+    {
+      "file": "cloudflare-bot-fight-mode-minimum-for-smb.md",
+      "bytes": 7291,
+      "sha256": "70ca2c30818a"
+    },
+    {
+      "file": "minimum-wage-1177yen-raise-2026-sme-checklist.md",
+      "bytes": 10332,
+      "sha256": "6db7fd71bb9f"
+    },
+    {
+      "file": "cloudflare-tunnel-minimum-for-smb.md",
+      "bytes": 17016,
+      "sha256": "5181fc8d9312"
+    }
+  ],
+  "list_methods": [
+    "os.listdir:FAIL(PermissionError:[Errno 1] Operation not permitted: '/Users/user/Documents/共有ナレッジ/100_ブログ/01_スタジオフーズHP/05_公開')",
+    "Path.iterdir:FAIL(PermissionError:[Errno 1] Operation not permitted: '/Users/user/Documents/共有ナレッジ/100_ブログ/01_スタジオフーズHP/05_公開')",
+    "glob:OK(0)"
+  ]
+}
