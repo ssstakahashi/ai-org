@@ -5,7 +5,13 @@ import { useState, useTransition } from "react";
 import { syncBlogDestinationFromSheet } from "@/app/actions";
 import type { BlogPostDestination } from "@/lib/types";
 
-function SyncBlogSheetButton({ destination }: { destination: BlogPostDestination }) {
+function SyncBlogSheetButton({
+	destination,
+	disabled = false,
+}: {
+	destination: BlogPostDestination;
+	disabled?: boolean;
+}) {
 	const router = useRouter();
 	const [pending, startTransition] = useTransition();
 	const [message, setMessage] = useState<string | null>(null);
@@ -14,8 +20,10 @@ function SyncBlogSheetButton({ destination }: { destination: BlogPostDestination
 		<div className="run-due">
 			<button
 				type="button"
-				disabled={pending}
+				disabled={pending || disabled}
+				title={disabled ? "スプレッドシート同期は無効です" : undefined}
 				onClick={() => {
+					if (disabled) return;
 					setMessage(null);
 					startTransition(async () => {
 						try {
@@ -56,8 +64,8 @@ function SyncBlogSheetButton({ destination }: { destination: BlogPostDestination
  * location: SyncStudiofoodsHpBlogSheetButton → syncBlogDestinationFromSheet
  * href: /blog-drafts
  */
-export function SyncStudiofoodsHpBlogSheetButton() {
-	return <SyncBlogSheetButton destination="studiofoods_hp" />;
+export function SyncStudiofoodsHpBlogSheetButton({ disabled }: { disabled?: boolean }) {
+	return <SyncBlogSheetButton destination="studiofoods_hp" disabled={disabled} />;
 }
 
 /**
@@ -71,6 +79,6 @@ export function SyncStudiofoodsHpBlogSheetButton() {
  * location: SyncAgriLpBlogSheetButton → syncBlogDestinationFromSheet
  * href: /blog-drafts
  */
-export function SyncAgriLpBlogSheetButton() {
-	return <SyncBlogSheetButton destination="agri_lp" />;
+export function SyncAgriLpBlogSheetButton({ disabled }: { disabled?: boolean }) {
+	return <SyncBlogSheetButton destination="agri_lp" disabled={disabled} />;
 }

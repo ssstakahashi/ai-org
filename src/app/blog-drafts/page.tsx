@@ -17,7 +17,9 @@ export default async function BlogDraftsPage() {
 	const sheetSyncErrors: Partial<Record<BlogPostDestination, string>> = {};
 	const sheetsConfigured = isSheetsSyncConfigured(env);
 
-	if (sheetsConfigured) {
+	// ページオープン時の自動同期は env.BLOG_DRAFTS_SHEET_AUTO_SYNC が明示的に "1" のときのみ実行
+	const autoSyncEnabled = env.BLOG_DRAFTS_SHEET_AUTO_SYNC?.trim() === "1";
+	if (sheetsConfigured && autoSyncEnabled) {
 		for (const destination of BLOG_POST_DESTINATION_OPTIONS) {
 			try {
 				await syncBlogPostsWithSheet(env, destination);
@@ -44,6 +46,7 @@ export default async function BlogDraftsPage() {
 				posts={posts}
 				commentsByPostId={commentsByPostId}
 				sheetSyncErrors={sheetSyncErrors}
+				sheetSyncEnabled={autoSyncEnabled}
 			/>
 		</main>
 	);

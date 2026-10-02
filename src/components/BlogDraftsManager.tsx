@@ -43,6 +43,7 @@ type Props = {
 	posts: BlogPost[];
 	commentsByPostId?: Record<string, BlogPostComment[]>;
 	sheetSyncErrors?: Partial<Record<BlogPostDestination, string>>;
+	sheetSyncEnabled?: boolean;
 };
 
 function formatWhen(value: string) {
@@ -273,6 +274,7 @@ export function BlogDraftsManager({
 	posts,
 	commentsByPostId = {},
 	sheetSyncErrors,
+	sheetSyncEnabled = false,
 }: Props) {
 	const router = useRouter();
 	const [tab, setTab] = useState<BlogPostDestination>(BLOG_POST_DESTINATION_DEFAULT);
@@ -389,24 +391,32 @@ export function BlogDraftsManager({
 						新規登録
 					</button>
 					{destination === BLOG_POST_DESTINATION_DEFAULT ? (
-						<SyncStudiofoodsHpBlogSheetButton />
+						<SyncStudiofoodsHpBlogSheetButton disabled={!sheetSyncEnabled} />
 					) : (
-						<SyncAgriLpBlogSheetButton />
+						<SyncAgriLpBlogSheetButton disabled={!sheetSyncEnabled} />
 					)}
 				</div>
 			</div>
 			<div className="x-schedule">
-				<p className="field-hint">
-					<a
-						href={BLOG_DESTINATION_SHEET[destination].url}
-						className="automation-link"
-						target="_blank"
-						rel="noreferrer"
-					>
-						{BLOG_DESTINATION_SHEET[destination].title}
-					</a>
-					と連動しています。
-				</p>
+				{sheetSyncEnabled ? (
+					<p className="field-hint">
+						<a
+							href={BLOG_DESTINATION_SHEET[destination].url}
+							className="automation-link"
+							target="_blank"
+							rel="noreferrer"
+						>
+							{BLOG_DESTINATION_SHEET[destination].title}
+						</a>
+						と連動しています。
+					</p>
+				) : (
+					<p className="field-hint">
+						<strong>スプレッドシート同期は無効です。</strong>Obsidian + D1
+						のみ使用中です。同期を有効にするには環境変数
+						BLOG_DRAFTS_SHEET_AUTO_SYNC=1 を設定してください。
+					</p>
+				)}
 				{sheetSyncErrors?.[destination] ? (
 					<p className="run-due-message">{sheetSyncErrors[destination]}</p>
 				) : null}

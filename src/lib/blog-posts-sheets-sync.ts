@@ -659,6 +659,13 @@ export async function syncBlogPostsWithSheet(
 
 		let deletedLocal = 0;
 		for (const leftover of localById.values()) {
+			// notes に「本番へは出さない」を含む行は削除しない（hold 保護）
+			if (leftover.notes && leftover.notes.includes("本番へは出さない")) {
+				console.log(
+					`[blog-sheet-sync] hold保護: "${leftover.title}" (id=${leftover.id}) は削除しません`,
+				);
+				continue;
+			}
 			await env.DB.prepare("DELETE FROM blog_posts WHERE id = ? AND destination = ?")
 				.bind(leftover.id, destination)
 				.run();

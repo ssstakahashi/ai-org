@@ -3348,6 +3348,23 @@ const BLOG_SHEET_SYNC_AUTOMATION: Record<BlogPostDestination, string> = {
 export async function syncBlogDestinationFromSheet(
 	rawDestination: string,
 ): Promise<BlogSheetSyncResult & { fatalError?: string }> {
+	const { env } = await getCloudflareContext({ async: true });
+
+	// BLOG_DRAFTS_SHEET_AUTO_SYNC が "1" でない場合は手動同期も無効
+	const syncEnabled = env.BLOG_DRAFTS_SHEET_AUTO_SYNC?.trim() === "1";
+	if (!syncEnabled) {
+		return {
+			pulled: 0,
+			createdLocal: 0,
+			updatedLocal: 0,
+			deletedLocal: 0,
+			createdSheet: 0,
+			fatalError:
+				"スプレッドシート同期は現在無効です（Obsidian + D1 のみ使用中）。" +
+				"有効にする場合は環境変数 BLOG_DRAFTS_SHEET_AUTO_SYNC=1 を設定してください。",
+		};
+	}
+
 	let destination: BlogPostDestination;
 	try {
 		destination = parseBlogPostDestination(rawDestination);
@@ -3363,7 +3380,6 @@ export async function syncBlogDestinationFromSheet(
 	}
 
 	const automationId = BLOG_SHEET_SYNC_AUTOMATION[destination];
-	const { env } = await getCloudflareContext({ async: true });
 	const startedAt = new Date().toISOString();
 	try {
 		const result = await syncBlogPostsWithSheet(env, destination);

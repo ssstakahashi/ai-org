@@ -21,4 +21,5 @@ interface CloudflareEnv {
 	GOOGLE_TASKS_LIST_ID?: string;
 	GOOGLE_TASKS_LIST_TITLE?: string;
 	GOOGLE_TASKS_DEFAULT_EMPLOYEE_ID?: string;
+	BLOG_DRAFTS_SHEET_AUTO_SYNC?: string;
 }
