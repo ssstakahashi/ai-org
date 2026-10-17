@@ -80,6 +80,10 @@ export function TaskForm({
 	);
 	const [editScope, setEditScope] = useState<RecurrenceEditScope>("this");
 	const [deleteScope, setDeleteScope] = useState<RecurrenceEditScope>("this");
+	const [tagQuery, setTagQuery] = useState("");
+	const [checkedTagIds, setCheckedTagIds] = useState<Set<string>>(
+		() => new Set(source?.tags.map((tag) => tag.id) ?? []),
+	);
 	const isSeriesEdit = isEdit && seriesCount > 1;
 	const editFormId = task ? `task-edit-form-${task.id}` : undefined;
 	const applyDatesAndImage = !isSeriesEdit || editScope === "this";
@@ -95,7 +99,6 @@ export function TaskForm({
 		!isEdit && prefillFrom?.status === "done"
 			? "draft"
 			: (source?.status ?? defaultStatus);
-	const selectedTagIds = new Set(source?.tags.map((tag) => tag.id) ?? []);
 	const startAtDefault = source
 		? toAppDateTimeLocal(source.start_at)
 		: defaultStartAt;
@@ -216,6 +219,8 @@ export function TaskForm({
 				form.reset();
 				setTaskLinks([]);
 				setClearDuplicateImage(false);
+				setTagQuery("");
+				setCheckedTagIds(new Set());
 			}
 			onSuccess?.();
 		} catch (error) {
@@ -391,23 +396,13 @@ export function TaskForm({
 			<fieldset className="full tag-fieldset">
 				<legend>タグ</legend>
 				{tags.length > 0 ? (
-					<div className="tag-options">
-						{tags.map((tag) => (
-							<label
-								key={tag.id}
-								className="tag-option"
-								style={masterTintStyle(tag.color, tag.text_color)}
-							>
-								<input
-									type="checkbox"
-									name="tag_ids"
-									value={tag.id}
-									defaultChecked={selectedTagIds.has(tag.id)}
-								/>
-								<span>{tag.name}</span>
-							</label>
-						))}
-					</div>
+					<TagPicker
+						tags={tags}
+						query={tagQuery}
+						checkedTagIds={checkedTagIds}
+						onQueryChange={setTagQuery}
+						onCheckedChange={setCheckedTagIds}
+					/>
 				) : (
 					<p className="field-hint">まだタグがありません。下の欄で新規追加できます。</p>
 				)}
@@ -575,6 +570,87 @@ export function TaskForm({
 				{submitLabel}
 			</button>
 		</form>
+	);
+}
+
+function normalizeTagText(value: string) {
+	return value.normalize("NFKC").toLocaleLowerCase();
+}
+
+function TagPicker({
+	tags,
+	query,
+	checkedTagIds,
+	onQueryChange,
+	onCheckedChange,
+}: {
+	tags: Tag[];
+	query: string;
+	checkedTagIds: Set<string>;
+	onQueryChange: (query: string) => void;
+	onCheckedChange: (next: Set<string>) => void;
+}) {
+	const normalizedQuery = normalizeTagText(query.trim());
+	const matches = (tag: Tag) =>
+		!normalizedQuery || normalizeTagText(tag.name).includes(normalizedQuery);
+	const matchingTags = tags.filter(matches);
+	const selectedOutsideQuery = normalizedQuery
+		? tags.filter((tag) => checkedTagIds.has(tag.id) && !matches(tag))
+		: [];
+
+	function toggle(tagId: string, checked: boolean) {
+		const next = new Set(checkedTagIds);
+		if (checked) next.add(tagId);
+		else next.delete(tagId);
+		onCheckedChange(next);
+	}
+
+	function renderTag(tag: Tag) {
+		return (
+			<label
+				key={tag.id}
+				className="tag-option"
+				style={masterTintStyle(tag.color, tag.text_color)}
+			>
+				<input
+					type="checkbox"
+					name="tag_ids"
+					value={tag.id}
+					checked={checkedTagIds.has(tag.id)}
+					onChange={(event) => toggle(tag.id, event.target.checked)}
+				/>
+				<span>{tag.name}</span>
+			</label>
+		);
+	}
+
+	return (
+		<>
+			<label className="tag-search-field">
+				<span>タグを検索</span>
+				<input
+					type="search"
+					value={query}
+					onChange={(event) => onQueryChange(event.target.value)}
+					onKeyDown={(event) => {
+						if (event.key === "Enter") event.preventDefault();
+					}}
+					placeholder="タグ名で絞り込み"
+					autoComplete="off"
+				/>
+			</label>
+			{selectedOutsideQuery.length > 0 ? (
+				<>
+					<p className="field-hint">選択中（検索に一致しないタグ）</p>
+					<div className="tag-options">{selectedOutsideQuery.map(renderTag)}</div>
+				</>
+			) : null}
+			{matchingTags.length > 0 ? (
+				<div className="tag-options">{matchingTags.map(renderTag)}</div>
+			) : (
+				<p className="field-hint">一致するタグがありません。</p>
+			)}
+		</>
 	);
 }
 

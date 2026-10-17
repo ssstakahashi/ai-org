@@ -1168,6 +1168,10 @@ a.logout-button:hover {
 	color: var(--muted);
 }
 
+.tag-search-field {
+	margin-bottom: 0.85rem;
+}
+
 .tag-options {
 	display: flex;
 	flex-wrap: wrap;
