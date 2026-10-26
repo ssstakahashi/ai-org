@@ -1,4 +1,4 @@
-import { newId } from "@/lib/db";
+import { newId } from "@/lib/ids";
 import {
 	BLOG_IDEAS_SHEET_KEYS,
 	isBlogIdeasSheetKey,

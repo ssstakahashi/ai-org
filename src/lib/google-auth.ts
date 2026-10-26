@@ -182,7 +182,7 @@ export type GoogleTasksAuthEnv = {
 };
 
 export const GOOGLE_TASKS_OAUTH_REDIRECT_URI_DEFAULT =
-	"https://ai-org.s-takahashi-241.workers.dev";
+	"https://ai-org.studiofoods.net";
 
 export function googleTasksOauthRedirectUri(env: GoogleTasksAuthEnv): string {
 	return env.GOOGLE_TASKS_OAUTH_REDIRECT_URI?.trim() || GOOGLE_TASKS_OAUTH_REDIRECT_URI_DEFAULT;

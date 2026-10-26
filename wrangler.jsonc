@@ -44,13 +44,7 @@
 		"binding": "AI",
 		"remote": true
 	},
-	// @automation id: x-due-cron, google-tasks-sync-cron — 詳細は worker.ts の scheduled
-	"triggers": {
-		"crons": [
-			"* * * * *",
-			"*/10 * * * *"
-		]
-	},
+	// 定期実行は Ubuntu の systemd timer（scripts/run-cron.ts）。Workers Cron は使わない。
 	"vars": {
 		"CF_WORKER_NAME": "ai-org",
 		"CF_ACCOUNT_ID": "2416397d79e09c5f8f8afd5b2ed379db"

@@ -1,6 +1,6 @@
 {
   "name": "ai-org",
-	"version": "0.0.66",
+	"version": "0.0.67",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,11 +12,18 @@
     "preview": "bash scripts/preview.sh",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
     "db:pull": "bash scripts/db-pull-prod.sh",
-    "db:push": "bash scripts/db-push-local.sh"
+    "db:push": "bash scripts/db-push-local.sh",
+    "pg:migrate": "node scripts/pg-migrate.mjs",
+    "pg:import": "node scripts/pg-import-d1.mjs",
+    "media:pull": "node scripts/r2-pull.mjs",
+    "cron": "tsx scripts/run-cron.ts",
+    "check:sql": "tsx scripts/check-sql-translate.ts"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.19.9",
     "jose": "^6.2.8",
+    "pg": "^8.16.3",
+    "tsx": "^4.20.6",
     "next": "16.2.11",
     "react": "^19.1.7",
     "react-dom": "^19.1.7"
@@ -25,6 +32,7 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.43",
+    "@types/pg": "^8.15.5",
     "@types/react": "^19.1.7",
     "@types/react-dom": "^19.1.7",
     "eslint": "^9",

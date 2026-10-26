@@ -9,7 +9,7 @@
  * location: src/app/api/internal/requirements/route.ts
  * href: /apps/requirements
  */
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getBoundEnv } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyIngestSecret } from "@/lib/automation-ingest";
 import {
@@ -21,7 +21,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	const auth = verifyIngestSecret(
 		request.headers.get("x-automation-ingest-secret"),
 		request.headers.get("authorization"),

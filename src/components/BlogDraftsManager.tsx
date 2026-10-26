@@ -15,7 +15,7 @@ import { deleteBlogPost, updateBlogPostStatus } from "@/app/actions";
 import { BlogPostForm } from "@/components/BlogPostForm";
 import { blogHeroSrc, listBlogPlannedImages, parseBlogFigures } from "@/lib/blog-posts";
 import { MarkdownPreview } from "@/components/MarkdownPreview";
-import { mediaUrl } from "@/lib/media-upload";
+import { mediaUrl } from "@/lib/media-path";
 import { StatusIcon } from "@/components/StatusIcon";
 import {
 	SyncAgriLpBlogSheetButton,

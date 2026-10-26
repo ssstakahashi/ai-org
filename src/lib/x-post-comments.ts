@@ -1,4 +1,5 @@
-import { newId, queryInChunks } from "@/lib/db";
+import { queryInChunks } from "@/lib/db-query";
+import { newId } from "@/lib/ids";
 import { parseXPostDestination } from "@/lib/x-posts";
 import {
 	X_POST_COMMENT_STATUS_OPTIONS,

@@ -1,0 +1,14 @@
+[Unit]
+Description=ai-org
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/s-takahashi/development/ai-org
+Environment=PATH=/home/s-takahashi/.nvm/versions/node/v22.23.1/bin:/usr/bin:/bin
+EnvironmentFile=/home/s-takahashi/development/ai-org/.env
+ExecStart=/home/s-takahashi/.nvm/versions/node/v22.23.1/bin/npm run dev -- --hostname 127.0.0.1 --port 3080
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

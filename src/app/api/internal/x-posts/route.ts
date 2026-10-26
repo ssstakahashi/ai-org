@@ -1,4 +1,4 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getBoundEnv } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyIngestSecret } from "@/lib/automation-ingest";
 import { groupXPostComments, listXPostCommentsFromDb } from "@/lib/x-post-comments";
@@ -20,7 +20,7 @@ function authResponse(request: NextRequest, secret: string | undefined) {
 }
 
 export async function GET(request: NextRequest) {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	const auth = authResponse(request, env.AUTOMATION_INGEST_SECRET);
 	if (auth === "missing_config") {
 		return NextResponse.json(

@@ -1,4 +1,5 @@
-import { newId, queryInChunks } from "@/lib/db";
+import { queryInChunks } from "@/lib/db-query";
+import { newId } from "@/lib/ids";
 import { parseBlogPostDestination } from "@/lib/blog-posts";
 import {
 	BLOG_POST_COMMENT_STATUS_OPTIONS,
@@ -10,6 +11,7 @@ import {
 
 export const BLOG_POST_COMMENT_SELECT = `SELECT
 	c.id, c.blog_post_id, c.employee_id, c.author_name, c.source, c.body, c.status, c.created_at,
+	c.target_body_hash, c.verdict, c.quote, c.reason, c.suggestion, c.resolved_by, c.decision_status,
 	e.name AS employee_name, e.color AS employee_color, e.text_color AS employee_text_color
  FROM blog_post_comments c
  LEFT JOIN employees e ON e.id = c.employee_id`;
@@ -27,6 +29,13 @@ type BlogPostCommentRow = {
 	body: string;
 	status: string | null;
 	created_at: string;
+	target_body_hash?: string | null;
+	verdict?: string | null;
+	quote?: string | null;
+	reason?: string | null;
+	suggestion?: string | null;
+	resolved_by?: string | null;
+	decision_status?: string | null;
 	employee_name: string | null;
 	employee_color: string | null;
 	employee_text_color: string | null;
@@ -77,6 +86,13 @@ export function withCommentDefaults(row: BlogPostCommentRow): BlogPostComment {
 				? (row.status as BlogPostCommentStatus)
 				: "open",
 		created_at: row.created_at,
+		target_body_hash: row.target_body_hash ?? "",
+		verdict: row.verdict ?? "",
+		quote: row.quote ?? "",
+		reason: row.reason ?? "",
+		suggestion: row.suggestion ?? "",
+		resolved_by: row.resolved_by ?? "",
+		decision_status: row.decision_status ?? "",
 		employee_name: row.employee_name ?? null,
 		employee_color: row.employee_color ?? null,
 		employee_text_color: row.employee_text_color ?? null,

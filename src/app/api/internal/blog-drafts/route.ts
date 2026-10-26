@@ -9,10 +9,11 @@
  * location: Grok Bot ルーチン「ブログ下書き（月水金）」 → POST /api/internal/blog-drafts
  * href: /blog-drafts
  */
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getBoundEnv } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyIngestSecret } from "@/lib/automation-ingest";
+import { BlogRuleError } from "@/lib/blog-post-rules";
 import {
 	groupBlogPostComments,
 	listBlogPostCommentsFromDb,
@@ -42,7 +43,7 @@ function authResponse(request: NextRequest, secret: string | undefined) {
 }
 
 export async function GET(request: NextRequest) {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	const auth = authResponse(request, env.AUTOMATION_INGEST_SECRET);
 	if (auth === "missing_config") {
 		return NextResponse.json(
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	const auth = authResponse(request, env.AUTOMATION_INGEST_SECRET);
 	if (auth === "missing_config") {
 		return NextResponse.json(
@@ -138,6 +139,12 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json({ ok: true, ...result });
 	} catch (error) {
 		console.error("blog-drafts ingest failed", error);
+		if (error instanceof BlogRuleError) {
+			return NextResponse.json(
+				{ error: error.message, code: error.code, detail: error.detail },
+				{ status: error.httpStatus },
+			);
+		}
 		const message = error instanceof Error ? error.message : "Internal Server Error";
 		const status = message === "blog post not found" ? 404 : 500;
 		return NextResponse.json({ error: message }, { status });

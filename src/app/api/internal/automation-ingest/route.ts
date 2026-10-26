@@ -1,11 +1,11 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getBoundEnv } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { applyIngest, parseIngestBody, verifyIngestSecret } from "@/lib/automation-ingest";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	const auth = verifyIngestSecret(
 		request.headers.get("x-automation-ingest-secret"),
 		request.headers.get("authorization"),

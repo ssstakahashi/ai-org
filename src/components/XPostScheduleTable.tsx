@@ -18,7 +18,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { StatusIcon } from "@/components/StatusIcon";
 import { XPostComments } from "@/components/XPostComments";
 import { XPostForm } from "@/components/XPostForm";
-import { mediaUrl } from "@/lib/media-upload";
+import { mediaUrl } from "@/lib/media-path";
 import { recoverFromStaleServerAction } from "@/lib/server-action-client";
 import { formatInAppTz } from "@/lib/timezone";
 import { formatXPostLengthInfo, xPostLengthInfo } from "@/lib/x-post-length";

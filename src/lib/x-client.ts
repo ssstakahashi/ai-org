@@ -85,7 +85,7 @@ export function getXCredentials(env: {
 	const accessTokenSecret = env.X_ACCESS_TOKEN_SECRET?.trim();
 
 	if (!apiKey || !apiSecret || !accessToken || !accessTokenSecret) {
-		throw new Error("X API の認証情報が不足しています（.dev.vars / Secrets を確認）");
+		throw new Error("X API の認証情報が不足しています（.env または /etc/ai-org.env を確認）");
 	}
 
 	return { apiKey, apiSecret, accessToken, accessTokenSecret };

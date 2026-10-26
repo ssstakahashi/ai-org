@@ -17,7 +17,7 @@ export function getWorkersAiApiToken(env: CloudflareEnv): string | undefined {
 }
 
 export function shouldUseWorkersAiRestApi(env: CloudflareEnv) {
-	return env.NEXTJS_ENV === "development" && Boolean(getWorkersAiApiToken(env) && getWorkersAiAccountId(env));
+	return Boolean(getWorkersAiApiToken(env) && getWorkersAiAccountId(env));
 }
 
 type CloudflareApiResponse<T> = {

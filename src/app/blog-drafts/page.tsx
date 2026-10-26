@@ -1,4 +1,4 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getBoundEnv } from "@/lib/db";
 import { listBlogPostComments, listBlogPosts } from "@/app/actions";
 import { AppHeader } from "@/components/AppHeader";
 import { BlogDraftsManager } from "@/components/BlogDraftsManager";
@@ -13,7 +13,7 @@ import { isSheetsSyncConfigured } from "@/lib/x-post-sheets-sync";
 export const dynamic = "force-dynamic";
 
 export default async function BlogDraftsPage() {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	const sheetSyncErrors: Partial<Record<BlogPostDestination, string>> = {};
 	const sheetsConfigured = isSheetsSyncConfigured(env);
 

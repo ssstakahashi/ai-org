@@ -10,7 +10,7 @@ import {
 import { createXPostFormAction, updateXPostFormAction } from "@/app/actions";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { StatusIcon } from "@/components/StatusIcon";
-import { mediaUrl } from "@/lib/media-upload";
+import { mediaUrl } from "@/lib/media-path";
 import { toAppDateTimeLocal } from "@/lib/timezone";
 import { replaceInputFile, toWebpFile } from "@/lib/to-webp";
 import { formatXPostLengthInfo, xPostLengthInfo } from "@/lib/x-post-length";

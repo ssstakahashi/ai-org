@@ -1,38 +1,28 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getAppEnv } from "@/lib/app-env";
+import { getMediaBucket as openMediaBucket } from "@/lib/media-store";
+import { getPgDatabase } from "@/lib/pg-db";
 
-export async function getDb() {
-	const { env } = await getCloudflareContext({ async: true });
-	return env.DB;
+export type BoundEnv = CloudflareEnv & {
+	DB: D1Database;
+	MEDIA: R2Bucket;
+};
+
+export async function getDb(): Promise<D1Database> {
+	return getPgDatabase();
 }
 
-export async function getMediaBucket() {
-	const { env } = await getCloudflareContext({ async: true });
-	if (!env.MEDIA) {
-		throw new Error("MEDIA (R2) バインディングがありません");
-	}
-	return env.MEDIA;
+export function getMediaBucket(): R2Bucket {
+	return openMediaBucket();
 }
 
-export function newId(prefix: string) {
-	return `${prefix}_${crypto.randomUUID()}`;
+/** 秘密情報に DB と画像ストレージを足した実行時環境。 */
+export async function getBoundEnv(): Promise<BoundEnv> {
+	return {
+		...getAppEnv(),
+		DB: await getDb(),
+		MEDIA: getMediaBucket(),
+	};
 }
 
-/** D1/SQLite のバインド変数上限を避けるため、IN 句を分割して問い合わせる */
-export const D1_IN_CLAUSE_CHUNK_SIZE = 50;
-
-export async function queryInChunks<T>(
-	db: D1Database,
-	ids: string[],
-	buildSql: (placeholders: string) => string,
-): Promise<T[]> {
-	if (ids.length === 0) return [];
-
-	const rows: T[] = [];
-	for (let offset = 0; offset < ids.length; offset += D1_IN_CLAUSE_CHUNK_SIZE) {
-		const chunk = ids.slice(offset, offset + D1_IN_CLAUSE_CHUNK_SIZE);
-		const placeholders = chunk.map(() => "?").join(", ");
-		const { results } = await db.prepare(buildSql(placeholders)).bind(...chunk).all<T>();
-		if (results) rows.push(...results);
-	}
-	return rows;
-}
+export { newId } from "@/lib/ids";
+export { D1_IN_CLAUSE_CHUNK_SIZE, queryInChunks } from "@/lib/db-query";

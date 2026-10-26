@@ -2,6 +2,12 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.67 (2026-10-27)
+
+- 実行基盤を PostgreSQL 14・ローカルメディア・Ubuntu（systemd / Cloudflare Tunnel）に移行し、`/api/v1` と ops 通知を追加した
+- 情報メニューに API ルール（`/api-rules`）を追加し、ボット向け `GET /api/v1/spec` で同内容を取得できるようにした
+- D1 / R2 からの取り込み用スクリプトと `deploy/ubuntu` の手順を追加した
+
 ## 0.0.66 (2026-09-22)
 
 - SideBusiness のネタを、副業時の月収と参入難易度の4象限で一覧の上に表示し、点から詳細を開けるようにした

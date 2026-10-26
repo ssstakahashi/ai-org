@@ -6,7 +6,7 @@ OpenAPI / Swagger は無い。画面は App Router、更新の大半は Server A
 
 ## 1. 画面一覧・遷移フロー
 
-ナビ正本は [src/lib/app-nav.ts](../src/lib/app-nav.ts)。`/login` 以外でトップナビを出す。トップレベルの「投稿」はドロップダウン（サイドメニューでは見出し）で、小要素はブログ下書き・ネタ・X投稿スケジュール。「情報」はドロップダウン（サイドメニューでは見出し）で、小要素は掲示板・会計マニュアル。「組織」はドロップダウン（サイドメニューでは見出し）で、小要素は従業員・組織ルール・自動化一覧。
+ナビ正本は [src/lib/app-nav.ts](../src/lib/app-nav.ts)。`/login` 以外でトップナビを出す。トップレベルの「投稿」はドロップダウン（サイドメニューでは見出し）で、小要素はブログ下書き・ネタ・X投稿スケジュール。「情報」はドロップダウン（サイドメニューでは見出し）で、小要素は掲示板・API ルール・会計マニュアル。「組織」はドロップダウン（サイドメニューでは見出し）で、小要素は従業員・組織ルール・自動化一覧。
 
 ```mermaid
 flowchart TD
@@ -15,6 +15,7 @@ flowchart TD
   Home --> BlogDrafts["/blog-drafts"]
   Home --> BlogIdeas["/blog-ideas"]
   Home --> Board["/board"]
+  Home --> ApiRules["/api-rules"]
   Home --> AccountingManual["/accounting-manual"]
   AccountingManual --> AccountingManualEntry["/accounting-manual/{no}"]
   Home --> Automations["/automations"]
@@ -39,6 +40,7 @@ flowchart TD
 | `/blog-drafts` | ブログ下書きの確認・承認。一覧表に使用予定画像（TOP / 図表）を表示。確認ポップアップは本文中のインライン SVG を画像として表示。未公開記事の AI コメント確認（未対応／対応済）。Sheets 双方向同期はデフォルト無効（環境変数 `BLOG_DRAFTS_SHEET_AUTO_SYNC=1` で有効化）。notes に「本番へは出さない」を含む行は同期時の削除から保護 | トップ（投稿） |
 | `/blog-ideas` | ネタの CSV アップロードと参照（タブ: SideBusiness / Agri / 税務 / DX / 業務プロセス改革 / M＆A / 労務 / 3社比較）。一覧の「下書き」列に、未転用 / ブログ下書き / X下書き / 両方を出す。各ネタの転用先（ブログ / X の媒体）とタグ（ページ台帳と同じマスタ）を記録。SideBusiness タブは一覧の上に4象限（縦: 副業時の月収レンジ中央値、横: 参入難易度）を出し、点のクリックで詳細ダイアログを開く | トップ（投稿） |
 | `/board` | 掲示板（投稿管理シートのリンク、VERSION 履歴） | トップ（情報） |
+| `/api-rules` | HTTP API ルール（`docs/api-rules.md` と同期。ボットは `GET /api/v1/spec`） | トップ（情報） |
 | `/accounting-manual` | 会計マニュアル目次（法人税決算・申告 No.1〜62） | トップ（情報） |
 | `/accounting-manual/[no]` | 会計マニュアルの各項目（No.1〜62）。前後の項目と目次へ移動可 | 情報 |
 | `/automations` | 自動化カタログ / Spark / App Cron | トップ（組織） |
@@ -64,32 +66,16 @@ flowchart TD
 ロール別 ACL はない。社内共有パスワード 1 本。
 
 - **本番ホスト**: JWT Cookie `ai-org-session`（httpOnly、SameSite=lax、最大 30 日）。未ログインは `/login?next=…`。
-- **localhost / 127.0.0.1**: 認証スキップ（[src/middleware.ts](../src/middleware.ts)）。
-- **`/api/internal/*`**: セッション対象外。`Authorization: Bearer` または `x-automation-ingest-secret` で `AUTOMATION_INGEST_SECRET` を検証。
+- **localhost / 127.0.0.1**（`Host` ヘッダーが上記のとき）: 認証スキップ（[src/middleware.ts](../src/middleware.ts)）。Cloudflare Tunnel 経由の `https://ai-org.studiofoods.net` は `Host` が公開名になるため認証が有効。
+- **HTTP API の詳細**（認証・エンドポイント一覧）: [api-rules.md](./api-rules.md)。画面は `/api-rules`、ボットは `GET /api/v1/spec`（`reader` 以上、`Accept: text/markdown` 可）。
+- **`/api/internal/*`**: セッション対象外。ingest secret（上記 api-rules）。新規の自動処理は `/api/v1` を使う。
+- **`/api/v1/*`**: セッション対象外。`X-API-Key` とロール（上記 api-rules）。
 - 認証シークレット未設定の本番は 500（`Auth configuration missing`）。
 - Cloudflare Access は使わない（二重認証になる）。
 
 ## 2. API仕様
 
-### Route Handlers
-
-| メソッド | パス | 概要 | 認証 |
-|---|---|---|---|
-| `POST` | `/api/auth/login` | パスワード検証 → セッション Cookie | なし（middleware バイパス） |
-| `GET` / `POST` | `/api/auth/logout` | セッション削除 → `/login` | セッション |
-| `GET` | `/api/link-preview` | URL の OGP 取得 | セッション |
-| `POST` | `/api/transcribe` | 音声文字起こし（Workers AI、≤5MB） | セッション |
-| `GET` | `/api/media/[...key]` | R2 メディア配信 | セッション |
-| `POST` | `/api/x-post/analyze-image` | 画像から X 投稿文を提案（Gemini） | セッション |
-| `POST` | `/api/internal/automation-ingest` | 外部アプリから自動化カタログを push | ingest secret |
-| `GET` | `/api/internal/requirements` | 承認済み App 要件を Markdown export | ingest secret |
-| `GET` / `POST` | `/api/internal/blog-drafts` | ブログ下書きの一覧（コメント付き） / 外部投入 | ingest secret |
-| `GET` / `POST` | `/api/internal/blog-comments` | ブログ下書きコメントの一覧 / 外部投入（公開済は拒否） | ingest secret |
-| `GET` | `/api/internal/x-posts` | X投稿一覧（`status` / `destination` で絞り込み可。各投稿に `comments` を含む） | ingest secret |
-| `GET` / `POST` | `/api/internal/x-comments` | X投稿コメントの一覧 / 外部投入（投稿済は拒否） | ingest secret |
-| `GET` / `POST` | `/api/internal/spark-automations` | Spark 自動化の取得 / シート pull | ingest secret |
-
-要件 export のクエリと手順: [cursor-automation-app-requirements.md](./cursor-automation-app-requirements.md)。
+HTTP API（Route Handler・`/api/v1`）の正本は [api-rules.md](./api-rules.md)。アプリ内 **情報 → API ルール**（`/api-rules`）、または `GET /api/v1/spec`（`X-API-Key`、`reader` 以上）で同内容を取得できる。
 
 ### Server Actions（要約）
 
@@ -107,4 +93,4 @@ flowchart TD
 | Blog | list / create / update / status / delete / コメント一覧・対応状況 / 投稿先シート同期 |
 | ネタ | list / CSV アップロード / 転用先（ブログ・X の媒体）の付与と解除 / タグの付与・解除・新規追加 |
 
-即時 X 投稿や「予約分をいま投稿」は Server Action から呼べるが、毎分 Cron の X API 投稿は停止中。
+即時 X 投稿や「予約分をいま投稿」は Server Action から呼べるが、毎分 Cron（systemd timer）の X API 投稿は停止中。

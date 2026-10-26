@@ -1,4 +1,4 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getAppEnv } from "@/lib/app-env";
 import { getDb } from "@/lib/db";
 import { geminiGenerateContent, getGeminiApiKey } from "@/lib/gemini";
 import { xPostTextWeight, X_POST_MAX_WEIGHT } from "@/lib/x-post-length";
@@ -166,11 +166,11 @@ export async function suggestXPostFromImage(
 		throw new Error("画像は 8MB 以下にしてください");
 	}
 
-	const { env } = await getCloudflareContext({ async: true });
+	const env = getAppEnv();
 	const geminiApiKey = getGeminiApiKey(env);
 	if (!geminiApiKey) {
 		throw new Error(
-			"GEMINI_API_KEY が必要です。Google AI Studio で API キーを作成し、.dev.vars または Workers シークレットに設定してください。",
+			"GEMINI_API_KEY が必要です。Google AI Studio で API キーを作成し、.env または /etc/ai-org.env に設定してください。",
 		);
 	}
 

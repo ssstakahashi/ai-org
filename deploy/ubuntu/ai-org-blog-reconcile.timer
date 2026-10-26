@@ -1,0 +1,10 @@
+[Unit]
+Description=ai-org blog status reconcile hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=ai-org-blog-reconcile.service
+
+[Install]
+WantedBy=timers.target

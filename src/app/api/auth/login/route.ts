@@ -1,4 +1,4 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getAppEnv } from "@/lib/app-env";
 import { NextRequest, NextResponse } from "next/server";
 import {
 	createSessionToken,
@@ -19,7 +19,7 @@ function safeNextPath(value: string | null) {
 }
 
 export async function POST(request: NextRequest) {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = getAppEnv();
 	if (!isAuthConfigured(env)) {
 		return NextResponse.json(
 			{ error: "Server misconfiguration: set APP_AUTH_PASSWORD and APP_AUTH_SECRET" },

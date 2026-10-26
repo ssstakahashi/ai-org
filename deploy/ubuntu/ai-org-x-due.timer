@@ -1,0 +1,10 @@
+[Unit]
+Description=ai-org X due cron every minute
+
+[Timer]
+OnCalendar=minutely
+Persistent=false
+Unit=ai-org-x-due.service
+
+[Install]
+WantedBy=timers.target

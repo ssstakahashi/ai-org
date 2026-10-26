@@ -7,6 +7,12 @@ interface CloudflareEnv {
 	X_ACCESS_TOKEN_SECRET?: string;
 	X_BEARER_TOKEN?: string;
 	AUTOMATION_INGEST_SECRET?: string;
+	API_KEYS?: string;
+	ALERT_WEBHOOK_URL?: string;
+	BLOG_PUBLIC_INDEX_URL?: string;
+	BLOG_PREAPPROVE_CHECKS?: string;
+	BLOG_PUBLISH_GATE?: string;
+	OLD_URL_REDIRECT_UNTIL?: string;
 	GOOGLE_SERVICE_ACCOUNT_EMAIL?: string;
 	GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?: string;
 	APP_PUBLIC_URL?: string;
@@ -22,4 +28,9 @@ interface CloudflareEnv {
 	GOOGLE_TASKS_LIST_TITLE?: string;
 	GOOGLE_TASKS_DEFAULT_EMPLOYEE_ID?: string;
 	BLOG_DRAFTS_SHEET_AUTO_SYNC?: string;
+	CF_ACCOUNT_ID?: string;
+	CF_WORKER_NAME?: string;
+	NEXTJS_ENV?: string;
+	DATABASE_URL?: string;
+	MEDIA_ROOT?: string;
 }

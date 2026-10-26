@@ -1,0 +1,9 @@
+[Unit]
+Description=ai-org X due cron (no-op)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/s-takahashi/development/ai-org
+Environment=PATH=/home/s-takahashi/.nvm/versions/node/v22.23.1/bin:/usr/bin:/bin
+EnvironmentFile=/home/s-takahashi/development/ai-org/.env
+ExecStart=/home/s-takahashi/.nvm/versions/node/v22.23.1/bin/npm run cron -- x-due

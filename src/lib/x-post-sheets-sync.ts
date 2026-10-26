@@ -1,5 +1,5 @@
 import { getGoogleAccessToken } from "@/lib/google-auth";
-import { mediaUrl } from "@/lib/media-upload";
+import { mediaUrl } from "@/lib/media-path";
 import { formatInAppTz } from "@/lib/timezone";
 import {
 	X_POST_DESTINATION_LABEL,
@@ -532,7 +532,7 @@ export async function syncAllXPostsToSheet(
 ): Promise<SyncAllXPostsResult> {
 	if (!isSheetsSyncConfigured(env)) {
 		throw new Error(
-			"Google Service Account が未設定です。.dev.vars または Workers シークレットを確認してください。",
+			"Google Service Account が未設定です。.env または /etc/ai-org.env を確認してください。",
 		);
 	}
 

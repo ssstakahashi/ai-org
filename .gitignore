@@ -51,6 +51,9 @@ next-env.d.ts
 # local DB dumps (db:pull / db:push)
 .tmp/
 
+# local media (R2 の代わり)
+/data/media
+
 
 # Google Cloud service account keys (never commit)
 ai-organization-*.json

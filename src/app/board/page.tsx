@@ -1,4 +1,5 @@
 import { AppHeader } from "@/components/AppHeader";
+import { BoardAlerts } from "@/components/BoardAlerts";
 import { BulletinBoard } from "@/components/BulletinBoard";
 import { getLatestVersionEntry } from "@/lib/latest-version";
 
@@ -30,6 +31,7 @@ export default function BoardPage() {
 				</section>
 			)}
 
+			<BoardAlerts />
 			<BulletinBoard />
 		</main>
 	);

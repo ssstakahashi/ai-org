@@ -1,6 +1,6 @@
 import type { AutomationEntry, AutomationRunner, AutomationStatus } from "@/lib/automations";
 import { applyIngest, type IngestAutomation } from "@/lib/automation-ingest";
-import { newId } from "@/lib/db";
+import { newId } from "@/lib/ids";
 
 export const SPARK_SOURCE = "spark";
 export const SPARK_DEFAULT_LOCATION = "Google Spark";

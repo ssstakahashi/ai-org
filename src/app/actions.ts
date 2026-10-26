@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { getDb, getMediaBucket, newId, queryInChunks } from "@/lib/db";
+import { runInBackground } from "@/lib/app-env";
+import { getBoundEnv, getDb, getMediaBucket, newId, queryInChunks } from "@/lib/db";
 import { copyTaskImage, getUploadFile, getUploadFiles, putBlogPostImage, putTaskImage, putXPostImage } from "@/lib/media-upload";
 import { LOCAL_SOURCE, recordAutomationRun } from "@/lib/automation-ingest";
 import { pullSparkAutomationsFromSheet } from "@/lib/spark-sheet-sync";
@@ -369,8 +369,8 @@ function revalidateTaskPages() {
 async function queueGoogleTaskSync(taskIds: string[]) {
 	if (taskIds.length === 0) return;
 	try {
-		const { env, ctx } = await getCloudflareContext({ async: true });
-		ctx.waitUntil(pushGoogleTasksByIds(env, taskIds));
+		const env = await getBoundEnv();
+		runInBackground(pushGoogleTasksByIds(env, taskIds));
 	} catch (error) {
 		console.error("google tasks sync queue failed", error);
 	}
@@ -380,8 +380,8 @@ async function queueGoogleTaskRemoval(db: D1Database, taskIds: string[]) {
 	if (taskIds.length === 0) return;
 	try {
 		const refs = await listGoogleTaskSyncRefs(db, taskIds);
-		const { env, ctx } = await getCloudflareContext({ async: true });
-		ctx.waitUntil(deleteGoogleTasksByRefs(env, refs));
+		const env = await getBoundEnv();
+		runInBackground(deleteGoogleTasksByRefs(env, refs));
 	} catch (error) {
 		console.error("google tasks delete queue failed", error);
 	}
@@ -398,7 +398,7 @@ function revalidateBlogPostPages() {
 
 async function syncBlogSheetById(postId: string) {
 	try {
-		const { env } = await getCloudflareContext({ async: true });
+		const env = await getBoundEnv();
 		if (!isSheetsSyncConfigured(env)) return;
 		await syncBlogPostToSheetById(env, postId);
 	} catch (error) {
@@ -408,7 +408,7 @@ async function syncBlogSheetById(postId: string) {
 
 async function removeBlogSheetById(postId: string) {
 	try {
-		const { env } = await getCloudflareContext({ async: true });
+		const env = await getBoundEnv();
 		if (!isSheetsSyncConfigured(env)) return;
 		await removeBlogPostFromAllSheets(env, postId);
 	} catch (error) {
@@ -1240,7 +1240,7 @@ export async function createXPost(
 			)
 			.bind(id, title, body, imageKey, status, scheduledAt, notes, destination)
 			.run();
-		const { env } = await getCloudflareContext({ async: true });
+		const env = await getBoundEnv();
 		queueXPostSheetSync(env, id);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -1356,7 +1356,7 @@ export async function updateXPost(
 			)
 			.bind(title, body, imageKey, status, scheduledAt, notes, destination, id)
 			.run();
-		const { env } = await getCloudflareContext({ async: true });
+		const env = await getBoundEnv();
 		queueXPostSheetSync(env, id);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -1935,7 +1935,7 @@ export async function updateXPostStatus(formData: FormData) {
 		.bind(status, id)
 		.run();
 
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	queueXPostSheetSync(env, id);
 	revalidateXPostPages();
 }
@@ -1957,7 +1957,7 @@ export async function deleteXPost(formData: FormData) {
 
 	await db.prepare("DELETE FROM x_post_comments WHERE x_post_id = ?").bind(id).run();
 	await db.prepare("DELETE FROM x_posts WHERE id = ?").bind(id).run();
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	queueXPostSheetRemoval(env, id);
 	revalidateXPostPages();
 }
@@ -1966,7 +1966,7 @@ export async function deleteXPost(formData: FormData) {
 export async function syncXPostsToSheet(): Promise<
 	SyncAllXPostsResult & { fatalError?: string }
 > {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	const startedAt = new Date().toISOString();
 	try {
 		const result = await syncAllXPostsToSheet(env);
@@ -2003,7 +2003,7 @@ export async function syncXPostsToSheet(): Promise<
 export async function syncGoogleTasksNow(): Promise<
 	GoogleTasksSyncResult & { fatalError?: string }
 > {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	const startedAt = new Date().toISOString();
 	try {
 		if (!(await isGoogleTasksSyncConfigured(env))) {
@@ -2122,7 +2122,7 @@ export async function completeGoogleTasksOAuth(
 	code: string,
 	state: string,
 ): Promise<{ error?: string }> {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	try {
 		const secret = env.APP_AUTH_SECRET?.trim();
 		if (!secret) return { error: "APP_AUTH_SECRET が未設定です" };
@@ -2147,7 +2147,7 @@ export async function syncSparkAutomationsFromSheet(): Promise<{
 	count: number;
 	fatalError?: string;
 }> {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	const startedAt = new Date().toISOString();
 	try {
 		const result = await pullSparkAutomationsFromSheet(env);
@@ -2178,7 +2178,7 @@ export async function syncSparkAutomationsFromSheet(): Promise<{
 
 /** 予約時刻を過ぎた X 投稿をまとめて実行 */
 export async function runDueXPosts(): Promise<PublishResult & { fatalError?: string }> {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	const startedAt = new Date().toISOString();
 	try {
 		const result = await publishDueXPosts(env);
@@ -2232,7 +2232,7 @@ export async function postXPostNow(formData: FormData): Promise<PostXPostNowResu
 	if (!id) {
 		return { ok: false, error: "id が必要です" };
 	}
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 	const startedAt = new Date().toISOString();
 	try {
 		await publishXPostNow(env, id);
@@ -3244,24 +3244,43 @@ export async function updateBlogPost(formData: FormData): Promise<{ error?: stri
 	}
 
 	const existing = await db
-		.prepare("SELECT id, thumbnail_key, figure_keys FROM blog_posts WHERE id = ?")
+		.prepare(
+			`SELECT id, thumbnail_key, figure_keys, status, body, body_hash, version
+			 FROM blog_posts WHERE id = ?`,
+		)
 		.bind(id)
-		.first<{ id: string; thumbnail_key: string; figure_keys: string }>();
+		.first<{
+			id: string;
+			thumbnail_key: string;
+			figure_keys: string;
+			status: string;
+			body: string;
+			body_hash: string;
+			version: number;
+		}>();
 	if (!existing) {
 		return { error: "下書きが見つかりません" };
+	}
+	if (existing.status !== "draft") {
+		return { error: "draft 以外の本文は更新できません。先に下書きへ戻してください。" };
 	}
 
 	const images = await storeBlogImagesFromForm(formData, existing);
 	if ("error" in images) return { error: images.error };
 
 	try {
+		const { hashBody } = await import("@/lib/blog-post-rules");
 		const slug = await allocateUniqueBlogSlug(db, slugRaw || title, id);
+		const nextHash = hashBody(body);
+		const previousHash = existing.body_hash || hashBody(existing.body ?? "");
+		const version =
+			nextHash === previousHash ? Number(existing.version ?? 1) : Number(existing.version ?? 1) + 1;
 		await db
 			.prepare(
 				`UPDATE blog_posts
 				 SET slug = ?, title = ?, excerpt = ?, body = ?, category = ?, tags = ?,
 				     thumbnail_url = ?, thumbnail_key = ?, figure_keys = ?, published_on = ?,
-				     status = ?, destination = ?, notes = ?,
+				     status = 'draft', destination = ?, notes = ?, body_hash = ?, version = ?,
 				     updated_at = datetime('now')
 				 WHERE id = ?`,
 			)
@@ -3276,12 +3295,23 @@ export async function updateBlogPost(formData: FormData): Promise<{ error?: stri
 				images.thumbnailKey,
 				images.figureKeys,
 				publishedOn,
-				status,
 				destination,
 				notes,
+				nextHash,
+				version,
 				id,
 			)
 			.run();
+		if (status !== "draft") {
+			const { changeBlogPostStatus } = await import("@/lib/blog-post-workflow");
+			await changeBlogPostStatus(db, {
+				id,
+				to: status,
+				actor: { via: "screen", role: "screen", force: false },
+				actorName: "session",
+				requestId: "screen",
+			});
+		}
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return { error: `下書きの更新に失敗しました: ${message}` };
@@ -3315,14 +3345,14 @@ export async function updateBlogPostStatus(formData: FormData) {
 		throw new Error("id が必要です");
 	}
 
-	await db
-		.prepare(
-			`UPDATE blog_posts
-			 SET status = ?, updated_at = datetime('now')
-			 WHERE id = ?`,
-		)
-		.bind(status, id)
-		.run();
+	const { changeBlogPostStatus } = await import("@/lib/blog-post-workflow");
+	await changeBlogPostStatus(db, {
+		id,
+		to: status,
+		actor: { via: "screen", role: "screen", force: false },
+		actorName: "session",
+		requestId: "screen",
+	});
 
 	await syncBlogSheetById(id);
 	revalidateBlogPostPages();
@@ -3333,6 +3363,13 @@ export async function deleteBlogPost(formData: FormData) {
 	const id = formText(formData, "id");
 	if (!id) return;
 
+	const locked = await db
+		.prepare(`SELECT status FROM blog_posts WHERE id = ?`)
+		.bind(id)
+		.first<{ status: string }>();
+	if (locked?.status === "published") {
+		throw new Error("公開済みの記事は削除できません");
+	}
 	await db.prepare("DELETE FROM blog_post_comments WHERE blog_post_id = ?").bind(id).run();
 	await db.prepare("DELETE FROM blog_posts WHERE id = ?").bind(id).run();
 	await removeBlogSheetById(id);
@@ -3348,7 +3385,7 @@ const BLOG_SHEET_SYNC_AUTOMATION: Record<BlogPostDestination, string> = {
 export async function syncBlogDestinationFromSheet(
 	rawDestination: string,
 ): Promise<BlogSheetSyncResult & { fatalError?: string }> {
-	const { env } = await getCloudflareContext({ async: true });
+	const env = await getBoundEnv();
 
 	// BLOG_DRAFTS_SHEET_AUTO_SYNC が "1" でない場合は手動同期も無効
 	const syncEnabled = env.BLOG_DRAFTS_SHEET_AUTO_SYNC?.trim() === "1";

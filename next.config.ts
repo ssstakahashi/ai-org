@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
-import { getDeploymentId } from "@opennextjs/cloudflare";
 
 // /Users/user/package.json があると Turbopack がホームをルートと誤認するため固定する
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -42,15 +41,18 @@ if (process.env.NODE_ENV === "production" && !process.env.NEXT_SERVER_ACTIONS_EN
 }
 
 const nextConfig: NextConfig = {
+	// 開発時の左下 N バッジ（ルート種別インジケータ）を非表示。エラー時はオーバーレイは出る
+	devIndicators: false,
+	// pg は Node の net / dns を使う。Turbopack にバンドルさせると解決できない。
+	serverExternalPackages: ["pg"],
 	env: {
 		NEXT_PUBLIC_APP_VERSION: getAppVersion(),
 	},
-	deploymentId: getDeploymentId(),
 	turbopack: {
 		root: projectRoot,
 	},
-	// Network URL（127.0.2.2）経由の HMR / 静的アセットを許可
-	allowedDevOrigins: ["127.0.2.2"],
+	// Network URL（127.0.2.2）と Cloudflare Tunnel 経由の HMR / 静的アセットを許可
+	allowedDevOrigins: ["127.0.2.2", "ai-org.studiofoods.net"],
 	experimental: {
 		// 画像付き Server Action（デフォルト 1MB だと本番で 500 になる）
 		serverActions: {
@@ -60,10 +62,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
-// Enable calling `getCloudflareContext()` in `next dev`.
-// See https://opennext.js.org/cloudflare/bindings#local-access-to-bindings.
-import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
-if (process.env.NODE_ENV === "development") {
-	initOpenNextCloudflareForDev();
-}

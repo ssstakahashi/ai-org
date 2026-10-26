@@ -8,7 +8,7 @@ import {
 	blogHeroSrc,
 	parseBlogFigures,
 } from "@/lib/blog-posts";
-import { mediaUrl } from "@/lib/media-upload";
+import { mediaUrl } from "@/lib/media-path";
 import { replaceInputFile, replaceInputFiles, toWebpFile } from "@/lib/to-webp";
 import {
 	BLOG_POST_DESTINATION_DEFAULT,

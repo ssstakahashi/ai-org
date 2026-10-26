@@ -283,6 +283,14 @@ export type BlogPost = {
 	source: string;
 	created_at: string;
 	updated_at: string;
+	body_hash?: string;
+	thumbnail_origin?: string;
+	external_check_date?: string;
+	external_check_result?: string;
+	rewrite_mark?: string;
+	version?: number;
+	published_at?: string;
+	published_url?: string;
 };
 
 /** 未公開ブログ下書きへの AI コメント（1記事に複数可） */
@@ -297,6 +305,13 @@ export type BlogPostComment = {
 	body: string;
 	status: BlogPostCommentStatus;
 	created_at: string;
+	target_body_hash?: string;
+	verdict?: string;
+	quote?: string;
+	reason?: string;
+	suggestion?: string;
+	resolved_by?: string;
+	decision_status?: string;
 	employee_name: string | null;
 	employee_color: string | null;
 	employee_text_color: string | null;

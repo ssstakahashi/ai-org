@@ -83,7 +83,17 @@ npx wrangler d1 migrations apply "$DB_NAME" --local < /dev/null
 
 echo "==> シード行をクリア中（本番データで置き換えるため）..."
 npx wrangler d1 execute "$DB_NAME" --local --yes --command \
-	"PRAGMA foreign_keys=OFF; DELETE FROM task_tags; DELETE FROM tasks; DELETE FROM x_posts; DELETE FROM tags; DELETE FROM categories; DELETE FROM employees; DELETE FROM org_rules; DELETE FROM app_crons; DELETE FROM apps; DELETE FROM app_names; DELETE FROM app_groups; DELETE FROM app_types; DELETE FROM automation_runs; DELETE FROM remote_automations; PRAGMA foreign_keys=ON;"
+	"PRAGMA foreign_keys=OFF; \
+DELETE FROM task_tags; DELETE FROM task_links; DELETE FROM tasks; DELETE FROM task_groups; \
+DELETE FROM x_post_comments; DELETE FROM x_posts; \
+DELETE FROM blog_idea_tags; DELETE FROM blog_idea_uses; DELETE FROM blog_ideas; \
+DELETE FROM blog_post_comments; DELETE FROM blog_posts; \
+DELETE FROM page_tags; DELETE FROM pages; \
+DELETE FROM tags; DELETE FROM categories; DELETE FROM employees; DELETE FROM org_rules; \
+DELETE FROM app_requirements; DELETE FROM app_crons; DELETE FROM apps; DELETE FROM app_names; DELETE FROM app_groups; DELETE FROM app_types; \
+DELETE FROM google_task_sync; DELETE FROM google_task_sync_state; \
+DELETE FROM automation_runs; DELETE FROM remote_automations; \
+PRAGMA foreign_keys=ON;"
 
 echo "==> 本番データをローカルへインポート中..."
 npx wrangler d1 execute "$DB_NAME" --local --file="$IMPORT" --yes

@@ -1,5 +1,5 @@
 import type { AutomationEntry, AutomationRunner, AutomationStatus } from "@/lib/automations";
-import { newId } from "@/lib/db";
+import { newId } from "@/lib/ids";
 
 export const LOCAL_SOURCE = "ai-org";
 

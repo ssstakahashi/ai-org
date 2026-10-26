@@ -1,0 +1,10 @@
+[Unit]
+Description=ai-org Google Tasks sync every 10 minutes
+
+[Timer]
+OnCalendar=*:0/10
+Persistent=true
+Unit=ai-org-google-tasks.service
+
+[Install]
+WantedBy=timers.target

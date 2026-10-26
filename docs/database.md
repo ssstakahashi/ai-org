@@ -2,9 +2,9 @@
 
 関連: [overview.md](./overview.md) · [architecture.md](./architecture.md) · [interfaces.md](./interfaces.md)
 
-正本は `migrations/*.sql`（Cloudflare D1 = SQLite）。最新は `0041_blog_idea_tags.sql`。型の要約は [src/lib/types.ts](../src/lib/types.ts)。ORM / Prisma はない。
+正本は `migrations/pg/*.sql`（PostgreSQL 14）。初期スキーマは `0001_schema.sql`。旧 `migrations/*.sql`（SQLite、0001〜0041）は履歴で、Ubuntu では適用しない。型の要約は [src/lib/types.ts](../src/lib/types.ts)。ORM / Prisma はない。
 
-テーブル数は 27。日時は TEXT（`datetime('now')` / ISO）。ID はアプリ側で `prefix_uuid`。
+テーブル数は 27。日時は TEXT のまま（`app_now()` は UTC の `YYYY-MM-DD HH:MM:SS`。アプリが書く ISO 文字列も同じ列に入る）。ID はアプリ側で `prefix_uuid`。`sort_order` / `is_active` / `ok` は INTEGER の 0/1。外部キーは `DEFERRABLE`。
 
 ## 1. ER図
 
@@ -41,7 +41,7 @@ erDiagram
 
 `tags` は業務台帳と同じマスタ。
 
-Sheets 同期は D1 外（後述）。
+Sheets 同期は DB 外（後述）。
 
 ### App 管理
 
@@ -86,8 +86,13 @@ erDiagram
 
 - **x_posts**: 投稿文・画像キー・予約。`destination` は `studiofoods`（表示名: @MIERUagri_漫画、既定）/ `agri`（表示名: @MIERUagri）/ `mieru`（表示名: @MIERUkaikei）/ `mieru_manga`（表示名: @MIERUkaikei_漫画）/ `studiofoods_official`（表示名: @studio_foods）。
 - **x_post_comments**: 投稿済以外の X 投稿への AI コメント。1記事に複数AI・複数件。`employee_id` は任意（AI従業員）。`status` は `open`（未対応）/ `done`（対応済）。投稿済（`done`）への投入は拒否。
-- **blog_posts**: 公式ブログ下書き。`status` は `draft` / `approved` / `published` / `rejected`。`destination` は `studiofoods_hp` / `agri_lp`。`category` / `tags` はマスタ FK ではなく TEXT。画像は `thumbnail_key` と `figure_keys`（JSON）。
-- **blog_post_comments**: 未公開下書きへの AI コメント。1記事に複数AI・複数件。`employee_id` は任意（AI従業員）。`status` は `open`（未対応）/ `done`（対応済）。公開済への投入は拒否。
+- **blog_posts**: 公式ブログ下書き。`status` は `draft` / `approved` / `published` / `rejected`。`destination` は `studiofoods_hp` / `agri_lp`。`category` / `tags` はマスタ FK ではなく TEXT。画像は `thumbnail_key` と `figure_keys`（JSON）。`thumbnail_origin` は `r2` / `blog_image_api`。`body_hash`、`version`、`external_check_date`、`external_check_result`、`rewrite_mark`（notes から切り出した「最終構成」「広報」）、`published_at`、`published_url` を持つ。
+- **blog_post_comments**: 未公開下書きへのコメント。1記事に複数。`status` は DB 上 `open` / `done`。`/api/v1` では `done` を `resolved` と出す。`target_body_hash`、`verdict`、`quote`、`reason`、`suggestion`、`resolved_by`、`decision_status`（`needs_decision` / `decided`）を持つ。公開済への投入は拒否。
+- **blog_post_audit**: 更新前の行 JSON。`request_id` と `actor` を残す。
+- **blog_post_release_checks**: 公開前のサムネ、OGP、カテゴリ確認。
+- **blog_site_categories**: 承認を許すカテゴリ名。既存記事の category から初期投入する。
+- **ops_alerts**: API 失敗、0 件取り込み、照合の差。`read_at` が空のものを掲示板に出す。
+- **board_links**: 掲示板に足したリンク。組み込みのシートリンクは消さない。
 - **blog_ideas**: ネタ。`topic` は `sidebusiness` / `agri` / `tax` / `dx` / `process` / `ma` / `admin` / `compare`。本文以外の列は `details`（JSON）。CSV アップロードが入力で、同じ `topic` + `no`（No. が空ならタイトル）は上書きする。
 - **blog_idea_uses**: ネタの転用先。`medium` は `blog` / `x`。`destination` はブログなら `studiofoods_hp` / `agri_lp`、X なら `studiofoods` / `agri` / `mieru` / `mieru_manga` / `studiofoods_official`。同一ネタに複数可。`(idea_id, medium, destination)` は一意。
 - **blog_idea_tags**: ネタとタグマスタ（`tags`。タスク・ページと共通）の中間。CSV の同じ No. 上書きでは残る。
@@ -106,11 +111,11 @@ erDiagram
 - **google_task_sync**: `tasks.id` ↔ Google Task。`last_source` は `ai-org` / `google`。
 - **google_task_sync_state**: 行は `id='default'` のみ。OAuth リフレッシュトークンを保持。
 
-## 3. Google Sheets（D1 外）
+## 3. Google Sheets（DB 外）
 
 定数は [src/lib/bulletin-board.ts](../src/lib/bulletin-board.ts)、[src/lib/x-post-sheets-sync.ts](../src/lib/x-post-sheets-sync.ts)、[src/lib/spark-sheet-sync.ts](../src/lib/spark-sheet-sync.ts)。
 
-| 用途 | 定数 | D1 との関係 |
+| 用途 | 定数 | DB との関係 |
 |---|---|---|
 | X投稿転記 | `X_POST_SHEET_ID` | `x_posts` と双方向 |
 | ブログ投稿管理（SF HP） | `STUDIOFOODS_HP_BLOG_SHEET_ID` | `blog_posts`（`studiofoods_hp`）と同期 |

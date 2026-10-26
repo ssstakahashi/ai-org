@@ -1,14 +1,16 @@
 # ai-org
 
-AI従業員が動く「会社」の司令塔。Cloudflare 上の Next.js アプリで、業務タスク台帳・X投稿・画像・担当エージェントを管理します。
+AI従業員が動く「会社」の司令塔。Ubuntu 上の Next.js アプリで、業務タスク台帳・X投稿・画像・担当エージェントを管理します。
 
 ## 構成
 
 | 役割 | 技術 |
 |---|---|
-| アプリ | Next.js 16 + OpenNext (`@opennextjs/cloudflare`) |
-| DB | Cloudflare D1（`DB`） |
-| 画像 | Cloudflare R2（`MEDIA` / bucket: `ai-org-media`） |
+| アプリ | Next.js 16（`next dev`。開発と稼働は同じディレクトリ） |
+| DB | PostgreSQL 14（`DATABASE_URL`） |
+| 画像 | ローカルディスク（`MEDIA_ROOT`） |
+
+Ubuntu への配置、D1 / R2 からのコピー、systemd は [deploy/ubuntu/README.md](deploy/ubuntu/README.md)。
 
 初期従業員（Obsidian `115_組織/AI従業員` 準拠）:
 
@@ -33,22 +35,24 @@ AI従業員が動く「会社」の司令塔。Cloudflare 上の Next.js アプ�
 ```bash
 cd ~/Developer/ai-org/00_private/ai-org
 npm install
-npx wrangler d1 migrations apply ai-org --local
+cp .env.example .env
+# DATABASE_URL を PostgreSQL 14 に向ける
+npm run pg:migrate
 npm run dev
 ```
 
 http://localhost:3000
 
-音声入力（タスク登録・編集）をローカルで試す場合は、Cloudflare Access 経由の AI バインディングではなく REST API を使います。`.dev.vars` に次を追加してください（`CF_ACCOUNT_ID` は `wrangler.jsonc` に設定済み）。
+音声入力（タスク登録・編集）は Workers AI の REST API です。`.env` に次を追加してください（`CF_ACCOUNT_ID` は `wrangler.jsonc` の値）。
 
 ```bash
 # Cloudflare ダッシュボード > Workers AI > Use REST API で作成
 CF_API_TOKEN=...
 ```
 
-本番 Worker では `AI` バインディングをそのまま利用します（トークン不要）。
+本番でも文字起こしは同じ REST API です（`CF_API_TOKEN` が必要）。
 
-本番 D1 をローカルへ上書きコピー（Cloudflare ログイン必須）:
+本番 D1 をローカル SQLite へ上書きコピー（Cloudflare ログイン必須。PostgreSQL へ入れる前段）:
 
 ```bash
 npm run db:pull
@@ -81,13 +85,10 @@ npm run preview
 
 | 変数 | 内容 |
 |---|---|
-| `APP_AUTH_PASSWORD` | ログインパスワード（wrangler secret） |
-| `APP_AUTH_SECRET` | セッション署名用シークレット（wrangler secret） |
+| `APP_AUTH_PASSWORD` | ログインパスワード（`.env` または `/etc/ai-org.env`） |
+| `APP_AUTH_SECRET` | セッション署名用シークレット（`.env` または `/etc/ai-org.env`） |
 
-```bash
-npx wrangler secret put APP_AUTH_PASSWORD
-npx wrangler secret put APP_AUTH_SECRET
-```
+localhost / 127.0.0.1 以外ではこの2つが無いと 500 になります。
 
 **Cloudflare Access は外してください。** Zero Trust のアプリ保護を有効のままにすると、Access とアプリ認証が二重になりログインが不安定になります。
 
@@ -101,9 +102,7 @@ npx wrangler secret put APP_AUTH_SECRET
 |---|---|
 | `AUTOMATION_INGEST_SECRET` | push 認証用共有シークレット |
 
-```bash
-npx wrangler secret put AUTOMATION_INGEST_SECRET
-```
+`AUTOMATION_INGEST_SECRET` は `.env` または `/etc/ai-org.env` に書きます。
 
 アプリ側は共有シークレットのみ検証します（middleware では認証をスキップ）。
 
@@ -208,13 +207,13 @@ curl -sS -X POST \
 | `X_ACCESS_TOKEN_SECRET` | Access Token Secret |
 | `X_BEARER_TOKEN` | 任意（読み取り用） |
 
-ローカルは `.dev.vars`、本番は Secrets:
+値は `.env` または `/etc/ai-org.env` に書きます。
 
 ```bash
-npx wrangler secret put X_API_KEY
-npx wrangler secret put X_API_SECRET
-npx wrangler secret put X_ACCESS_TOKEN
-npx wrangler secret put X_ACCESS_TOKEN_SECRET
+# .env に書く: X_API_KEY
+# .env に書く: X_API_SECRET
+# .env に書く: X_ACCESS_TOKEN
+# .env に書く: X_ACCESS_TOKEN_SECRET
 ```
 
 `/x-schedule` から「予約分をいま投稿」または行の「Xへ投稿」でも実行できます。
@@ -237,12 +236,12 @@ npx wrangler secret put X_ACCESS_TOKEN_SECRET
 2. 転記先シートを SA のメールアドレスに **編集者** で共有
 3. 1行目に `ID` 列が必要（空シートなら初回同期時にヘッダーを自動作成）
 
-ローカルは `.dev.vars`、本番は Secrets:
+値は `.env` または `/etc/ai-org.env` に書きます。
 
 ```bash
-npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_EMAIL
-npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
-npx wrangler secret put APP_PUBLIC_URL   # 任意
+# .env に書く: GOOGLE_SERVICE_ACCOUNT_EMAIL
+# .env に書く: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+# .env に書く: APP_PUBLIC_URL   # 任意
 ```
 
 転記列（デフォルト）: ID / タイトル / 投稿文 / ステータス / 予約日時 / メモ / 画像URL / X投稿ID / X投稿URL / エラー / 作成日時 / 更新日時
@@ -293,30 +292,32 @@ Google の完了は台帳の `done`、それ以外は Google では未完了で�
 4. 初回は片方を空にして同期した方が、タイトルだけの重複が起きにくい
 
 ```bash
-npx wrangler secret put GOOGLE_TASKS_CLIENT_ID
-npx wrangler secret put GOOGLE_TASKS_CLIENT_SECRET
-npx wrangler secret put GOOGLE_TASKS_REFRESH_TOKEN
+# .env に書く: GOOGLE_TASKS_CLIENT_ID
+# .env に書く: GOOGLE_TASKS_CLIENT_SECRET
+# .env に書く: GOOGLE_TASKS_REFRESH_TOKEN
 # または Workspace:
-npx wrangler secret put GOOGLE_TASKS_IMPERSONATE_EMAIL
+# .env に書く: GOOGLE_TASKS_IMPERSONATE_EMAIL
 ```
 
 ## デプロイ
 
-D1 `ai-org` と R2 `ai-org-media` は作成済みです。リモートへ出すとき:
+本番は Ubuntu です。手順は [deploy/ubuntu/README.md](deploy/ubuntu/README.md)。以下の Workers デプロイは使いません。
+
+D1 `ai-org` と R2 `ai-org-media` は移行元として残しています。リモートへ出すとき:
 
 ```bash
 npx wrangler d1 migrations apply ai-org --remote   # 未適用時のみ
 
 # 初回のみ: Server Action ID をデプロイ間で安定させる（ビルド時に必須）
 openssl rand -base64 32
-# → .dev.vars に追記（値はパスワードマネージャー等に保管。git には入れない）
+# → .env に追記（値はパスワードマネージャー等に保管。git には入れない）
 # NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=...
 
 bun run deploy   # 変更があれば commit → push → デプロイ。未設定なら check-build-env で失敗
 # bun run deploy -- "コミットメッセージ"  でも可（省略時は deploy: YYYY-MM-DD HH:MM）
 ```
 
-`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` は **ビルド時のみ** 使います。Workers の runtime secret（`wrangler secret put`）には不要です。
+`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` は **ビルド時** に使います。`.env` または `/etc/ai-org.env` に固定値で置き、`next build` の前に読み込みます。
 
 ### Server Action エラー（`Failed to find Server Action`）
 
@@ -325,13 +326,13 @@ bun run deploy   # 変更があれば commit → push → デプロイ。未設�
 | 対策 | 内容 |
 |---|---|
 | 即時 | ページを再読み込み（Cmd+Shift+R） |
-| ビルド | `.dev.vars` の `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` を固定値で維持 |
+| ビルド | `.env` の `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` を固定値で維持 |
 | 恒久（任意） | Skew Protection を有効化（下記） |
 
 Skew Protection（OpenNext）を有効にすると、デプロイ直後も古いタブから Server Action を呼べます。
 
 ```bash
-# .dev.vars に追記（Cloudflare API トークンは Workers Scripts: Read 権限）
+# .env に追記（Cloudflare API トークンは Workers Scripts: Read 権限）
 # ENABLE_SKEW_PROTECTION=1
 # CF_PREVIEW_DOMAIN=ai-org.<account-subdomain>.workers.dev
 # CF_WORKERS_SCRIPTS_API_TOKEN=...

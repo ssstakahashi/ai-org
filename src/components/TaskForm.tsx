@@ -8,7 +8,7 @@ import { StatusIcon } from "@/components/StatusIcon";
 import { TaskLinkFields } from "@/components/TaskLinkFields";
 import { VoiceInputField } from "@/components/VoiceInputField";
 import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
-import { mediaUrl } from "@/lib/media-upload";
+import { mediaUrl } from "@/lib/media-path";
 import { toAppDateTimeLocal } from "@/lib/timezone";
 import { recoverFromStaleServerAction } from "@/lib/server-action-client";
 import { replaceInputFile, toWebpFile } from "@/lib/to-webp";

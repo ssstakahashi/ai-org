@@ -6,7 +6,7 @@ import { StatusIcon } from "@/components/StatusIcon";
 import { TaskLinkList } from "@/components/TaskLinkList";
 import { deleteTask, setTaskStatus } from "@/app/actions";
 import { employeeTintStyle, masterTintStyle, tintStyle } from "@/lib/colors";
-import { mediaUrl } from "@/lib/media-upload";
+import { mediaUrl } from "@/lib/media-path";
 import { recoverFromStaleServerAction } from "@/lib/server-action-client";
 import { formatPeriodLabel } from "@/lib/task-views";
 import {

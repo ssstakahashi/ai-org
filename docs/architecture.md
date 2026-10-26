@@ -8,35 +8,51 @@
 
 ```mermaid
 flowchart LR
-  Browser --> Worker["Next.js_OpenNext_Worker"]
-  Cron["worker.ts_scheduled"] --> Worker
-  GrokBot["Grok_Bot"] --> InternalAPI["api_internal"]
-  Agri["agri_etc"] --> InternalAPI
-  InternalAPI --> Worker
-  Worker --> D1["D1_ai-org"]
-  Worker --> R2["R2_MEDIA"]
-  Worker --> WorkersAI["Workers_AI"]
-  Worker --> Gemini
-  Worker --> Google["Sheets_and_Tasks"]
-  Worker --> XAPI["X_API_unused_by_cron"]
+  Browser --> Next["next_dev_Ubuntu"]
+  Routines["担当ルーチン"] --> ApiV1["api_v1"]
+  ApiV1 --> Next
+  Timer["systemd_timer"] --> Cron["scripts_run-cron"]
+  Cron --> Next
+  Next --> Pg["PostgreSQL_14_this_server"]
+  Cron --> Pg
+  Next --> Disk["MEDIA_ROOT_this_server"]
+  Next --> BlogImages["mieru_blog_image_api"]
+  Next --> WorkersAI["Workers_AI_REST"]
+  Next --> Gemini
+  Next --> Google["Sheets_and_Tasks"]
 ```
 
-- ブラウザは App Router の画面と Server Actions が中心。一部のみ Route Handler（認証、メディア、内部 API、画像解析、文字起こし）。
-- Cron は [worker.ts](../worker.ts) の `scheduled`。現状アクティブなのは Google Tasks 同期（10分）。X API 投稿 Cron は no-op。
-- 内部 API（`/api/internal/*`）はセッションではなく共有シークレット。
+- ブラウザは App Router の画面と Server Actions が中心。自動処理の DB 入口は `/api/v1`。閲覧画面はログイン必須。
+- データベースは、このサーバーの PostgreSQL 14。画像とファイルのうち ai-org が持つものは、このサーバーの `MEDIA_ROOT`。D1 と Wrangler は実行経路に入れない。
+- 公開ブログの新規サムネは、既存のブログ画像 API（`https://mieru-storage-backend.studiofoods.net/api/v1/blog_images`）のまま。公開済みの旧 R2 URL は書き換えない。見分けは `blog_posts.thumbnail_origin`（`r2` / `blog_image_api`）。
+- 正の URL は `https://ai-org.studiofoods.net/`。旧 `ai-org.s-takahashi-241.workers.dev` の転送期間は `OLD_URL_REDIRECT_UNTIL`。未設定の間は転送を残す。転送の実体は公開側の設定。
+- Cron は [scripts/run-cron.ts](../scripts/run-cron.ts)。Google Tasks 同期（10分）と、本番一覧との照合（`blog-reconcile`、1時間）。X API 投稿 Cron は no-op。
 
 ## 2. 技術スタック
 
 - **Frontend**: Next.js 16 App Router、React 19、Tailwind CSS 4、TypeScript 5。会計マニュアルのフロー図はクライアントで mermaid 11.6.0（jsDelivr ESM）を SVG 描画する
 - **Backend**: 同じ Next.js（Server Actions + Route Handlers）。別言語の API サーバはない
-- **Hosting**: Cloudflare Workers + OpenNext（`@opennextjs/cloudflare`）
-- **DB**: Cloudflare D1（SQLite、binding `DB`、database `ai-org`）。ORM なし、生 SQL
-- **画像**: Cloudflare R2（binding `MEDIA`、bucket `ai-org-media`）、Cloudflare Images（binding `IMAGES`）
-- **Auth**: アプリ内パスワード + `jose` HS256 JWT Cookie（`ai-org-session`）
-- **AI**: Workers AI（文字起こし等）、Gemini（X 投稿画像解析）
+- **Hosting**: outside-local-ubuntu の `/home/s-takahashi/development/ai-org` で `next dev`（`127.0.0.1:3080`）。外向きは Cloudflare Tunnel `https://ai-org.studiofoods.net`（pm2 `ai-org-cloudflared`）。Tunnel 経由の開発時 HMR は `next.config.ts` の `allowedDevOrigins` で公開ホストを許可する。手順は [deploy/ubuntu/README.md](../deploy/ubuntu/README.md)
+- **DB**: このサーバーの PostgreSQL 14（`DATABASE_URL`、database `ai-org`）。MIERU 側の DB とは分ける。ORM なし、生 SQL。呼び出しは D1 形のアダプタ（[src/lib/pg-db.ts](../src/lib/pg-db.ts)）
+- **画像**: ai-org のファイルはローカルディスク（`MEDIA_ROOT`、既定 `data/media`）。キーは `x-posts/` `tasks/` `blog-posts/`。公開ブログの新規画像は別ホストのブログ画像 API。キーは共有しない
+- **Auth**: 画面はアプリ内パスワード + `jose` HS256 JWT Cookie（`ai-org-session`）。`/api/v1` は `X-API-Key`。`API_KEYS` が空なら `AUTOMATION_INGEST_SECRET` を admin として受け付ける。推奨は担当ごとのキー（`名前|role|secret` をカンマ区切り）
+- **AI**: Workers AI の REST API（文字起こし。`CF_ACCOUNT_ID` と `CF_API_TOKEN`）、Gemini（X 投稿画像解析）
 - **外部**: Google Sheets、Google Tasks、X API（Cron からは未使用）
 
-バインディング正本は [wrangler.jsonc](../wrangler.jsonc)。KV / Queues / Durable Objects / Vectorize は使っていない。
+設定はリポジトリの `.env`。KV / Queues / Durable Objects / Vectorize は使っていない。D1 と R2 は過去の移行元で、実行時には使わない。
+
+## 4. `/api/v1`
+
+ベース URL は `https://ai-org.studiofoods.net/api/v1`。パスは `/api/v1` で固定する。HTTP API の正本は [api-rules.md](./api-rules.md)（画面 `/api-rules`、`GET /api/v1/spec`）。画面ルートと Server Actions は [interfaces.md](./interfaces.md)。
+
+- 書き込みは同じ ID の upsert。記事の同一性は slug。差戻し済みの slug での新規登録は 409 `slug_rejected_exists`。draft 以外の本文更新は 403。
+- 状態は `draft → approved → published`。`published` から戻すのは admin の `force=true`、または画面での昌兵さんの操作。戻したときは通知する。
+- 承認前の自動チェック（`file://`、タイトルの `【】`、slug、カテゴリ、出典のない数字、許可外リンク）は `BLOG_PREAPPROVE_CHECKS` が `0` でなければ有効。リンクの許可は `studiofoods.net` のお問い合わせ、ブログ、サービス。
+- 未解決コメント（DB の `open`。API 上の名前は `resolved`、保存値は従来の `done`）が残る記事は承認できない。批評のコメントも `blog_post_comments` に入れる。
+- ブランド承認・記事チェック・昌兵さんの要判断までを公開条件にするかは `BLOG_PUBLISH_GATE=1` のときだけ。既定はオフ。
+- 本文の正本は PostgreSQL。X 投稿とブログネタも同じ。X の更新は `base_updated_at` が古いと 409。
+- 失敗、認証エラー、0 件取り込み、照合の差は `ops_alerts` に残り、`/board` に出る。任意で `ALERT_WEBHOOK_URL`。
+- ロールは `reader` / `reviewer` / `writer` / `publisher` / `admin`。reviewer はコメントと判定のみ。writer は draft の本文。publisher は状態と業務台帳。admin は全操作。
 
 ## 3. 設計方針・コーディング規約
 
@@ -46,10 +62,11 @@ flowchart LR
 |---|---|
 | `src/app/` | 画面、`actions.ts`（`"use server"`）、`api/` |
 | `src/components/` | UI。Server Action を呼ぶ Client Components |
-| `src/lib/` | D1/R2、認証、同期、型、自動化カタログ |
+| `src/lib/` | PostgreSQL / ローカル画像、認証、同期、型、自動化カタログ |
 | `src/middleware.ts` | セッション検証。localhost はスキップ |
-| `worker.ts` | OpenNext `fetch` 委譲 + Cron |
-| `migrations/` | D1 スキーマの正本 |
+| `scripts/run-cron.ts` | systemd timer から呼ぶ定期実行 |
+| `migrations/pg/` | PostgreSQL 14 スキーマの正本 |
+| `migrations/` | 旧 D1（SQLite）マイグレーション。適用しない |
 | `docs/` | 仕様書。`VERSION.md` は変更履歴（別ルール） |
 
 ### 状態管理の原則
@@ -58,13 +75,13 @@ flowchart LR
 - 読み取り: RSC が Server Actions を呼び、props で Client へ渡す。
 - 書き込み: `"use server"` + `useTransition`。更新後は `revalidatePath`。
 - ページは `dynamic = "force-dynamic"` を前提にする。
-- DB は `getCloudflareContext()` → `env.DB`（[src/lib/db.ts](../src/lib/db.ts)）。ID は `prefix_uuid`。
+- DB は `getDb()`（[src/lib/db.ts](../src/lib/db.ts)）。設定は `getAppEnv()`。ID は `prefix_uuid`。
 
 ### エラーハンドリング・ロギング
 
 - ユーザー向けは `{ error: string }` または HTTP 500。詳細は `console.error`。
 - ルートエラー境界は `src/app/error.tsx`。
-- Cron の成否は `recordAutomationRun` で D1 に残す。
+- Cron の成否は `recordAutomationRun` で PostgreSQL に残す。
 - 集中ログ基盤（Sentry 等）は導入しない（現状維持）。
 
 ### 逸脱禁止（承認なしでやらない）

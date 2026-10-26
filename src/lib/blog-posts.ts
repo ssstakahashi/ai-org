@@ -1,5 +1,12 @@
-import { mediaUrl } from "@/lib/media-upload";
-import { newId } from "@/lib/db";
+import { mediaUrl } from "@/lib/media-path";
+import { newId } from "@/lib/ids";
+import {
+	BlogRuleError,
+	assertEnglishSlug,
+	extractNoteFields,
+	hashBody,
+	inferThumbnailOrigin,
+} from "@/lib/blog-post-rules";
 import {
 	BLOG_POST_DESTINATION_DEFAULT,
 	BLOG_POST_DESTINATION_OPTIONS,
@@ -11,7 +18,9 @@ import {
 
 export const BLOG_POST_SELECT = `SELECT
 	id, slug, title, excerpt, body, category, tags, thumbnail_url, thumbnail_key, figure_keys,
-	published_on, status, destination, notes, source, created_at, updated_at
+	published_on, status, destination, notes, source, created_at, updated_at,
+	body_hash, thumbnail_origin, external_check_date, external_check_result, rewrite_mark,
+	version, published_at, published_url
  FROM blog_posts`;
 
 export const BLOG_POST_ORDER = `ORDER BY
@@ -281,6 +290,9 @@ export async function upsertBlogPostFromSheet(
 	const status = parseBlogPostStatus(input.status);
 
 	const existing = await getBlogPostFromDb(db, input.id);
+	if (existing && existing.status !== "draft") {
+		return existing;
+	}
 	if (existing) {
 		await db
 			.prepare(
@@ -365,6 +377,27 @@ export async function listBlogPostsFromDb(
 	return (results ?? []).map(withDestination);
 }
 
+async function assertSlugOwner(db: D1Database, slug: string, ownerId?: string): Promise<void> {
+	const holder = await db
+		.prepare(`SELECT id, status, slug FROM blog_posts WHERE slug = ?`)
+		.bind(slug)
+		.first<{ id: string; status: string; slug: string }>();
+	if (!holder || holder.id === ownerId) return;
+	if (holder.status === "rejected") {
+		throw new BlogRuleError(
+			409,
+			"slug_rejected_exists",
+			"差戻し済みの slug です。人の確認が必要です",
+			{ id: holder.id, slug },
+		);
+	}
+	throw new BlogRuleError(409, "slug_conflict", "同じ slug の記事があります", {
+		id: holder.id,
+		slug,
+		status: holder.status,
+	});
+}
+
 export async function upsertBlogPostFromIngest(
 	db: D1Database,
 	input: BlogDraftIngestInput,
@@ -385,9 +418,6 @@ export async function upsertBlogPostFromIngest(
 				.prepare(`${BLOG_POST_SELECT} WHERE id = ?`)
 				.bind(input.id)
 				.first<BlogPost>()) ?? null;
-		if (!existing) {
-			throw new Error("blog post not found");
-		}
 	}
 
 	const destination =
@@ -398,7 +428,7 @@ export async function upsertBlogPostFromIngest(
 				})
 			: BLOG_POST_DESTINATION_DEFAULT);
 
-	if (!existing && input.slug) {
+	if (!existing && !input.id && input.slug) {
 		const slug = slugifyBlogSlug(input.slug);
 		if (slug) {
 			existing =
@@ -410,17 +440,54 @@ export async function upsertBlogPostFromIngest(
 	}
 
 	if (existing) {
-		const slug = await allocateUniqueSlug(
-			db,
-			input.slug || existing.slug,
-			existing.id,
-		);
+		if (existing.status === "rejected") {
+			throw new BlogRuleError(
+				409,
+				"slug_rejected_exists",
+				"差戻し済みの slug です。人の確認が必要です",
+				{ id: existing.id, slug: existing.slug },
+			);
+		}
+		if (existing.status !== "draft") {
+			const sameBody = body === (existing.body ?? "") && input.title === existing.title;
+			if (!sameBody) {
+				throw new BlogRuleError(403, "body_locked", "draft 以外の本文は更新できません", {
+					status: existing.status,
+				});
+			}
+			return { id: existing.id, slug: existing.slug, updated: false };
+		}
+		const slug = slugifyBlogSlug(input.slug || existing.slug);
+		assertEnglishSlug(slug);
+		await assertSlugOwner(db, slug, existing.id);
+		const notesFields = extractNoteFields(notes, source);
+		const same =
+			slug === existing.slug &&
+			input.title === existing.title &&
+			excerpt === (existing.excerpt ?? "") &&
+			body === (existing.body ?? "") &&
+			category === (existing.category ?? "") &&
+			tags === (existing.tags ?? "") &&
+			thumbnailUrl === (existing.thumbnail_url ?? "") &&
+			publishedOn === (existing.published_on ?? "") &&
+			destination === existing.destination &&
+			notes === (existing.notes ?? "") &&
+			source === (existing.source ?? "");
+		if (same) {
+			return { id: existing.id, slug: existing.slug, updated: false };
+		}
+		const nextHash = hashBody(body);
+		const previousHash = existing.body_hash || hashBody(existing.body ?? "");
+		const version =
+			nextHash === previousHash ? Number(existing.version ?? 1) : Number(existing.version ?? 1) + 1;
 		await db
 			.prepare(
 				`UPDATE blog_posts
 				 SET slug = ?, title = ?, excerpt = ?, body = ?, category = ?, tags = ?,
-				     thumbnail_url = ?, published_on = ?, status = 'draft', destination = ?,
-				     notes = ?, source = ?, updated_at = datetime('now')
+				     thumbnail_url = ?, published_on = ?, destination = ?,
+				     notes = ?, source = ?, body_hash = ?, thumbnail_origin = ?,
+				     external_check_date = ?, external_check_result = ?, rewrite_mark = ?,
+				     version = ?, updated_at = datetime('now')
 				 WHERE id = ?`,
 			)
 			.bind(
@@ -435,19 +502,29 @@ export async function upsertBlogPostFromIngest(
 				destination,
 				notes,
 				source,
+				nextHash,
+				inferThumbnailOrigin(thumbnailUrl, ""),
+				notesFields.external_check_date,
+				notesFields.external_check_result,
+				notesFields.rewrite_mark,
+				version,
 				existing.id,
 			)
 			.run();
 		return { id: existing.id, slug, updated: true };
 	}
 
-	const id = newId("blog");
-	const slug = await allocateUniqueSlug(db, input.slug || input.title);
+	const id = input.id?.trim() || newId("blog");
+	const slug = slugifyBlogSlug(input.slug || input.title);
+	assertEnglishSlug(slug);
+	await assertSlugOwner(db, slug);
+	const notesFields = extractNoteFields(notes, source);
 	await db
 		.prepare(
 			`INSERT INTO blog_posts
-				(id, slug, title, excerpt, body, category, tags, thumbnail_url, published_on, status, destination, notes, source)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)`,
+				(id, slug, title, excerpt, body, category, tags, thumbnail_url, published_on, status, destination, notes, source,
+				 body_hash, thumbnail_origin, external_check_date, external_check_result, rewrite_mark, version)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
 		)
 		.bind(
 			id,
@@ -462,6 +539,11 @@ export async function upsertBlogPostFromIngest(
 			destination,
 			notes,
 			source,
+			hashBody(body),
+			inferThumbnailOrigin(thumbnailUrl, ""),
+			notesFields.external_check_date,
+			notesFields.external_check_result,
+			notesFields.rewrite_mark,
 		)
 		.run();
 	return { id, slug, updated: false };

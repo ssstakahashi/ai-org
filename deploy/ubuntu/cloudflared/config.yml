@@ -1,0 +1,12 @@
+# ai-org を Cloudflare Tunnel で公開する。
+# 資格情報は ~/.cloudflared にあり、このファイルには入れない。
+tunnel: 308c7fd6-0c07-46a4-8536-cfefcaf7e0ef
+credentials-file: /home/s-takahashi/.cloudflared/308c7fd6-0c07-46a4-8536-cfefcaf7e0ef.json
+
+ingress:
+  - hostname: ai-org.studiofoods.net
+    service: http://127.0.0.1:3080
+    originRequest:
+      # オリジンへ 127.0.0.1 を Host に渡すと middleware が localhost 扱いで認証をスキップする
+      httpHostHeader: ai-org.studiofoods.net
+  - service: http_status:404

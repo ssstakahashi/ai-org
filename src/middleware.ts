@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getAppEnv } from "@/lib/app-env";
 import {
 	isAuthConfigured,
 	isLocalHostname,
@@ -24,6 +24,12 @@ function isInternalApiPath(pathname: string) {
 	);
 }
 
+/** 127.0.0.1:3080 直叩きと Tunnel 経由で Host が食い違うため、認証判定は Host を優先する */
+function requestHostname(request: NextRequest) {
+	const fromHeader = request.headers.get("host")?.split(":")[0]?.trim();
+	return fromHeader || request.nextUrl.hostname;
+}
+
 function loginRedirect(request: NextRequest) {
 	const loginUrl = new URL("/login", request.url);
 	const next = `${request.nextUrl.pathname}${request.nextUrl.search}`;
@@ -36,15 +42,20 @@ function loginRedirect(request: NextRequest) {
 export async function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 
-	if (isLocalHostname(request.nextUrl.hostname)) {
+	if (isLocalHostname(requestHostname(request))) {
 		return withPathname(NextResponse.next(), pathname);
 	}
 
-	if (isInternalApiPath(pathname) || pathname === "/api/auth/login") {
+	if (
+		isInternalApiPath(pathname) ||
+		pathname === "/api/auth/login" ||
+		pathname === "/api/v1" ||
+		pathname.startsWith("/api/v1/")
+	) {
 		return withPathname(NextResponse.next(), pathname);
 	}
 
-	const { env } = await getCloudflareContext({ async: true });
+	const env = getAppEnv();
 	if (!isAuthConfigured(env)) {
 		return withPathname(
 			new NextResponse("Auth configuration missing", { status: 500 }),
