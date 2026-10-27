@@ -6,7 +6,7 @@ OpenAPI / Swagger は無い。画面は App Router、更新の大半は Server A
 
 ## 1. 画面一覧・遷移フロー
 
-ナビ正本は [src/lib/app-nav.ts](../src/lib/app-nav.ts)。`/login` 以外でトップナビを出す。トップレベルの「投稿」はドロップダウン（サイドメニューでは見出し）で、小要素はブログ下書き・ネタ・X投稿スケジュール。「情報」はドロップダウン（サイドメニューでは見出し）で、小要素は掲示板・API ルール・会計マニュアル。「組織」はドロップダウン（サイドメニューでは見出し）で、小要素は従業員・組織ルール・自動化一覧。
+ナビ正本は [src/lib/app-nav.ts](../src/lib/app-nav.ts)。`/login` 以外でトップナビを出す。トップレベルの「投稿」はドロップダウン（サイドメニューでは見出し）で、小要素はブログ下書き・ネタ・X投稿スケジュール。「情報」はドロップダウン（サイドメニューでは見出し）で、小要素は掲示板・Web分析・OpenClaw・API ルール・会計マニュアル。「組織」はドロップダウン（サイドメニューでは見出し）で、小要素は従業員・組織ルール・自動化一覧。
 
 ```mermaid
 flowchart TD
@@ -15,6 +15,8 @@ flowchart TD
   Home --> BlogDrafts["/blog-drafts"]
   Home --> BlogIdeas["/blog-ideas"]
   Home --> Board["/board"]
+  Home --> WebAnalytics["/web-analytics"]
+  Home --> OpenClaw["/openclaw"]
   Home --> ApiRules["/api-rules"]
   Home --> AccountingManual["/accounting-manual"]
   AccountingManual --> AccountingManualEntry["/accounting-manual/{no}"]
@@ -40,6 +42,8 @@ flowchart TD
 | `/blog-drafts` | ブログ下書きの確認・承認。一覧表に使用予定画像（TOP / 図表）を表示。確認ポップアップは本文中のインライン SVG を画像として表示。未公開記事の AI コメント確認（未対応／対応済）。Sheets 双方向同期はデフォルト無効（環境変数 `BLOG_DRAFTS_SHEET_AUTO_SYNC=1` で有効化）。notes に「本番へは出さない」を含む行は同期時の削除から保護 | トップ（投稿） |
 | `/blog-ideas` | ネタの CSV アップロードと参照（タブ: SideBusiness / Agri / 税務 / DX / 業務プロセス改革 / M＆A / 労務 / 3社比較）。一覧の「下書き」列に、未転用 / ブログ下書き / X下書き / 両方を出す。各ネタの転用先（ブログ / X の媒体）とタグ（ページ台帳と同じマスタ）を記録。SideBusiness タブは一覧の上に4象限（縦: 副業時の月収レンジ中央値、横: 参入難易度）を出し、点のクリックで詳細ダイアログを開く | トップ（投稿） |
 | `/board` | 掲示板（投稿管理シートのリンク、VERSION 履歴） | トップ（情報） |
+| `/web-analytics` | Cloudflare ゾーンの HTTP トラフィック（リクエスト・ページビュー・転送量、直近 7 / 14 / 28 日） | トップ（情報） |
+| `/openclaw` | OpenClaw Control UI へリダイレクト。`OPENCLAW_CONTROL_UI_URL` 未設定時は設定手順を表示 | トップ（情報） |
 | `/api-rules` | HTTP API ルール（`docs/api-rules.md` と同期。ボットは `GET /api/v1/spec`） | トップ（情報） |
 | `/accounting-manual` | 会計マニュアル目次（法人税決算・申告 No.1〜62） | トップ（情報） |
 | `/accounting-manual/[no]` | 会計マニュアルの各項目（No.1〜62）。前後の項目と目次へ移動可 | 情報 |
@@ -49,6 +53,7 @@ flowchart TD
 | `/apps/groups` | AppGroup マスタ | App サブタブ |
 | `/apps/types` | AppType マスタ | App サブタブ |
 | `/apps/requirements` | App 要件定義 | App サブタブ |
+| `/apps/test-results` | App テスト計画・テスト結果 | App サブタブ |
 | `/employees` | AI従業員マスタ | トップ（組織） |
 | `/org-rules` | 組織ルール一覧 | トップ（組織） |
 | `/org-rules/authority` | 職務権限表 | 組織ルール サブタブ |
@@ -90,6 +95,7 @@ HTTP API（Route Handler・`/api/v1`）の正本は [api-rules.md](./api-rules.m
 | Google Tasks | 今すぐ同期 / 最終実行の取得 / OAuth 完了（全リスト取得、新規はリスト ai-org） |
 | Spark | シートから再取得 |
 | App names / groups / types / apps / crons / requirements | list / create / update / reorder / delete |
+| App test plans / test results | 画面: list / save plan / create / update / delete。ボット: `/api/v1` の `apps/test-plans`・`apps/test-results` |
 | Blog | list / create / update / status / delete / コメント一覧・対応状況 / 投稿先シート同期 |
 | ネタ | list / CSV アップロード / 転用先（ブログ・X の媒体）の付与と解除 / タグの付与・解除・新規追加 |
 

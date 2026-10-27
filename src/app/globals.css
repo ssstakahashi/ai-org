@@ -2736,6 +2736,36 @@ button.ghost {
 	min-width: 0;
 }
 
+.app-test-plan-panel {
+	margin-bottom: 1.25rem;
+	padding-bottom: 1rem;
+	border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.app-test-plan-head {
+	margin-bottom: 0.35rem;
+}
+
+.app-test-plan-head h3 {
+	margin: 0;
+	font-size: 1.05rem;
+}
+
+.app-test-plan-lede {
+	margin-top: 0;
+	margin-bottom: 0.65rem;
+}
+
+.app-test-plan-textarea {
+	min-height: 10rem;
+}
+
+.app-test-plan-meta {
+	margin: 0.5rem 0 0;
+	font-size: 0.82rem;
+	color: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
 .requirement-head-meta {
 	margin-left: 0.45rem;
 	font-size: 0.92em;

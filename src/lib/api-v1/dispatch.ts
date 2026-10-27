@@ -34,6 +34,8 @@ import {
 	listIdeas,
 	listRequirements,
 	listTasks,
+	listTestPlans,
+	listTestResults,
 	listX,
 	putAppNames,
 	putBoardLink,
@@ -41,6 +43,9 @@ import {
 	putIdea,
 	putRequirements,
 	putTask,
+	putTestPlans,
+	putTestResult,
+	deleteTestResult,
 	putX,
 } from "@/lib/api-v1/rest";
 import { apiRulesSpecPayload, readApiRulesMarkdown } from "@/lib/api-rules-doc";
@@ -204,6 +209,34 @@ export async function handleApiV1(request: NextRequest, path: string[]): Promise
 		if (key === "PUT apps/requirements") {
 			denied(ROLE_WRITE);
 			return apiJson(await putRequirements(db, await readJson(request)), 200, requestId);
+		}
+		if (key === "GET apps/test-plans") {
+			denied(ROLE_READ);
+			return apiJson(await listTestPlans(db), 200, requestId);
+		}
+		if (key === "PUT apps/test-plans") {
+			denied(ROLE_WRITE);
+			return apiJson(await putTestPlans(db, await readJson(request)), 200, requestId);
+		}
+		if (key === "GET apps/test-results") {
+			denied(ROLE_READ);
+			return apiJson(await listTestResults(db, url, parsePage(url)), 200, requestId);
+		}
+		if (method === "PUT" && path[0] === "apps" && path[1] === "test-results" && path.length === 3) {
+			denied(ROLE_WRITE);
+			return apiJson(
+				await putTestResult(db, decodeURIComponent(path[2] ?? ""), await readJson(request)),
+				200,
+				requestId,
+			);
+		}
+		if (method === "DELETE" && path[0] === "apps" && path[1] === "test-results" && path.length === 3) {
+			denied(ROLE_WRITE);
+			return apiJson(
+				await deleteTestResult(db, decodeURIComponent(path[2] ?? "")),
+				200,
+				requestId,
+			);
 		}
 		if (key === "GET ledger/tasks") {
 			denied(ROLE_READ);

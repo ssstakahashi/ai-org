@@ -11,6 +11,11 @@ import {
 import { X_POST_SELECT } from "@/lib/x-posts";
 import { asRecord, asText, encodeCursor, pageClause, type PageQuery } from "@/lib/api-v1/http";
 import type { ApiActor } from "@/lib/api-v1/auth";
+import { parseAppDateTime } from "@/lib/timezone";
+import {
+	APP_TEST_RESULT_OUTCOME_OPTIONS,
+	type AppTestResultOutcome,
+} from "@/lib/types";
 
 const ACCOUNT_TO_DESTINATION: Record<string, XPostDestination> = {
 	"@studio_foods": "studiofoods_official",
@@ -546,6 +551,192 @@ export async function putRequirements(db: D1Database, raw: unknown) {
 	return { ok: true, total: rows.length };
 }
 
+function parseTestResultOutcome(raw: unknown): AppTestResultOutcome {
+	const value = asText(raw) || "info";
+	if ((APP_TEST_RESULT_OUTCOME_OPTIONS as readonly string[]).includes(value)) {
+		return value as AppTestResultOutcome;
+	}
+	throw new BlogRuleError(400, "validation", "outcome が不正です");
+}
+
+function parseRecordedAt(raw: unknown, fallback?: string): string {
+	const text = asText(raw);
+	if (!text) {
+		if (fallback) return fallback;
+		return new Date().toISOString();
+	}
+	return parseAppDateTime(text).toISOString();
+}
+
+async function assertAppNameId(db: D1Database, appNameId: string) {
+	const row = await db
+		.prepare(`SELECT id FROM app_names WHERE id = ?`)
+		.bind(appNameId)
+		.first<{ id: string }>();
+	if (!row) {
+		throw new BlogRuleError(400, "validation", "app_name_id が存在しません");
+	}
+}
+
+export async function listTestPlans(db: D1Database) {
+	const { results } = await db
+		.prepare(
+			`SELECT id, app_name_id, body, created_at, updated_at
+			 FROM app_test_plans
+			 ORDER BY updated_at DESC, app_name_id ASC`,
+		)
+		.all<Record<string, unknown>>();
+	const plans = results ?? [];
+	return { plans, total: plans.length };
+}
+
+export async function putTestPlans(db: D1Database, raw: unknown) {
+	const body = asRecord(raw);
+	const rows = Array.isArray(body.plans) ? body.plans : [body];
+	for (const row of rows) {
+		const record = asRecord(row);
+		const appNameId = asText(record.app_name_id);
+		if (!appNameId) {
+			throw new BlogRuleError(400, "validation", "app_name_id は必須です");
+		}
+		await assertAppNameId(db, appNameId);
+		const planBody = "body" in record ? asText(record.body) : "";
+		const existing = await db
+			.prepare(`SELECT id FROM app_test_plans WHERE app_name_id = ?`)
+			.bind(appNameId)
+			.first<{ id: string }>();
+		if (existing) {
+			await db
+				.prepare(
+					`UPDATE app_test_plans
+					 SET body = ?, updated_at = datetime('now')
+					 WHERE app_name_id = ?`,
+				)
+				.bind(planBody, appNameId)
+				.run();
+		} else {
+			await db
+				.prepare(
+					`INSERT INTO app_test_plans (id, app_name_id, body)
+					 VALUES (?, ?, ?)`,
+				)
+				.bind(newId("tplan"), appNameId, planBody)
+				.run();
+		}
+	}
+	revalidatePath("/apps/test-results");
+	return { ok: true, total: rows.length };
+}
+
+export async function listTestResults(db: D1Database, url: URL, page: PageQuery) {
+	const filters: string[] = [];
+	const binds: string[] = [];
+	const appNameId = url.searchParams.get("app_name_id")?.trim();
+	if (appNameId) {
+		filters.push("app_name_id = ?");
+		binds.push(appNameId);
+	}
+	const paging = pageClause(page, "recorded_at");
+	const whereParts = [...filters, paging.sql.replace(/^ AND /, "")].filter(Boolean);
+	const whereSql = whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
+	const countSql = `SELECT COUNT(*) AS count FROM app_test_results ${
+		filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""
+	}${page.updatedSince ? ` ${filters.length > 0 ? "AND" : "WHERE"} recorded_at >= ?` : ""}`;
+	const countRow = await db
+		.prepare(countSql)
+		.bind(...binds, ...(page.updatedSince ? [page.updatedSince] : []))
+		.first<{ count: number }>();
+	const { results } = await db
+		.prepare(
+			`SELECT id, app_name_id, title, body, outcome, recorded_at, created_at, updated_at
+			 FROM app_test_results ${whereSql}
+			 ORDER BY recorded_at DESC, id DESC
+			 LIMIT ?`,
+		)
+		.bind(...binds, ...paging.binds, page.limit)
+		.all<Record<string, string>>();
+	const testResults = results ?? [];
+	const last = testResults[testResults.length - 1];
+	return {
+		test_results: testResults,
+		total: Number(countRow?.count ?? 0),
+		next_cursor:
+			testResults.length === page.limit && last
+				? encodeCursor(last.recorded_at, last.id)
+				: null,
+	};
+}
+
+export async function putTestResult(db: D1Database, id: string, raw: unknown) {
+	if (!id) {
+		throw new BlogRuleError(400, "validation", "id が必要です");
+	}
+	const body = asRecord(raw);
+	const existing = await db
+		.prepare(
+			`SELECT id, app_name_id, title, body, outcome, recorded_at
+			 FROM app_test_results WHERE id = ?`,
+		)
+		.bind(id)
+		.first<{
+			id: string;
+			app_name_id: string;
+			title: string;
+			body: string;
+			outcome: string;
+			recorded_at: string;
+		}>();
+	const appNameId = asText(body.app_name_id) || existing?.app_name_id || "";
+	const title = asText(body.title) || existing?.title || "";
+	if (!appNameId || !title) {
+		throw new BlogRuleError(400, "validation", "app_name_id と title は必須です");
+	}
+	await assertAppNameId(db, appNameId);
+	const resultBody = "body" in body ? asText(body.body) : existing?.body ?? "";
+	const outcome = "outcome" in body
+		? parseTestResultOutcome(body.outcome)
+		: parseTestResultOutcome(existing?.outcome ?? "info");
+	const recordedAt = parseRecordedAt(body.recorded_at, existing?.recorded_at);
+
+	if (existing) {
+		await db
+			.prepare(
+				`UPDATE app_test_results
+				 SET app_name_id = ?, title = ?, body = ?, outcome = ?, recorded_at = ?,
+				     updated_at = datetime('now')
+				 WHERE id = ?`,
+			)
+			.bind(appNameId, title, resultBody, outcome, recordedAt, id)
+			.run();
+	} else {
+		await db
+			.prepare(
+				`INSERT INTO app_test_results (id, app_name_id, title, body, outcome, recorded_at)
+				 VALUES (?, ?, ?, ?, ?, ?)`,
+			)
+			.bind(id, appNameId, title, resultBody, outcome, recordedAt)
+			.run();
+	}
+	revalidatePath("/apps/test-results");
+	return { ok: true, id, updated: Boolean(existing) };
+}
+
+export async function deleteTestResult(db: D1Database, id: string) {
+	if (!id) {
+		throw new BlogRuleError(400, "validation", "id が必要です");
+	}
+	const existing = await db
+		.prepare(`SELECT id FROM app_test_results WHERE id = ?`)
+		.bind(id)
+		.first<{ id: string }>();
+	if (!existing) {
+		throw new BlogRuleError(404, "not_found", "テスト結果がありません");
+	}
+	await db.prepare(`DELETE FROM app_test_results WHERE id = ?`).bind(id).run();
+	revalidatePath("/apps/test-results");
+	return { ok: true, id };
+}
+
 export async function listTasks(db: D1Database, url: URL, page: PageQuery) {
 	const filters: string[] = [];
 	const binds: string[] = [];
@@ -704,15 +895,26 @@ export async function putBoardLink(db: D1Database, raw: unknown) {
 }
 
 export async function exportAll(db: D1Database) {
-	const [posts, ideas, xPosts, employees, names, requirements, tasks] = await Promise.all([
-		db.prepare(`SELECT * FROM blog_posts`).all<Record<string, unknown>>(),
-		db.prepare(`SELECT * FROM blog_ideas`).all<Record<string, unknown>>(),
-		db.prepare(`SELECT * FROM x_posts`).all<Record<string, unknown>>(),
-		db.prepare(`SELECT id, name, role, area, authority, sort_order, created_at FROM employees`).all<Record<string, unknown>>(),
-		db.prepare(`SELECT * FROM app_names`).all<Record<string, unknown>>(),
-		db.prepare(`SELECT * FROM app_requirements`).all<Record<string, unknown>>(),
-		db.prepare(`SELECT id, employee_id, title, status, start_at, end_at, updated_at FROM tasks`).all<Record<string, unknown>>(),
-	]);
+	const [posts, ideas, xPosts, employees, names, requirements, testPlans, testResults, tasks] =
+		await Promise.all([
+			db.prepare(`SELECT * FROM blog_posts`).all<Record<string, unknown>>(),
+			db.prepare(`SELECT * FROM blog_ideas`).all<Record<string, unknown>>(),
+			db.prepare(`SELECT * FROM x_posts`).all<Record<string, unknown>>(),
+			db
+				.prepare(
+					`SELECT id, name, role, area, authority, sort_order, created_at FROM employees`,
+				)
+				.all<Record<string, unknown>>(),
+			db.prepare(`SELECT * FROM app_names`).all<Record<string, unknown>>(),
+			db.prepare(`SELECT * FROM app_requirements`).all<Record<string, unknown>>(),
+			db.prepare(`SELECT * FROM app_test_plans`).all<Record<string, unknown>>(),
+			db.prepare(`SELECT * FROM app_test_results`).all<Record<string, unknown>>(),
+			db
+				.prepare(
+					`SELECT id, employee_id, title, status, start_at, end_at, updated_at FROM tasks`,
+				)
+				.all<Record<string, unknown>>(),
+		]);
 	return {
 		blog_posts: posts.results ?? [],
 		blog_ideas: ideas.results ?? [],
@@ -720,6 +922,8 @@ export async function exportAll(db: D1Database) {
 		employees: employees.results ?? [],
 		app_names: names.results ?? [],
 		app_requirements: requirements.results ?? [],
+		app_test_plans: testPlans.results ?? [],
+		app_test_results: testResults.results ?? [],
 		tasks: tasks.results ?? [],
 	};
 }

@@ -257,6 +257,67 @@ export const APP_REQUIREMENT_STATUS_OPTIONS = [
 	"cancelled",
 ] as const satisfies readonly AppRequirementStatus[];
 
+export type AppTestResultOutcome =
+	| "pass"
+	| "fail"
+	| "partial"
+	| "blocked"
+	| "skipped"
+	| "info";
+
+/** App ごとのテスト計画（1 App 1 件） */
+export type AppTestPlan = {
+	id: string;
+	app_name_id: string;
+	body: string;
+	created_at: string;
+	updated_at: string;
+};
+
+export type AppTestPlanWithApp = AppTestPlan & {
+	app_name: string;
+	app_name_color: string;
+	app_name_text_color: string;
+	app_name_icon: string;
+};
+
+/** App ごとのテスト結果（逐次記録） */
+export type AppTestResult = {
+	id: string;
+	app_name_id: string;
+	title: string;
+	body: string;
+	outcome: AppTestResultOutcome;
+	recorded_at: string;
+	created_at: string;
+	updated_at: string;
+};
+
+export type AppTestResultWithApp = AppTestResult & {
+	app_name: string;
+	app_name_color: string;
+	app_name_text_color: string;
+	app_name_icon: string;
+};
+
+export const APP_TEST_RESULT_OUTCOME_LABEL: Record<AppTestResultOutcome, string> = {
+	pass: "合格",
+	fail: "不合格",
+	partial: "一部合格",
+	blocked: "ブロック",
+	skipped: "スキップ",
+	info: "記録",
+};
+
+export const APP_TEST_RESULT_OUTCOME_OPTIONS = [
+	"pass",
+	"fail",
+	"partial",
+	"blocked",
+	"skipped",
+	"info",
+] as const satisfies readonly AppTestResultOutcome[];
+
 /** 公式ブログ下書き（確認・承認） */
 export type BlogPostStatus = "draft" | "approved" | "published" | "rejected";
 

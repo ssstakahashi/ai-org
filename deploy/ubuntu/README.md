@@ -40,6 +40,8 @@ pm2 save
 
 `.env` の `APP_PUBLIC_URL` は `https://ai-org.studiofoods.net` を推奨（画像 URL の絶対パス用）。Tunnel 経由では `Host` が公開名になるため、パスワード認証が有効になります。
 
+情報メニューの **OpenClaw** は `OPENCLAW_CONTROL_UI_URL` へリダイレクトする。別 PC の Control UI を ai-org と同様に **Cloudflare Tunnel（＋ Access）** で HTTPS 公開し、その URL を `.env` に書く（例: `https://openclaw.studiofoods.net`）。未設定のときは `/openclaw` に手順を表示する。
+
 Tunnel 上で `next dev` を開くときは `next.config.ts` の `allowedDevOrigins` に `ai-org.studiofoods.net` が入っている必要があります（HMR の WebSocket）。ローカルだけで開発するなら SSH の `-L 3080:127.0.0.1:3080` で `http://127.0.0.1:3080` を使えば HMR も認証スキップもそのまま使えます。
 
 ## 2. データ

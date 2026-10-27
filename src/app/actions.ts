@@ -54,6 +54,10 @@ import {
 	APP_REQUIREMENT_STATUS_OPTIONS,
 	type AppRequirementStatus,
 	type AppRequirementWithApp,
+	APP_TEST_RESULT_OUTCOME_OPTIONS,
+	type AppTestPlanWithApp,
+	type AppTestResultOutcome,
+	type AppTestResultWithApp,
 	type AppType,
 	type Category,
 	type Employee,
@@ -422,6 +426,7 @@ function revalidateAppsPage() {
 	revalidatePath("/apps/groups");
 	revalidatePath("/apps/types");
 	revalidatePath("/apps/requirements");
+	revalidatePath("/apps/test-results");
 }
 
 function parseAppRequirementStatus(raw: unknown): AppRequirementStatus {
@@ -562,6 +567,176 @@ export async function reorderAppRequirements(ids: string[]) {
 			.bind((index + 1) * 10, id),
 	);
 	await db.batch(statements);
+	revalidateAppsPage();
+}
+
+function parseAppTestResultOutcome(raw: unknown): AppTestResultOutcome {
+	const value = String(raw ?? "").trim();
+	if ((APP_TEST_RESULT_OUTCOME_OPTIONS as readonly string[]).includes(value)) {
+		return value as AppTestResultOutcome;
+	}
+	throw new Error("結果が不正です");
+}
+
+const APP_TEST_PLAN_SELECT = `SELECT
+				p.id, p.app_name_id, p.body, p.created_at, p.updated_at,
+				n.name AS app_name,
+				COALESCE(n.color, '') AS app_name_color,
+				COALESCE(n.text_color, '') AS app_name_text_color,
+				COALESCE(n.icon, '') AS app_name_icon
+			 FROM app_test_plans p
+			 JOIN app_names n ON n.id = p.app_name_id`;
+
+export async function listAppTestPlans(): Promise<AppTestPlanWithApp[]> {
+	const db = await getDb();
+	const { results } = await db
+		.prepare(`${APP_TEST_PLAN_SELECT} ORDER BY n.sort_order ASC, n.name ASC`)
+		.all<AppTestPlanWithApp>();
+	return results ?? [];
+}
+
+export async function saveAppTestPlan(formData: FormData) {
+	const db = await getDb();
+	const appNameId = formText(formData, "app_name_id");
+	const body = String(formData.get("body") ?? "").trim();
+
+	if (!appNameId) {
+		throw new Error("App の選択は必須です");
+	}
+
+	await resolveAppNameId(db, appNameId);
+
+	const existing = await db
+		.prepare("SELECT id FROM app_test_plans WHERE app_name_id = ?")
+		.bind(appNameId)
+		.first<{ id: string }>();
+
+	if (existing) {
+		await db
+			.prepare(
+				`UPDATE app_test_plans
+				 SET body = ?,
+				     updated_at = datetime('now')
+				 WHERE app_name_id = ?`,
+			)
+			.bind(body, appNameId)
+			.run();
+	} else {
+		const id = newId("tplan");
+		await db
+			.prepare(
+				`INSERT INTO app_test_plans (id, app_name_id, body)
+				 VALUES (?, ?, ?)`,
+			)
+			.bind(id, appNameId, body)
+			.run();
+	}
+
+	revalidateAppsPage();
+}
+
+const APP_TEST_RESULT_SELECT = `SELECT
+				r.id, r.app_name_id, r.title, r.body, r.outcome, r.recorded_at,
+				r.created_at, r.updated_at,
+				n.name AS app_name,
+				COALESCE(n.color, '') AS app_name_color,
+				COALESCE(n.text_color, '') AS app_name_text_color,
+				COALESCE(n.icon, '') AS app_name_icon
+			 FROM app_test_results r
+			 JOIN app_names n ON n.id = r.app_name_id`;
+
+export async function listAppTestResults(
+	appNameId?: string,
+): Promise<AppTestResultWithApp[]> {
+	const db = await getDb();
+	const trimmed = appNameId?.trim();
+	const sql = trimmed
+		? `${APP_TEST_RESULT_SELECT} WHERE r.app_name_id = ? ORDER BY r.recorded_at DESC, r.created_at DESC`
+		: `${APP_TEST_RESULT_SELECT} ORDER BY n.sort_order ASC, n.name ASC, r.recorded_at DESC, r.created_at DESC`;
+	const stmt = trimmed ? db.prepare(sql).bind(trimmed) : db.prepare(sql);
+	const { results } = await stmt.all<AppTestResultWithApp>();
+	return results ?? [];
+}
+
+export async function createAppTestResult(formData: FormData) {
+	const db = await getDb();
+	const appNameId = formText(formData, "app_name_id");
+	const title = formText(formData, "title");
+	const body = String(formData.get("body") ?? "").trim();
+	const outcome = parseAppTestResultOutcome(formData.get("outcome") ?? "info");
+	const recordedRaw = String(formData.get("recorded_at") ?? "").trim();
+
+	if (!appNameId) {
+		throw new Error("App の選択は必須です");
+	}
+	if (!title) {
+		throw new Error("タイトルは必須です");
+	}
+
+	await resolveAppNameId(db, appNameId);
+
+	const recordedAt = recordedRaw
+		? parseAppDateTime(recordedRaw).toISOString()
+		: new Date().toISOString();
+
+	const id = newId("tres");
+	await db
+		.prepare(
+			`INSERT INTO app_test_results (id, app_name_id, title, body, outcome, recorded_at)
+			 VALUES (?, ?, ?, ?, ?, ?)`,
+		)
+		.bind(id, appNameId, title, body, outcome, recordedAt)
+		.run();
+
+	revalidateAppsPage();
+}
+
+export async function updateAppTestResult(formData: FormData) {
+	const db = await getDb();
+	const id = formText(formData, "id");
+	const appNameId = formText(formData, "app_name_id");
+	const title = formText(formData, "title");
+	const body = String(formData.get("body") ?? "").trim();
+	const outcome = parseAppTestResultOutcome(formData.get("outcome"));
+	const recordedRaw = String(formData.get("recorded_at") ?? "").trim();
+
+	if (!id || !title) {
+		throw new Error("id とタイトルが必要です");
+	}
+	if (!appNameId) {
+		throw new Error("App の選択は必須です");
+	}
+	if (!recordedRaw) {
+		throw new Error("記録日時は必須です");
+	}
+
+	await resolveAppNameId(db, appNameId);
+
+	const recordedAt = parseAppDateTime(recordedRaw).toISOString();
+
+	await db
+		.prepare(
+			`UPDATE app_test_results
+			 SET app_name_id = ?,
+			     title = ?,
+			     body = ?,
+			     outcome = ?,
+			     recorded_at = ?,
+			     updated_at = datetime('now')
+			 WHERE id = ?`,
+		)
+		.bind(appNameId, title, body, outcome, recordedAt, id)
+		.run();
+
+	revalidateAppsPage();
+}
+
+export async function deleteAppTestResult(formData: FormData) {
+	const db = await getDb();
+	const id = formText(formData, "id");
+	if (!id) return;
+
+	await db.prepare("DELETE FROM app_test_results WHERE id = ?").bind(id).run();
 	revalidateAppsPage();
 }
 

@@ -4,6 +4,7 @@ export const APPS_TABS = [
 	{ href: "/apps/groups", label: "AppGroup", match: "prefix" as const },
 	{ href: "/apps/types", label: "AppType", match: "prefix" as const },
 	{ href: "/apps/requirements", label: "要件定義", match: "prefix" as const },
+	{ href: "/apps/test-results", label: "テスト結果", match: "prefix" as const },
 ] as const;
 
 export type AppsTabHref = (typeof APPS_TABS)[number]["href"];

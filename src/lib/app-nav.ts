@@ -34,6 +34,8 @@ export const APP_NAV: AppNavItem[] = [
 		label: "情報",
 		children: [
 			{ kind: "link", href: "/board", label: "掲示板" },
+			{ kind: "link", href: "/web-analytics", label: "Web分析" },
+			{ kind: "link", href: "/openclaw", label: "OpenClaw" },
 			{ kind: "link", href: "/api-rules", label: "API ルール" },
 			{ kind: "link", href: "/accounting-manual", label: "会計マニュアル" },
 		],

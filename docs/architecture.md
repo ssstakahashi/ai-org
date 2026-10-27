@@ -18,6 +18,7 @@ flowchart LR
   Next --> Disk["MEDIA_ROOT_this_server"]
   Next --> BlogImages["mieru_blog_image_api"]
   Next --> WorkersAI["Workers_AI_REST"]
+  Next --> CfAnalytics["Cloudflare_GraphQL_Analytics"]
   Next --> Gemini
   Next --> Google["Sheets_and_Tasks"]
 ```
@@ -37,7 +38,8 @@ flowchart LR
 - **画像**: ai-org のファイルはローカルディスク（`MEDIA_ROOT`、既定 `data/media`）。キーは `x-posts/` `tasks/` `blog-posts/`。公開ブログの新規画像は別ホストのブログ画像 API。キーは共有しない
 - **Auth**: 画面はアプリ内パスワード + `jose` HS256 JWT Cookie（`ai-org-session`）。`/api/v1` は `X-API-Key`。`API_KEYS` が空なら `AUTOMATION_INGEST_SECRET` を admin として受け付ける。推奨は担当ごとのキー（`名前|role|secret` をカンマ区切り）
 - **AI**: Workers AI の REST API（文字起こし。`CF_ACCOUNT_ID` と `CF_API_TOKEN`）、Gemini（X 投稿画像解析）
-- **外部**: Google Sheets、Google Tasks、X API（Cron からは未使用）
+- **分析**: Cloudflare GraphQL Analytics（`/web-analytics`。`CF_API_TOKEN` に Zone Read + Analytics Read。任意で `CF_ANALYTICS_ZONE_NAMES`）
+- **外部**: Google Sheets、Google Tasks、X API（Cron からは未使用）。OpenClaw Control UI は ai-org から HTTP リダイレクトのみ（`OPENCLAW_CONTROL_UI_URL`）。トンネル・認証は OpenClaw 側の Cloudflare 構成に依存し、ai-org はプロキシしない
 
 設定はリポジトリの `.env`。KV / Queues / Durable Objects / Vectorize は使っていない。D1 と R2 は過去の移行元で、実行時には使わない。
 

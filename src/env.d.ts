@@ -16,6 +16,8 @@ interface CloudflareEnv {
 	GOOGLE_SERVICE_ACCOUNT_EMAIL?: string;
 	GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?: string;
 	APP_PUBLIC_URL?: string;
+	/** OpenClaw Control UI（Cloudflare Tunnel 等で公開した URL） */
+	OPENCLAW_CONTROL_UI_URL?: string;
 	CF_API_TOKEN?: string;
 	CLOUDFLARE_API_TOKEN?: string;
 	GEMINI_API_KEY?: string;
@@ -29,6 +31,10 @@ interface CloudflareEnv {
 	GOOGLE_TASKS_DEFAULT_EMPLOYEE_ID?: string;
 	BLOG_DRAFTS_SHEET_AUTO_SYNC?: string;
 	CF_ACCOUNT_ID?: string;
+	/** カンマ区切り。未設定なら active ゾーンをすべて表示 */
+	CF_ANALYTICS_ZONE_NAMES?: string;
+	/** @deprecated CF_ANALYTICS_ZONE_NAMES と同義 */
+	CF_ANALYTICS_ZONES?: string;
 	CF_WORKER_NAME?: string;
 	NEXTJS_ENV?: string;
 	DATABASE_URL?: string;

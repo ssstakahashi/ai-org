@@ -52,6 +52,8 @@ CF_API_TOKEN=...
 
 本番でも文字起こしは同じ REST API です（`CF_API_TOKEN` が必要）。
 
+**情報 → Web分析**（`/web-analytics`）は Cloudflare GraphQL Analytics でゾーンの HTTP トラフィックを表示します。同じ `CF_API_TOKEN` に **Zone → Read** と **Analytics → Read** を付与してください。表示ゾーンを絞る場合は `CF_ANALYTICS_ZONE_NAMES=example.com,www.example.com`（カンマ区切り）。
+
 本番 D1 をローカル SQLite へ上書きコピー（Cloudflare ログイン必須。PostgreSQL へ入れる前段）:
 
 ```bash
