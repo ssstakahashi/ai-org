@@ -2,6 +2,12 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.70 (2026-11-04)
+
+- 外部スクリプト（Gemini等）向けのブログアイデアAPIを追加（POST/PATCH `/api/v1/blog-ideas`、バッチupsert、external_id による重複防止）
+- `blog_ideas` テーブルに `external_id`, `source`, `source_url` カラムを追加（migration `0004_blog_ideas_external.sql`）
+- API ドキュメント `docs/api/blog-ideas.md` を追加（curl 例、Gemini Function Calling スキーマ、Python スクリプト例）
+
 ## 0.0.69 (2026-11-04)
 
 - 公開用 `bun run deploy` を `next build` + systemd `next start`（3080）再起動に変更（旧 Workers 用は `deploy:workers`）

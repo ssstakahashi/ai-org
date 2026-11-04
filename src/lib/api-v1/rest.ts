@@ -72,6 +72,11 @@ export async function listIdeas(db: D1Database, url: URL, page: PageQuery) {
 		filters.push("topic = ?");
 		binds.push(topic);
 	}
+	const source = url.searchParams.get("source")?.trim();
+	if (source) {
+		filters.push("source = ?");
+		binds.push(source);
+	}
 	const tag = url.searchParams.get("tag")?.trim();
 	if (tag) {
 		filters.push(
@@ -96,7 +101,7 @@ export async function listIdeas(db: D1Database, url: URL, page: PageQuery) {
 		.first<{ count: number }>();
 	const { results } = await db
 		.prepare(
-			`SELECT id, topic, no, title, category, summary, badge, details, created_at, updated_at
+			`SELECT id, topic, no, title, category, summary, badge, details, external_id, source, source_url, created_at, updated_at
 			 FROM blog_ideas ${whereSql}
 			 ORDER BY updated_at DESC, id DESC
 			 LIMIT ?`,
@@ -111,6 +116,9 @@ export async function listIdeas(db: D1Database, url: URL, page: PageQuery) {
 			summary: string;
 			badge: string;
 			details: string;
+			external_id: string;
+			source: string;
+			source_url: string;
 			created_at: string;
 			updated_at: string;
 		}>();
@@ -178,7 +186,7 @@ export async function putIdea(db: D1Database, id: string, raw: unknown) {
 			.prepare(
 				`UPDATE blog_ideas
 				 SET topic = ?, no = ?, title = ?, category = ?, summary = ?, badge = ?,
-				     details = ?, updated_at = datetime('now')
+				     details = ?, external_id = ?, source = ?, source_url = ?, updated_at = datetime('now')
 				 WHERE id = ?`,
 			)
 			.bind(
@@ -189,14 +197,17 @@ export async function putIdea(db: D1Database, id: string, raw: unknown) {
 				asText(body.summary),
 				asText(body.badge),
 				details,
+				asText(body.external_id),
+				asText(body.source),
+				asText(body.source_url),
 				id,
 			)
 			.run();
 	} else {
 		await db
 			.prepare(
-				`INSERT INTO blog_ideas (id, topic, no, title, category, summary, badge, details)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO blog_ideas (id, topic, no, title, category, summary, badge, details, external_id, source, source_url)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.bind(
 				id,
@@ -207,6 +218,9 @@ export async function putIdea(db: D1Database, id: string, raw: unknown) {
 				asText(body.summary),
 				asText(body.badge),
 				details,
+				asText(body.external_id),
+				asText(body.source),
+				asText(body.source_url),
 			)
 			.run();
 	}
@@ -234,13 +248,191 @@ export async function putIdea(db: D1Database, id: string, raw: unknown) {
 	revalidatePath("/blog-ideas");
 	const saved = await db
 		.prepare(
-			`SELECT id, topic, no, title, category, summary, badge, details, created_at, updated_at
+			`SELECT id, topic, no, title, category, summary, badge, details, external_id, source, source_url, created_at, updated_at
 			 FROM blog_ideas WHERE id = ?`,
 		)
 		.bind(id)
 		.first<Record<string, unknown>>();
 	const tags = await tagsByIdea(db, [id]);
 	return { idea: { ...saved, tags: tags[id] ?? [] }, updated: Boolean(existing) };
+}
+
+export async function batchUpsertIdeas(db: D1Database, raw: unknown) {
+	const body = asRecord(raw);
+	if (!Array.isArray(body.ideas)) {
+		throw new BlogRuleError(400, "validation", "ideas 配列が必要です");
+	}
+	const MAX_BATCH = 50;
+	if (body.ideas.length > MAX_BATCH) {
+		throw new BlogRuleError(413, "payload_too_large", `一度に処理できるのは ${MAX_BATCH} 件までです`);
+	}
+	const results: Array<{ external_id: string; id: string; status: "created" | "updated" }> = [];
+	for (const rawIdea of body.ideas) {
+		const idea = asRecord(rawIdea);
+		const externalId = asText(idea.external_id);
+		const title = asText(idea.title);
+		const destination = asText(idea.destination);
+		if (!externalId || !title || !destination) {
+			throw new BlogRuleError(400, "validation", "各アイデアには external_id, title, destination が必須です");
+		}
+		const topic = destination === "agri" || destination === "agri_lp" ? "agri" : "sidebusiness";
+		const existing = await db
+			.prepare(`SELECT id FROM blog_ideas WHERE external_id = ? AND external_id <> ''`)
+			.bind(externalId)
+			.first<{ id: string }>();
+		const details = typeof idea.body === "string" ? idea.body : "";
+		const detailsJson = JSON.stringify([{ label: "本文", value: details }]);
+		const source = asText(idea.source) || "gemini";
+		const sourceUrl = asText(idea.source_url);
+		const summary = asText(idea.summary);
+		const tags = Array.isArray(idea.tags) ? idea.tags : [];
+		let id: string;
+		if (existing) {
+			id = existing.id;
+			await db
+				.prepare(
+					`UPDATE blog_ideas
+					 SET title = ?, summary = ?, details = ?, source = ?, source_url = ?, updated_at = datetime('now')
+					 WHERE id = ?`,
+				)
+				.bind(title, summary, detailsJson, source, sourceUrl, id)
+				.run();
+			results.push({ external_id: externalId, id, status: "updated" });
+		} else {
+			id = newId("idea");
+			await db
+				.prepare(
+					`INSERT INTO blog_ideas (id, topic, no, title, category, summary, badge, details, external_id, source, source_url)
+					 VALUES (?, ?, '', ?, '', ?, '', ?, ?, ?, ?)`,
+				)
+				.bind(id, topic, title, summary, detailsJson, externalId, source, sourceUrl)
+				.run();
+			results.push({ external_id: externalId, id, status: "created" });
+		}
+		if (tags.length > 0) {
+			await db.prepare(`DELETE FROM blog_idea_tags WHERE idea_id = ?`).bind(id).run();
+			for (const name of [...new Set(tags.map((item) => String(item).trim()).filter(Boolean))]) {
+				let tag = await db
+					.prepare(`SELECT id FROM tags WHERE lower(name) = lower(?)`)
+					.bind(name)
+					.first<{ id: string }>();
+				if (!tag) {
+					const tagId = newId("tag");
+					await db
+						.prepare(`INSERT INTO tags (id, name, color, text_color) VALUES (?, ?, '', '')`)
+						.bind(tagId, name)
+						.run();
+					tag = { id: tagId };
+				}
+				await db
+					.prepare(`INSERT INTO blog_idea_tags (idea_id, tag_id) VALUES (?, ?)`)
+					.bind(id, tag.id)
+					.run();
+			}
+		}
+	}
+	revalidatePath("/blog-ideas");
+	return { results };
+}
+
+export async function patchIdea(db: D1Database, id: string, raw: unknown) {
+	const body = asRecord(raw);
+	const existing = await db
+		.prepare(
+			`SELECT id, topic, no, title, category, summary, badge, details, external_id, source, source_url
+			 FROM blog_ideas WHERE id = ?`,
+		)
+		.bind(id)
+		.first<{
+			id: string;
+			topic: string;
+			no: string;
+			title: string;
+			category: string;
+			summary: string;
+			badge: string;
+			details: string;
+			external_id: string;
+			source: string;
+			source_url: string;
+		}>();
+	if (!existing) {
+		throw new BlogRuleError(404, "not_found", "アイデアが見つかりません");
+	}
+	const updates: string[] = [];
+	const binds: unknown[] = [];
+	if ("title" in body) {
+		const title = asText(body.title);
+		if (!title) throw new BlogRuleError(400, "validation", "title は空にできません");
+		updates.push("title = ?");
+		binds.push(title);
+	}
+	if ("summary" in body) {
+		updates.push("summary = ?");
+		binds.push(asText(body.summary));
+	}
+	if ("category" in body) {
+		updates.push("category = ?");
+		binds.push(asText(body.category));
+	}
+	if ("badge" in body) {
+		updates.push("badge = ?");
+		binds.push(asText(body.badge));
+	}
+	if ("details" in body) {
+		const details =
+			typeof body.details === "string"
+				? body.details
+				: JSON.stringify(body.details ?? []);
+		updates.push("details = ?");
+		binds.push(details);
+	}
+	if ("source" in body) {
+		updates.push("source = ?");
+		binds.push(asText(body.source));
+	}
+	if ("source_url" in body) {
+		updates.push("source_url = ?");
+		binds.push(asText(body.source_url));
+	}
+	if (updates.length > 0) {
+		updates.push("updated_at = datetime('now')");
+		await db
+			.prepare(`UPDATE blog_ideas SET ${updates.join(", ")} WHERE id = ?`)
+			.bind(...binds, id)
+			.run();
+	}
+	if (Array.isArray(body.tags)) {
+		await db.prepare(`DELETE FROM blog_idea_tags WHERE idea_id = ?`).bind(id).run();
+		for (const name of [...new Set(body.tags.map((item) => String(item).trim()).filter(Boolean))]) {
+			let tag = await db
+				.prepare(`SELECT id FROM tags WHERE lower(name) = lower(?)`)
+				.bind(name)
+				.first<{ id: string }>();
+			if (!tag) {
+				const tagId = newId("tag");
+				await db
+					.prepare(`INSERT INTO tags (id, name, color, text_color) VALUES (?, ?, '', '')`)
+					.bind(tagId, name)
+					.run();
+				tag = { id: tagId };
+			}
+			await db
+				.prepare(`INSERT INTO blog_idea_tags (idea_id, tag_id) VALUES (?, ?)`)
+				.bind(id, tag.id)
+				.run();
+		}
+	}
+	revalidatePath("/blog-ideas");
+	const saved = await db
+		.prepare(
+			`SELECT id, topic, no, title, category, summary, badge, details, external_id, source, source_url, created_at, updated_at
+			 FROM blog_ideas WHERE id = ?`,
+		)
+		.bind(id)
+		.first<Record<string, unknown>>();
+	const tags = await tagsByIdea(db, [id]);
+	return { idea: { ...saved, tags: tags[id] ?? [] } };
 }
 
 export async function listX(db: D1Database, url: URL, page: PageQuery) {
