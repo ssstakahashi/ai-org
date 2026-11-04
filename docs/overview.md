@@ -47,6 +47,6 @@
 - **想定トラフィック**: 社内数名 + Cron / Bot。高負荷の公開サービスではない。
 - **レスポンス目標**: p95 は未定義（計測していない）。
 - **対応環境**: デスクトップ Web 推奨。ネイティブ iOS / Android アプリはない。
-- **実行基盤**: outside-local-ubuntu の `/home/s-takahashi/development/ai-org` で `next dev` と PostgreSQL 14。開発と稼働は同じディレクトリ。認証シークレット未設定なら、localhost 以外は 500。
+- **実行基盤**: outside-local-ubuntu の `/home/s-takahashi/development/ai-org` で PostgreSQL 14。公開 URL は `bun run deploy`（`next build` + `next start` @ 3080）。サーバー上の開発は `dev:server`（3081）。認証シークレット未設定なら、localhost 以外は 500。
 - **観測**: `console`。Sentry 等の APM は未導入。
 - **データ保全**: 正本は PostgreSQL。画像はローカルディスク。Google Sheets / Tasks は同期先であり DB の代替ではない。

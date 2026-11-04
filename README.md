@@ -6,7 +6,7 @@ AI従業員が動く「会社」の司令塔。Ubuntu 上の Next.js アプリ�
 
 | 役割 | 技術 |
 |---|---|
-| アプリ | Next.js 16（`next dev`。開発と稼働は同じディレクトリ） |
+| アプリ | Next.js 16（本番 3080 / サーバー dev 3081。Mac ローカルは `npm run dev`） |
 | DB | PostgreSQL 14（`DATABASE_URL`） |
 | 画像 | ローカルディスク（`MEDIA_ROOT`） |
 
@@ -303,23 +303,28 @@ Google の完了は台帳の `done`、それ以外は Google では未完了で�
 
 ## デプロイ
 
-本番は Ubuntu です。手順は [deploy/ubuntu/README.md](deploy/ubuntu/README.md)。以下の Workers デプロイは使いません。
+本番は Ubuntu + Cloudflare Tunnel です。手順の詳細は [deploy/ubuntu/README.md](deploy/ubuntu/README.md)。
 
-D1 `ai-org` と R2 `ai-org-media` は移行元として残しています。リモートへ出すとき:
+```bash
+# 初回のみ: Server Action ID をビルド間で安定させる（必須）
+openssl rand -base64 32
+# → .env に追記（git には入れない）
+# NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=...
+
+bun run deploy              # next build → systemd restart（変更があれば commit → push）
+bun run deploy --no-git     # サーバー上だけ再ビルド・再起動
+# bun run deploy -- "コミットメッセージ"
+```
+
+`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` は **ビルド時** に使います。`.env` または `/etc/ai-org.env` に固定値で置き、`next build` の前に読み込みます（`scripts/check-build-env.sh` が検証）。
+
+Workers（OpenNext）へのデプロイは本番では使いません。移行・検証用のみ `bun run deploy:workers` / `bun run preview`。
+
+D1 `ai-org` と R2 `ai-org-media` は移行元として残しています。リモート D1 マイグレーションが必要なときだけ:
 
 ```bash
 npx wrangler d1 migrations apply ai-org --remote   # 未適用時のみ
-
-# 初回のみ: Server Action ID をデプロイ間で安定させる（ビルド時に必須）
-openssl rand -base64 32
-# → .env に追記（値はパスワードマネージャー等に保管。git には入れない）
-# NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=...
-
-bun run deploy   # 変更があれば commit → push → デプロイ。未設定なら check-build-env で失敗
-# bun run deploy -- "コミットメッセージ"  でも可（省略時は deploy: YYYY-MM-DD HH:MM）
 ```
-
-`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` は **ビルド時** に使います。`.env` または `/etc/ai-org.env` に固定値で置き、`next build` の前に読み込みます。
 
 ### Server Action エラー（`Failed to find Server Action`）
 
@@ -329,20 +334,6 @@ bun run deploy   # 変更があれば commit → push → デプロイ。未設�
 |---|---|
 | 即時 | ページを再読み込み（Cmd+Shift+R） |
 | ビルド | `.env` の `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` を固定値で維持 |
-| 恒久（任意） | Skew Protection を有効化（下記） |
-
-Skew Protection（OpenNext）を有効にすると、デプロイ直後も古いタブから Server Action を呼べます。
-
-```bash
-# .env に追記（Cloudflare API トークンは Workers Scripts: Read 権限）
-# ENABLE_SKEW_PROTECTION=1
-# CF_PREVIEW_DOMAIN=ai-org.<account-subdomain>.workers.dev
-# CF_WORKERS_SCRIPTS_API_TOKEN=...
-
-bun run deploy
-```
-
-`CF_WORKER_NAME` と `CF_ACCOUNT_ID` は `wrangler.jsonc` に設定済みです。
 
 ## これから足すもの
 

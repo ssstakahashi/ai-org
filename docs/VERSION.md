@@ -2,6 +2,12 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.69 (2026-11-04)
+
+- 公開用 `bun run deploy` を `next build` + systemd `next start`（3080）再起動に変更（旧 Workers 用は `deploy:workers`）
+- `deploy/ubuntu/ai-org.service` を `next start` 向けに更新
+- サーバー dev 用ポート 3081（`npm run dev:server`）。本番 3080 と同時起動可
+
 ## 0.0.68 (2026-10-28)
 
 - App 管理のテスト結果タブと D1/PG テーブル（`app_test_plans` / `app_test_results`）を追加

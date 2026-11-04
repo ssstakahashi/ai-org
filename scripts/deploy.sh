@@ -4,28 +4,37 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-OPENNEXT="$ROOT/node_modules/.bin/opennextjs-cloudflare"
+HOST="${AI_ORG_HOST:-127.0.0.1}"
+PORT="${AI_ORG_PORT:-3080}"
+SYSTEMD_UNIT="${AI_ORG_SYSTEMD_UNIT:-ai-org.service}"
+UNIT_SRC="$ROOT/deploy/ubuntu/$SYSTEMD_UNIT"
+UNIT_DST="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$SYSTEMD_UNIT"
 
 bash scripts/check-build-env.sh
 
-if [[ -z "${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:-}" && -f .dev.vars ]]; then
-	NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(grep -E '^NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=' .dev.vars | cut -d= -f2- | head -1)"
-	export NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
-fi
-
-mode="deploy"
+skip_git=false
 commit_msg=""
-if [[ $# -ge 1 ]]; then
-	case "$1" in
-		deploy | upload)
-			mode="$1"
-			shift
+for arg in "$@"; do
+	case "$arg" in
+		--no-git)
+			skip_git=true
+			;;
+		*)
+			if [[ -z "$commit_msg" ]]; then
+				commit_msg="$arg"
+			else
+				commit_msg="$commit_msg $arg"
+			fi
 			;;
 	esac
-	commit_msg="${*:-}"
-fi
+done
 
 git_commit_and_push() {
+	if [[ "$skip_git" == true ]]; then
+		echo "git commit/push をスキップします（--no-git）"
+		return 0
+	fi
+
 	if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 		echo "git リポジトリではないため commit/push をスキップします" >&2
 		return 0
@@ -60,18 +69,36 @@ git_commit_and_push() {
 	fi
 }
 
-case "$mode" in
-	deploy)
-		git_commit_and_push
-		"$OPENNEXT" build
-		OPEN_NEXT_DEPLOY=true "$ROOT/node_modules/.bin/wrangler" deploy
-		;;
-	upload)
-		"$OPENNEXT" build
-		"$OPENNEXT" upload
-		;;
-	*)
-		echo "用法: scripts/deploy.sh [deploy|upload] [commit message]" >&2
-		exit 1
-		;;
-esac
+sync_systemd_unit() {
+	if [[ ! -f "$UNIT_SRC" ]]; then
+		echo "警告: $UNIT_SRC が無いため systemd unit の同期をスキップします" >&2
+		return 0
+	fi
+	mkdir -p "$(dirname "$UNIT_DST")"
+	cp "$UNIT_SRC" "$UNIT_DST"
+	systemctl --user daemon-reload
+	echo "systemd unit を同期しました: $UNIT_DST"
+}
+
+restart_app_service() {
+	if ! systemctl --user cat "$SYSTEMD_UNIT" >/dev/null 2>&1; then
+		echo "警告: $SYSTEMD_UNIT が未登録です。次で有効化してください:" >&2
+		echo "  cp deploy/ubuntu/ai-org.service ~/.config/systemd/user/" >&2
+		echo "  systemctl --user enable --now ai-org.service" >&2
+		echo "手動起動: npm run start -- --hostname $HOST --port $PORT" >&2
+		return 0
+	fi
+	systemctl --user restart "$SYSTEMD_UNIT"
+	systemctl --user --no-pager status "$SYSTEMD_UNIT" || true
+}
+
+echo "next build（production）..."
+npm run build
+
+git_commit_and_push
+
+sync_systemd_unit
+echo "next start を systemd で再起動（${HOST}:${PORT}）..."
+restart_app_service
+
+echo "完了: https://ai-org.studiofoods.net （Tunnel → ${HOST}:${PORT}）"

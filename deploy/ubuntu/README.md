@@ -1,6 +1,6 @@
 # outside-local-ubuntu での起動
 
-置き場所は `/home/s-takahashi/development/ai-org`。使うのは本人だけなので、開発と稼働は同じディレクトリ、同じ `.env`、同じ `npm run dev` です。別の本番ビルドや `/opt` への配置はしません。
+置き場所は `/home/s-takahashi/development/ai-org`。使うのは本人だけなので、開発と稼働は同じディレクトリ、同じ `.env` です。**外向き公開**は `next dev` ではなく **`bun run deploy`（`next build` + `next start`）** です。別の `/opt` 配置はしません。
 
 ホストは SSH の `outside-local-ubuntu`（`ssh.studiofoods.net`）です。
 
@@ -17,13 +17,21 @@ createdb ai_org
 
 `.env.example` を `.env` にコピーする。`DATABASE_URL` は `postgresql://s-takahashi@127.0.0.1:5432/ai_org`。`MEDIA_ROOT` は `/home/s-takahashi/development/ai-org/data/media`。
 
-ポート 3000 は別アプリが使っているので、ai-org は `127.0.0.1:3080` です。Mac からは次で開きます。
+ポート 3000 は別アプリが使っているので、**本番**は `127.0.0.1:3080`、**開発（dev）**は `127.0.0.1:3081` です。同時に動かしても競合しません。
+
+Mac から dev を見るとき:
+
+```bash
+ssh -L 3081:127.0.0.1:3081 outside-local-ubuntu
+```
+
+ブラウザは `http://127.0.0.1:3081`。Host が localhost なので認証はスキップされます。Node.js は nvm の 22 を使います。
+
+本番（Tunnel 先）をローカルで確認するときだけ 3080 を転送:
 
 ```bash
 ssh -L 3080:127.0.0.1:3080 outside-local-ubuntu
 ```
-
-ブラウザは `http://127.0.0.1:3080`。Host が localhost なので認証はスキップされます。Node.js は nvm の 22 を使います。
 
 ## 1b. 外向き（Cloudflare Tunnel）
 
@@ -42,7 +50,7 @@ pm2 save
 
 情報メニューの **OpenClaw** は `OPENCLAW_CONTROL_UI_URL` へリダイレクトする。別 PC の Control UI を ai-org と同様に **Cloudflare Tunnel（＋ Access）** で HTTPS 公開し、その URL を `.env` に書く（例: `https://openclaw.studiofoods.net`）。未設定のときは `/openclaw` に手順を表示する。
 
-Tunnel 上で `next dev` を開くときは `next.config.ts` の `allowedDevOrigins` に `ai-org.studiofoods.net` が入っている必要があります（HMR の WebSocket）。ローカルだけで開発するなら SSH の `-L 3080:127.0.0.1:3080` で `http://127.0.0.1:3080` を使えば HMR も認証スキップもそのまま使えます。
+Tunnel 上の公開 URL（`https://ai-org.studiofoods.net`）は production（3080）のみです。サーバー上で dev を回すときは **`npm run dev:server`（3081）** を使い、本番 `next start`（3080）と並行できます。
 
 ## 2. データ
 
@@ -56,13 +64,27 @@ npm run pg:import
 npm run media:pull
 ```
 
-## 3. 起動
+## 3. 起動（初回・常駐）
+
+公開 URL 用は **`bun run deploy`**（`next build` → user systemd `ai-org.service` を `next start` で再起動）。unit は `deploy/ubuntu/ai-org.service` を `~/.config/systemd/user/` に同期します。
 
 ```bash
-/home/s-takahashi/.nvm/versions/node/v22.23.1/bin/npm run dev -- --hostname 127.0.0.1 --port 3080
+# 初回: NEXT_SERVER_ACTIONS_ENCRYPTION_KEY を .env に置いてから
+bun run deploy --no-git
+
+# 以降（変更を commit/push してから本番反映）
+bun run deploy
+# bun run deploy -- "コミットメッセージ"
+# サーバー上だけ再ビルド: bun run deploy --no-git
 ```
 
-常駐させる場合は、このディレクトリの `deploy/ubuntu/*.service` と `*.timer` を `~/.config/systemd/user/` にコピーします。
+ローカル開発（サーバー上・3081）:
+
+```bash
+/home/s-takahashi/.nvm/versions/node/v22.23.1/bin/npm run dev:server
+```
+
+常駐させる場合は、このディレクトリの `deploy/ubuntu/*.service` と `*.timer` を `~/.config/systemd/user/` にコピーします（`bun run deploy` も `ai-org.service` を上書き同期します）。
 
 ```bash
 mkdir -p ~/.config/systemd/user

@@ -33,7 +33,7 @@ flowchart LR
 
 - **Frontend**: Next.js 16 App Router、React 19、Tailwind CSS 4、TypeScript 5。会計マニュアルのフロー図はクライアントで mermaid 11.6.0（jsDelivr ESM）を SVG 描画する
 - **Backend**: 同じ Next.js（Server Actions + Route Handlers）。別言語の API サーバはない
-- **Hosting**: outside-local-ubuntu の `/home/s-takahashi/development/ai-org` で `next dev`（`127.0.0.1:3080`）。外向きは Cloudflare Tunnel `https://ai-org.studiofoods.net`（pm2 `ai-org-cloudflared`）。Tunnel 経由の開発時 HMR は `next.config.ts` の `allowedDevOrigins` で公開ホストを許可する。手順は [deploy/ubuntu/README.md](../deploy/ubuntu/README.md)
+- **Hosting**: outside-local-ubuntu の `/home/s-takahashi/development/ai-org`。公開は `bun run deploy`（`next build` → user systemd `ai-org.service` で `next start`、`127.0.0.1:3080`）。外向きは Cloudflare Tunnel `https://ai-org.studiofoods.net`（pm2 `ai-org-cloudflared`）。サーバー上の開発は `npm run dev:server`（`127.0.0.1:3081`、本番と同時可）。手順は [deploy/ubuntu/README.md](../deploy/ubuntu/README.md)
 - **DB**: このサーバーの PostgreSQL 14（`DATABASE_URL`、database `ai-org`）。MIERU 側の DB とは分ける。ORM なし、生 SQL。呼び出しは D1 形のアダプタ（[src/lib/pg-db.ts](../src/lib/pg-db.ts)）
 - **画像**: ai-org のファイルはローカルディスク（`MEDIA_ROOT`、既定 `data/media`）。キーは `x-posts/` `tasks/` `blog-posts/`。公開ブログの新規画像は別ホストのブログ画像 API。キーは共有しない
 - **Auth**: 画面はアプリ内パスワード + `jose` HS256 JWT Cookie（`ai-org-session`）。`/api/v1` は `X-API-Key`。`API_KEYS` が空なら `AUTOMATION_INGEST_SECRET` を admin として受け付ける。推奨は担当ごとのキー（`名前|role|secret` をカンマ区切り）
