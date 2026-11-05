@@ -95,7 +95,7 @@ erDiagram
 - **blog_site_categories**: 承認を許すカテゴリ名。既存記事の category から初期投入する。
 - **ops_alerts**: API 失敗、0 件取り込み、照合の差。`read_at` が空のものを掲示板に出す。
 - **board_links**: 掲示板に足したリンク。組み込みのシートリンクは消さない。
-- **blog_ideas**: ネタ。`topic` は `sidebusiness` / `agri` / `tax` / `dx` / `process` / `ma` / `admin` / `compare`。本文以外の列は `details`（JSON）。CSV アップロードが入力で、同じ `topic` + `no`（No. が空ならタイトル）は上書きする。
+- **blog_ideas**: ネタ。`topic` は `sidebusiness` / `agri` / `tax` / `dx` / `process` / `ma` / `admin` / `compare`。本文以外の列は `details`（JSON）。CSV アップロードまたは `/api/v1/blog-ideas` API が入力。CSV は同じ `topic` + `no`（No. が空ならタイトル）で上書き。API は `external_id` でupsert（外部スクリプト用）。`source` はソース識別子（`gemini` 等）、`source_url` はソースへのリンク（Obsidian URI 等）。
 - **blog_idea_uses**: ネタの転用先。`medium` は `blog` / `x`。`destination` はブログなら `studiofoods_hp` / `agri_lp`、X なら `studiofoods` / `agri` / `mieru` / `mieru_manga` / `studiofoods_official`。同一ネタに複数可。`(idea_id, medium, destination)` は一意。
 - **blog_idea_tags**: ネタとタグマスタ（`tags`。タスク・ページと共通）の中間。CSV の同じ No. 上書きでは残る。
 

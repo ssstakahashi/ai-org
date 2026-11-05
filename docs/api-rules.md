@@ -56,7 +56,7 @@ OpenAPI / Swagger は無い。リポジトリ上の正本は `docs/api-rules.md`
 | `GET` | `/blog-posts/{slug}/history` | reader 以上 | 更新前の行 |
 | `GET` / `POST` | `/blog-posts/{slug}/comments` | reader / reviewer | コメント。API の `resolved` は DB の `done` |
 | `PATCH` | `/comments/{id}` | reviewer | open → resolved、`decision_status` |
-| `GET` / `PUT` | `/blog-ideas` と `/blog-ideas/{id}` | reader / writer | ネタ。`GET /blog-ideas/count` |
+| `GET` / `POST` / `PUT` / `PATCH` | `/blog-ideas`、`/blog-ideas/{id}` | reader / writer | ネタ。`GET /blog-ideas/count`。`POST` はバッチupsert（最大50件、`external_id` で重複防止）。`PATCH {id}` は部分更新。詳細は `docs/api/blog-ideas.md` |
 | `GET` / `PUT` | `/x-posts` と `/x-posts/{id}` | reader / writer | 固定 ID。更新は `base_updated_at`。`posted` は DB の `done`。`GET /x-posts/count` |
 | `GET` / `PUT` | `/board/links` | reader / writer | 既存リンクを残して追加。VERSION を返す |
 | `GET` / `PUT` | `/employees` | reader / admin | 名簿。ID 維持 |

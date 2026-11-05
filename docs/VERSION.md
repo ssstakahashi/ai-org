@@ -6,6 +6,10 @@
 
 - ボット向け `GET /api/v1/rules`（HTML、`X-API-Key`）を追加。`/spec` と Accept による JSON / Markdown / HTML 取得を整理
 - 本番 build 向けに API ルール HTML 生成を `react-dom/server` なしの纯 TS レンダラに変更
+- 外部スクリプト（Gemini等）向けのブログアイデアAPIを追加（POST/PATCH `/api/v1/blog-ideas`、バッチupsert、external_id による重複防止）
+- `blog_ideas` テーブルに `external_id`, `source`, `source_url` カラムを追加（migration `0004_blog_ideas_external.sql`）
+- API ドキュメント `docs/api/blog-ideas.md` を追加（curl 例、Gemini Function Calling スキーマ、Python スクリプト例）
+- 掲示板に「農業_ブログ記事_投稿管理」スプレッドシートを追加（PR #3）
 
 ## 0.0.69 (2026-11-04)
 

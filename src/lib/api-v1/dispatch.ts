@@ -25,6 +25,7 @@ import {
 } from "@/lib/api-v1/blog";
 import { apiError, apiJson, errorResponse, parsePage, readJson, requestIdFrom } from "@/lib/api-v1/http";
 import {
+	batchUpsertIdeas,
 	countIdeas,
 	countX,
 	exportAll,
@@ -37,6 +38,7 @@ import {
 	listTestPlans,
 	listTestResults,
 	listX,
+	patchIdea,
 	putAppNames,
 	putBoardLink,
 	putEmployees,
@@ -167,9 +169,17 @@ export async function handleApiV1(request: NextRequest, path: string[]): Promise
 			denied(ROLE_READ);
 			return apiJson(await countIdeas(db), 200, requestId);
 		}
+		if (key === "POST blog-ideas") {
+			denied(ROLE_WRITE);
+			return apiJson(await batchUpsertIdeas(db, await readJson(request)), 201, requestId);
+		}
 		if (method === "PUT" && path[0] === "blog-ideas" && path.length === 2 && path[1] !== "count") {
 			denied(ROLE_WRITE);
 			return apiJson(await putIdea(db, decodeURIComponent(path[1] ?? ""), await readJson(request)), 200, requestId);
+		}
+		if (method === "PATCH" && path[0] === "blog-ideas" && path.length === 2) {
+			denied(ROLE_WRITE);
+			return apiJson(await patchIdea(db, decodeURIComponent(path[1] ?? ""), await readJson(request)), 200, requestId);
 		}
 		if (key === "GET x-posts") {
 			denied(ROLE_READ);
