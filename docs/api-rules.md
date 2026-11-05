@@ -1,6 +1,6 @@
 # ai-org API ルール
 
-自動処理ボット・外部アプリ向けの HTTP API 仕様。画面では **情報 → API ルール**（`/api-rules`）。同内容を API から取得する場合は `GET {{API_V1_BASE}}/spec`（`X-API-Key`、`reader` 以上）。`Accept: text/markdown` のときは Markdown 本文のみ返す。
+自動処理ボット・外部アプリ向けの HTTP API 仕様。画面では **情報 → API ルール**（`/api-rules`）。同内容を API から取得する場合は `GET {{API_V1_BASE}}/rules`（HTML ページ、`X-API-Key`、`reader` 以上）または `GET {{API_V1_BASE}}/spec`（JSON 既定）。`Accept: text/markdown` のときは Markdown 本文のみ返す（`/rules` と `/spec` のどちらでも可）。
 
 OpenAPI / Swagger は無い。リポジトリ上の正本は `docs/api-rules.md`。画面ルート・Server Actions は [interfaces.md](./interfaces.md)。
 
@@ -47,7 +47,8 @@ OpenAPI / Swagger は無い。リポジトリ上の正本は `docs/api-rules.md`
 
 | メソッド | パス | ロール | 概要 |
 |---|---|---|---|
-| `GET` | `/spec` | reader 以上 | このドキュメント（JSON または Markdown） |
+| `GET` | `/spec` | reader 以上 | このドキュメント（JSON 既定。`Accept: text/markdown` / `text/html` 可） |
+| `GET` | `/rules` | reader 以上 | このドキュメント（HTML ページ既定。JSON / Markdown は `Accept` で指定） |
 | `GET` | `/blog-posts` | reader 以上 | 一覧。`destination` `status` `slug` `tag` |
 | `GET` | `/blog-posts/count` | reader 以上 | destination・status 別件数 |
 | `GET` / `PUT` | `/blog-posts/{slug}` | reader / writer | 取得 / upsert。draft 以外の本文更新は 403。差戻し slug は 409 |

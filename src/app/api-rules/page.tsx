@@ -21,12 +21,19 @@ export default function ApiRulesPage() {
 				<h2>ボットから取得する</h2>
 				<p style={{ margin: "0 0 0.75rem", fontSize: "0.9rem" }}>
 					<code>X-API-Key</code>（<code>reader</code> 以上）で{" "}
-					<code>GET {base}/spec</code>。JSON 既定。Markdown 本文のみは{" "}
-					<code>Accept: text/markdown</code>。
+					<code>GET {base}/rules</code>（HTML ページ、既定）または{" "}
+					<code>GET {base}/spec</code>（JSON 既定）。Markdown 本文のみは{" "}
+					<code>Accept: text/markdown</code>（どちらの URL でも可）。
 				</p>
 				<ul style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.85rem" }}>
 					<li>
 						UI パス: <code>{spec.ui_path}</code>
+					</li>
+					<li>
+						API HTML: <code>{base}{spec.html_path}</code>
+					</li>
+					<li>
+						API JSON: <code>{base}{spec.spec_path}</code>
 					</li>
 					<li>
 						正本ファイル: <code>{spec.source}</code>

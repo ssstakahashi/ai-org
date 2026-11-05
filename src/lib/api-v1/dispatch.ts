@@ -48,7 +48,7 @@ import {
 	deleteTestResult,
 	putX,
 } from "@/lib/api-v1/rest";
-import { apiRulesSpecPayload, readApiRulesMarkdown } from "@/lib/api-rules-doc";
+import { loadApiRulesMarkdown, respondApiRulesDocument } from "@/lib/api-rules-response";
 import { BlogRuleError, type ApiRole } from "@/lib/blog-post-rules";
 
 function allow(role: ApiRole, accepted: readonly ApiRole[]) {
@@ -85,18 +85,23 @@ export async function handleApiV1(request: NextRequest, path: string[]): Promise
 
 		if (key === "GET spec") {
 			denied(ROLE_READ);
-			const markdown = readApiRulesMarkdown();
-			const accept = request.headers.get("accept") ?? "";
-			if (accept.includes("text/markdown")) {
-				return new Response(markdown, {
-					status: 200,
-					headers: {
-						"Content-Type": "text/markdown; charset=utf-8",
-						"X-Request-Id": requestId,
-					},
-				});
-			}
-			return apiJson(apiRulesSpecPayload(markdown), 200, requestId);
+			const markdown = loadApiRulesMarkdown();
+			return respondApiRulesDocument(
+				requestId,
+				markdown,
+				request.headers.get("accept"),
+				"json",
+			);
+		}
+		if (key === "GET rules") {
+			denied(ROLE_READ);
+			const markdown = loadApiRulesMarkdown();
+			return respondApiRulesDocument(
+				requestId,
+				markdown,
+				request.headers.get("accept"),
+				"html",
+			);
 		}
 		if (key === "GET blog-posts") {
 			denied(ROLE_READ);

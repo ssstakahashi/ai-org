@@ -26,6 +26,8 @@ export function apiRulesSpecPayload(markdown: string) {
 		source: "docs/api-rules.md",
 		base_url: base,
 		ui_path: "/api-rules",
+		html_path: "/rules",
+		spec_path: "/spec",
 		markdown,
 	};
 }

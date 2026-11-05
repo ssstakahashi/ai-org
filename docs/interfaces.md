@@ -44,7 +44,7 @@ flowchart TD
 | `/board` | 掲示板（投稿管理シートのリンク、VERSION 履歴） | トップ（情報） |
 | `/web-analytics` | Cloudflare ゾーンの HTTP トラフィック（リクエスト・ページビュー・転送量、直近 7 / 14 / 28 日） | トップ（情報） |
 | `/openclaw` | OpenClaw Control UI へリダイレクト。`OPENCLAW_CONTROL_UI_URL` 未設定時は設定手順を表示 | トップ（情報） |
-| `/api-rules` | HTTP API ルール（`docs/api-rules.md` と同期。ボットは `GET /api/v1/spec`） | トップ（情報） |
+| `/api-rules` | HTTP API ルール（`docs/api-rules.md` と同期。ボットは `GET /api/v1/rules` または `/spec`） | トップ（情報） |
 | `/accounting-manual` | 会計マニュアル目次（法人税決算・申告 No.1〜62） | トップ（情報） |
 | `/accounting-manual/[no]` | 会計マニュアルの各項目（No.1〜62）。前後の項目と目次へ移動可 | 情報 |
 | `/automations` | 自動化カタログ / Spark / App Cron | トップ（組織） |
@@ -72,7 +72,7 @@ flowchart TD
 
 - **本番ホスト**: JWT Cookie `ai-org-session`（httpOnly、SameSite=lax、最大 30 日）。未ログインは `/login?next=…`。
 - **localhost / 127.0.0.1**（`Host` ヘッダーが上記のとき）: 認証スキップ（[src/middleware.ts](../src/middleware.ts)）。Cloudflare Tunnel 経由の `https://ai-org.studiofoods.net` は `Host` が公開名になるため認証が有効。
-- **HTTP API の詳細**（認証・エンドポイント一覧）: [api-rules.md](./api-rules.md)。画面は `/api-rules`、ボットは `GET /api/v1/spec`（`reader` 以上、`Accept: text/markdown` 可）。
+- **HTTP API の詳細**（認証・エンドポイント一覧）: [api-rules.md](./api-rules.md)。画面は `/api-rules`、ボットは `GET /api/v1/rules`（HTML 既定）または `GET /api/v1/spec`（JSON 既定、`Accept: text/markdown` 可）。
 - **`/api/internal/*`**: セッション対象外。ingest secret（上記 api-rules）。新規の自動処理は `/api/v1` を使う。
 - **`/api/v1/*`**: セッション対象外。`X-API-Key` とロール（上記 api-rules）。
 - 認証シークレット未設定の本番は 500（`Auth configuration missing`）。
@@ -80,7 +80,7 @@ flowchart TD
 
 ## 2. API仕様
 
-HTTP API（Route Handler・`/api/v1`）の正本は [api-rules.md](./api-rules.md)。アプリ内 **情報 → API ルール**（`/api-rules`）、または `GET /api/v1/spec`（`X-API-Key`、`reader` 以上）で同内容を取得できる。
+HTTP API（Route Handler・`/api/v1`）の正本は [api-rules.md](./api-rules.md)。アプリ内 **情報 → API ルール**（`/api-rules`）、または `GET /api/v1/rules` / `GET /api/v1/spec`（`X-API-Key`、`reader` 以上）で同内容を取得できる。
 
 ### Server Actions（要約）
 

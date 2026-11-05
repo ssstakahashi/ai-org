@@ -33,14 +33,14 @@
 | 掲示板 | 投稿管理シートへのリンク、追加リンク、VERSION 履歴、未読の障害通知。ナビは「情報」 | 稼働中 | 全体 |
 | Web分析 | Cloudflare GraphQL Analytics でゾーンの HTTP トラフィックを表示（`CF_API_TOKEN`、任意で `CF_ANALYTICS_ZONE_NAMES`）。ナビは「情報」 | 稼働中 | 全体 |
 | OpenClaw | 情報メニューから別 PC の Control UI へ遷移（`OPENCLAW_CONTROL_UI_URL`。OpenClaw 側は Cloudflare Tunnel 等で HTTPS 公開を想定） | 稼働中 | 全体 |
-| API ルール | HTTP API 仕様（`docs/api-rules.md` と同期）。ナビは「情報」。ボットは `GET /api/v1/spec` | 稼働中 | 自動処理 |
+| API ルール | HTTP API 仕様（`docs/api-rules.md` と同期）。ナビは「情報」。ボットは `GET /api/v1/rules`（HTML）または `/spec`（JSON） | 稼働中 | 自動処理 |
 | 会計マニュアル | 法人税の決算・申告手順の目次（No.1〜62、4章）。目次から各項目ページへ遷移 | 稼働中 | 全体 |
 | 自動化カタログ | 自アプリ静的一覧 + 外部 ingest + Spark シート | 稼働中 | 全体 |
 | App 管理・要件 | マスタ、デプロイ情報、要件定義、テスト計画・結果、Markdown export | 稼働中 | 開発 |
 | 従業員・組織ルール | AI従業員マスタ、職務権限表 | 稼働中 | 全体 |
 | ページ管理 | アプリ内ページ台帳（カテゴリ・タグ） | 稼働中 | 全体 |
 | 従業員ダッシュボード | 従業員ごとの集約画面 | 予定 | 全体 |
-| API v1 | `/api/v1`。記事・コメント・ネタ・X・従業員・アプリ（要件・テスト計画・テスト結果）・業務台帳の upsert と件数。`GET /spec` でルール全文。キー認証。失敗は掲示板へ通知 | 稼働中 | 自動処理 |
+| API v1 | `/api/v1`。記事・コメント・ネタ・X・従業員・アプリ（要件・テスト計画・テスト結果）・業務台帳の upsert と件数。`GET /rules`（HTML）・`GET /spec`（JSON）でルール全文。キー認証。失敗は掲示板へ通知 | 稼働中 | 自動処理 |
 
 ## 3. 非機能要件
 

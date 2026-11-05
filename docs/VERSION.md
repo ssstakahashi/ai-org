@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.70 (2026-11-06)
+
+- ボット向け `GET /api/v1/rules`（HTML、`X-API-Key`）を追加。`/spec` と Accept による JSON / Markdown / HTML 取得を整理
+
 ## 0.0.69 (2026-11-04)
 
 - 公開用 `bun run deploy` を `next build` + systemd `next start`（3080）再起動に変更（旧 Workers 用は `deploy:workers`）

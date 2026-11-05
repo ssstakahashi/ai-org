@@ -45,7 +45,7 @@ flowchart LR
 
 ## 4. `/api/v1`
 
-ベース URL は `https://ai-org.studiofoods.net/api/v1`。パスは `/api/v1` で固定する。HTTP API の正本は [api-rules.md](./api-rules.md)（画面 `/api-rules`、`GET /api/v1/spec`）。画面ルートと Server Actions は [interfaces.md](./interfaces.md)。
+ベース URL は `https://ai-org.studiofoods.net/api/v1`。パスは `/api/v1` で固定する。HTTP API の正本は [api-rules.md](./api-rules.md)（画面 `/api-rules`、`GET /api/v1/rules` または `/spec`）。画面ルートと Server Actions は [interfaces.md](./interfaces.md)。
 
 - 書き込みは同じ ID の upsert。記事の同一性は slug。差戻し済みの slug での新規登録は 409 `slug_rejected_exists`。draft 以外の本文更新は 403。
 - 状態は `draft → approved → published`。`published` から戻すのは admin の `force=true`、または画面での昌兵さんの操作。戻したときは通知する。
