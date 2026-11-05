@@ -1,6 +1,5 @@
-import { renderToStaticMarkup } from "react-dom/server";
-import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { resolveApiV1BaseUrl } from "@/lib/api-rules-doc";
+import { renderMarkdownPreviewHtml } from "@/lib/markdown-preview-html";
 
 const PAGE_CSS = `
 body {
@@ -47,7 +46,7 @@ body {
 
 export function buildApiRulesHtmlPage(markdown: string, publicUrl?: string | null): string {
 	const base = resolveApiV1BaseUrl(publicUrl);
-	const body = renderToStaticMarkup(<MarkdownPreview markdown={markdown} />);
+	const body = renderMarkdownPreviewHtml(markdown);
 	return `<!DOCTYPE html>
 <html lang="ja">
 <head>

@@ -5,6 +5,7 @@
 ## 0.0.70 (2026-11-06)
 
 - ボット向け `GET /api/v1/rules`（HTML、`X-API-Key`）を追加。`/spec` と Accept による JSON / Markdown / HTML 取得を整理
+- 本番 build 向けに API ルール HTML 生成を `react-dom/server` なしの纯 TS レンダラに変更
 
 ## 0.0.69 (2026-11-04)
 
