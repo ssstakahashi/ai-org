@@ -69,11 +69,22 @@ git_commit_and_push() {
 	fi
 }
 
+ensure_user_systemd_env() {
+	# SSH / 非ログインシェルでは user bus 用の変数が未設定になりがち（linger 有効でも）
+	if [[ -z "${XDG_RUNTIME_DIR:-}" && -d "/run/user/$(id -u)" ]]; then
+		export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+	fi
+	if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" && -n "${XDG_RUNTIME_DIR:-}" && -S "${XDG_RUNTIME_DIR}/bus" ]]; then
+		export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+	fi
+}
+
 sync_systemd_unit() {
 	if [[ ! -f "$UNIT_SRC" ]]; then
 		echo "警告: $UNIT_SRC が無いため systemd unit の同期をスキップします" >&2
 		return 0
 	fi
+	ensure_user_systemd_env
 	mkdir -p "$(dirname "$UNIT_DST")"
 	cp "$UNIT_SRC" "$UNIT_DST"
 	systemctl --user daemon-reload
@@ -81,6 +92,7 @@ sync_systemd_unit() {
 }
 
 restart_app_service() {
+	ensure_user_systemd_env
 	if ! systemctl --user cat "$SYSTEMD_UNIT" >/dev/null 2>&1; then
 		echo "警告: $SYSTEMD_UNIT が未登録です。次で有効化してください:" >&2
 		echo "  cp deploy/ubuntu/ai-org.service ~/.config/systemd/user/" >&2
