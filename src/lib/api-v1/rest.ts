@@ -16,6 +16,7 @@ import {
 	APP_TEST_RESULT_OUTCOME_OPTIONS,
 	type AppTestResultOutcome,
 } from "@/lib/types";
+import { getUploadFile, putXPostImage } from "@/lib/media-upload";
 
 const ACCOUNT_TO_DESTINATION: Record<string, XPostDestination> = {
 	"@studio_foods": "studiofoods_official",
@@ -1084,6 +1085,33 @@ export async function putBoardLink(db: D1Database, raw: unknown) {
 	}
 	revalidatePath("/board");
 	return listBoardLinks(db);
+}
+
+export async function uploadXPostImage(formData: FormData): Promise<{ image_key: string }> {
+	const file = getUploadFile(formData, "image");
+	if (!file) {
+		throw new BlogRuleError(400, "validation", "image フィールドが必要です");
+	}
+	const result = await putXPostImage(file);
+	if ("error" in result) {
+		throw new BlogRuleError(400, "upload_failed", result.error);
+	}
+	revalidatePath("/x-schedule");
+	return { image_key: result.key };
+}
+
+export async function deleteX(db: D1Database, id: string) {
+	const existing = await db
+		.prepare(`${X_POST_SELECT} WHERE id = ?`)
+		.bind(id)
+		.first<XPost>();
+	if (!existing) {
+		throw new BlogRuleError(404, "not_found", "投稿が見つかりません");
+	}
+	await db.prepare(`DELETE FROM x_post_comments WHERE x_post_id = ?`).bind(id).run();
+	await db.prepare(`DELETE FROM x_posts WHERE id = ?`).bind(id).run();
+	revalidatePath("/x-schedule");
+	return { ok: true, id };
 }
 
 export async function exportAll(db: D1Database) {

@@ -57,7 +57,8 @@ OpenAPI / Swagger は無い。リポジトリ上の正本は `docs/api-rules.md`
 | `GET` / `POST` | `/blog-posts/{slug}/comments` | reader / reviewer | コメント。API の `resolved` は DB の `done` |
 | `PATCH` | `/comments/{id}` | reviewer | open → resolved、`decision_status` |
 | `GET` / `POST` / `PUT` / `PATCH` | `/blog-ideas`、`/blog-ideas/{id}` | reader / writer | ネタ。`GET /blog-ideas/count`。`POST` はバッチupsert（最大50件、`external_id` で重複防止）。`PATCH {id}` は部分更新。詳細は `docs/api/blog-ideas.md` |
-| `GET` / `PUT` | `/x-posts` と `/x-posts/{id}` | reader / writer | 固定 ID。更新は `base_updated_at`。`posted` は DB の `done`。`GET /x-posts/count` |
+| `GET` / `PUT` / `DELETE` | `/x-posts` と `/x-posts/{id}` | reader / writer | 固定 ID。更新は `base_updated_at`。`posted` は DB の `done`。`GET /x-posts/count` |
+| `POST` | `/images` | writer | 画像アップロード。multipart/form-data で `image` フィールド。PNG/JPEG/WebP（8MB 以内）を WebP 化して保存し `{"image_key"}` を返す。x-posts の `PUT` で `image_key` に指定 |
 | `GET` / `PUT` | `/board/links` | reader / writer | 既存リンクを残して追加。VERSION を返す |
 | `GET` / `PUT` | `/employees` | reader / admin | 名簿。ID 維持 |
 | `GET` / `PUT` | `/apps/names`、`/apps/requirements` | reader / writer | アプリ名と要件 |
@@ -66,6 +67,42 @@ OpenAPI / Swagger は無い。リポジトリ上の正本は `docs/api-rules.md`
 | `GET` / `PUT` | `/ledger/tasks`、`/ledger/tasks/{id}` | reader / publisher | 業務台帳。公開タスクを done にする |
 | `GET` | `/export` | reader 以上 | 全件 JSON |
 | `POST` | `/ingest-reports` | writer | `accepted: 0` のとき理由つきで通知 |
+
+### 画像アップロード例
+
+```bash
+# 1. 画像をアップロード
+curl -X POST {{API_V1_BASE}}/images \
+  -H "X-API-Key: YOUR_WRITER_KEY" \
+  -F "image=@screenshot.png"
+
+# レスポンス例:
+# {"image_key":"x-posts/550e8400-e29b-41d4-a716-446655440000-screenshot.webp"}
+
+# 2. x-post に画像を設定（PUT で image_key を指定）
+curl -X PUT {{API_V1_BASE}}/x-posts/xpost_abc123 \
+  -H "X-API-Key: YOUR_WRITER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "新製品リリース",
+    "body": "本日、新製品をリリースしました！",
+    "image_key": "x-posts/550e8400-e29b-41d4-a716-446655440000-screenshot.webp",
+    "status": "scheduled",
+    "scheduled_at": "2026-11-06T12:00:00+09:00",
+    "destination": "studiofoods_official",
+    "base_updated_at": "2026-11-05T23:30:00.000Z"
+  }'
+```
+
+### X投稿の削除例
+
+```bash
+curl -X DELETE {{API_V1_BASE}}/x-posts/xpost_abc123 \
+  -H "X-API-Key: YOUR_WRITER_KEY"
+
+# レスポンス例:
+# {"ok":true,"id":"xpost_abc123"}
+```
 
 ## このアプリ外の API
 

@@ -11,6 +11,7 @@
 - API ドキュメント `docs/api/blog-ideas.md` を追加（curl 例、Gemini Function Calling スキーマ、Python スクリプト例）
 - 掲示板に「農業_ブログ記事_投稿管理」スプレッドシートを追加（PR #3）
 - 掲示板に「法人税申告書と決算書の作成手順_令和2年版_内容」スプレッドシートを追加（PR #4）
+- スクリプト向けに `POST /api/v1/images`（画像アップロード）と `DELETE /api/v1/x-posts/{id}` を追加（PR #13）
 
 ## 0.0.69 (2026-11-04)
 

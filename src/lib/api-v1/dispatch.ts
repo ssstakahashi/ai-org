@@ -28,6 +28,7 @@ import {
 	batchUpsertIdeas,
 	countIdeas,
 	countX,
+	deleteX,
 	exportAll,
 	listAppNames,
 	listBoardLinks,
@@ -49,6 +50,7 @@ import {
 	putTestResult,
 	deleteTestResult,
 	putX,
+	uploadXPostImage,
 } from "@/lib/api-v1/rest";
 import { loadApiRulesMarkdown, respondApiRulesDocument } from "@/lib/api-rules-response";
 import { BlogRuleError, type ApiRole } from "@/lib/blog-post-rules";
@@ -192,6 +194,15 @@ export async function handleApiV1(request: NextRequest, path: string[]): Promise
 		if (method === "PUT" && path[0] === "x-posts" && path.length === 2 && path[1] !== "count") {
 			denied(ROLE_WRITE);
 			return apiJson(await putX(db, decodeURIComponent(path[1] ?? ""), await readJson(request)), 200, requestId);
+		}
+		if (method === "DELETE" && path[0] === "x-posts" && path.length === 2 && path[1] !== "count") {
+			denied(ROLE_WRITE);
+			return apiJson(await deleteX(db, decodeURIComponent(path[1] ?? "")), 200, requestId);
+		}
+		if (method === "POST" && path[0] === "images" && path.length === 1) {
+			denied(ROLE_WRITE);
+			const formData = await request.formData();
+			return apiJson(await uploadXPostImage(formData), 201, requestId);
 		}
 		if (key === "GET board/links") {
 			denied(ROLE_READ);
