@@ -189,6 +189,43 @@ export default function PrivacyPage() {
 					取り扱いを変えるときは、このページの記載を更新します。改定後の内容は、このページに掲載した日から適用します。
 				</p>
 
+				<h2>English summary</h2>
+				<p>
+					This section states, in English, what ai-org collects and how that information is used. The operator is Shohei Takahashi. The app is the internal task ledger at https://ai-org.studiofoods.net. It is not a public membership service. The same practices are described in Japanese above.
+				</p>
+				<p>ai-org collects the following information.</p>
+				<ul>
+					<li>
+						Sign-in: the shared password typed on the login form, used only to check that it matches the password configured on the server. It is not stored as a user profile. After a successful check, the app sets an httpOnly cookie named ai-org-session (SameSite=Lax, up to 30 days). The cookie holds a signed session and does not contain a name or email address. Purpose: to keep the business screens available only to someone who knows the password.
+					</li>
+					<li>
+						Business records entered by a signed-in user: task title, notes, status, start and end times, assignee, category, tags, and recurrence; files attached to a task; blog draft title, body, and images; X post text, images, destination, and scheduled time; employee names and roles. Purpose: to record work, show progress, and let a person review the work before it proceeds. This information is not sold and is not used for advertising or credit decisions.
+					</li>
+					<li>
+						Google user data, only after the user consents on Google&apos;s screen. The only OAuth scope is https://www.googleapis.com/auth/tasks. The app reads and writes task list names and IDs, task IDs, titles, notes, due dates, completion status, and updated time, and it stores a refresh token so sync can continue. Sync runs when a user starts it and about every 10 minutes. Short-lived access tokens stay in server memory and are not written to the database. The app does not collect the Google account email, name, profile photo, Gmail messages, Drive files, Calendar events, or contacts through this consent.
+					</li>
+					<li>
+						Technical logs: IP address, date and time, and browser type may remain in the hosting server and Cloudflare access logs. Purpose: to operate the site and investigate failures. The app does not set advertising cookies or third-party tracking cookies.
+					</li>
+				</ul>
+				<p>How Google user data is used and shared:</p>
+				<ul>
+					<li>Use is limited to keeping the task ledger and Google Tasks in sync, including create, update, complete, and delete, and to fixing sync failures.</li>
+					<li>
+						Use and transfer of information received from Google APIs adhere to the Google API Services User Data Policy, including the Limited Use requirements. The data is used only to provide and maintain the user-facing sync feature shown on the consent screen.
+					</li>
+					<li>People can read the synced tasks only after signing in to ai-org. The app does not sell the data, does not share it with advertisers or data brokers, and does not use it to train general AI models.</li>
+					<li>
+						The app sends task titles, notes, due dates, and completion status back to Google in order to sync. Separately, if a signed-in user asks the app to draft an X post from an image, that image and a sample of past post text are sent to Google Gemini to create the draft. Google Tasks data is not included in that request. If a signed-in user uses voice input, that audio is sent to Cloudflare Workers AI for transcription and the audio file is not stored.
+					</li>
+					<li>
+						Google Sheets access uses the operator&apos;s service account for the operator&apos;s own business spreadsheets. It is not the end user&apos;s OAuth consent and does not read the user&apos;s Drive.
+					</li>
+				</ul>
+				<p>
+					Storage: tasks, drafts, posts, and the refresh token are stored in a database on the operator&apos;s server. Attachments are stored on disk on that server. Records are kept until a user deletes them or while sync is in use. Deleting a task in the ledger or in Google Tasks deletes it on the other side through sync. A user can revoke ai-org from Google Account permissions at https://myaccount.google.com/permissions. To request access, correction, or deletion of the refresh token or synced tasks, email info@st-go.work.
+				</p>
+
 				<h2>問い合わせ</h2>
 				<p>運営者: 高橋昌兵</p>
 				<p>

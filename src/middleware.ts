@@ -68,7 +68,10 @@ export async function middleware(request: NextRequest) {
 		pathname === "/api/v1" ||
 		pathname.startsWith("/api/v1/") ||
 		pathname === "/privacy" ||
+		pathname === "/privacy-policy" ||
 		pathname === "/terms" ||
+		pathname === "/about" ||
+		pathname === "/robots.txt" ||
 		(pathname === "/" && !isGoogleTasksOAuthReturn(request))
 	) {
 		return nextWithPathname(request, pathname);

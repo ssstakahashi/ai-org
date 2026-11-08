@@ -23,7 +23,7 @@ flowchart LR
   Next --> Google["Sheets_and_Tasks"]
 ```
 
-- ブラウザは App Router の画面と Server Actions が中心。自動処理の DB 入口は `/api/v1`。閲覧画面はログイン必須。例外は `/login`、未ログインの `/`（アプリの目的を説明する公開ページ）、`/privacy`、`/terms`。ログイン後の `/` は業務台帳。Google Tasks の OAuth 戻り（`/?code=` または `/?error=`）はログイン必須。
+- ブラウザは App Router の画面と Server Actions が中心。自動処理の DB 入口は `/api/v1`。閲覧画面はログイン必須。例外は `/login`、未ログインの `/` と `/about`（アプリの目的を説明する公開ページ）、`/privacy`、`/privacy-policy`、`/terms`、`/robots.txt`。ログイン後の `/` は業務台帳。Google Tasks の OAuth 戻り（`/?code=` または `/?error=`）はログイン必須。
 - データベースは、このサーバーの PostgreSQL 14。画像とファイルのうち ai-org が持つものは、このサーバーの `MEDIA_ROOT`。D1 と Wrangler は実行経路に入れない。
 - 公開ブログの新規サムネは、既存のブログ画像 API（`https://mieru-storage-backend.studiofoods.net/api/v1/blog_images`）のまま。公開済みの旧 R2 URL は書き換えない。見分けは `blog_posts.thumbnail_origin`（`r2` / `blog_image_api`）。
 - 正の URL は `https://ai-org.studiofoods.net/`。旧 `ai-org.s-takahashi-241.workers.dev` の転送期間は `OLD_URL_REDIRECT_UNTIL`。未設定の間は転送を残す。転送の実体は公開側の設定。
@@ -36,7 +36,7 @@ flowchart LR
 - **Hosting**: outside-local-ubuntu の `/home/s-takahashi/development/ai-org`。公開は `bun run deploy`（`next build` → user systemd `ai-org.service` で `next start`、`127.0.0.1:3080`）。外向きは Cloudflare Tunnel `https://ai-org.studiofoods.net`（pm2 `ai-org-cloudflared`）。サーバー上の開発は `npm run dev:server`（`127.0.0.1:3081`、本番と同時可）。手順は [deploy/ubuntu/README.md](../deploy/ubuntu/README.md)
 - **DB**: このサーバーの PostgreSQL 14（`DATABASE_URL`、database `ai-org`）。MIERU 側の DB とは分ける。ORM なし、生 SQL。呼び出しは D1 形のアダプタ（[src/lib/pg-db.ts](../src/lib/pg-db.ts)）
 - **画像**: ai-org のファイルはローカルディスク（`MEDIA_ROOT`、既定 `data/media`）。キーは `x-posts/` `tasks/` `blog-posts/`。公開ブログの新規画像は別ホストのブログ画像 API。キーは共有しない
-- **Auth**: 画面はアプリ内パスワード + `jose` HS256 JWT Cookie（`ai-org-session`）。未ログインの `/`、`/privacy`、`/terms` はセッション対象外。`/api/v1` は `X-API-Key`。`API_KEYS` が空なら `AUTOMATION_INGEST_SECRET` を admin として受け付ける。推奨は担当ごとのキー（`名前|role|secret` をカンマ区切り）
+- **Auth**: 画面はアプリ内パスワード + `jose` HS256 JWT Cookie（`ai-org-session`）。未ログインの `/`、`/about`、`/privacy`、`/privacy-policy`、`/terms`、`/robots.txt` はセッション対象外。`/api/v1` は `X-API-Key`。`API_KEYS` が空なら `AUTOMATION_INGEST_SECRET` を admin として受け付ける。推奨は担当ごとのキー（`名前|role|secret` をカンマ区切り）
 - **AI**: Workers AI の REST API（文字起こし。`CF_ACCOUNT_ID` と `CF_API_TOKEN`）、Gemini（X 投稿画像解析）
 - **分析**: Cloudflare GraphQL Analytics（`/web-analytics`。`CF_API_TOKEN` に Zone Read + Analytics Read。任意で `CF_ANALYTICS_ZONE_NAMES`）
 - **外部**: Google Sheets、Google Tasks、X API（Cron からは未使用）。OpenClaw Control UI は ai-org から HTTP リダイレクトのみ（`OPENCLAW_CONTROL_UI_URL`）。トンネル・認証は OpenClaw 側の Cloudflare 構成に依存し、ai-org はプロキシしない
@@ -65,7 +65,7 @@ flowchart LR
 | `src/app/` | 画面、`actions.ts`（`"use server"`）、`api/` |
 | `src/components/` | UI。Server Action を呼ぶ Client Components |
 | `src/lib/` | PostgreSQL / ローカル画像、認証、同期、型、自動化カタログ |
-| `src/middleware.ts` | セッション検証。localhost はスキップ。未ログインの `/`、`/privacy`、`/terms` は本番ホストでもスキップ。`/?code=` と `/?error=` はスキップしない |
+| `src/middleware.ts` | セッション検証。localhost はスキップ。未ログインの `/`、`/about`、`/privacy`、`/privacy-policy`、`/terms`、`/robots.txt` は本番ホストでもスキップ。`/?code=` と `/?error=` はスキップしない |
 | `scripts/run-cron.ts` | systemd timer から呼ぶ定期実行 |
 | `migrations/pg/` | PostgreSQL 14 スキーマの正本 |
 | `migrations/` | 旧 D1（SQLite）マイグレーション。適用しない |

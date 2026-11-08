@@ -30,6 +30,8 @@ export default async function RootLayout({
 		signedIn &&
 		pathname !== "/login" &&
 		pathname !== "/privacy" &&
+		pathname !== "/privacy-policy" &&
+		pathname !== "/about" &&
 		pathname !== "/terms";
 
 	return (

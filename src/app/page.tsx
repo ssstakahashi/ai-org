@@ -9,7 +9,7 @@ import { requestHasAppSession } from "@/lib/request-session";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-	title: "ai-org | 業務台帳",
+	title: "ai-org は、業務タスクを管理するためのアプリです",
 	description:
 		"人と AI 従業員の業務タスクを管理する社内の業務台帳です。ログインしなくても、アプリの目的とデータの取り扱いを確認できます。",
 };
