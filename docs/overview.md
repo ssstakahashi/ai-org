@@ -22,8 +22,11 @@
 
 | 機能名 | 概要 | ステータス | 対象ユーザー |
 |---|---|---|---|
-| 認証 | 共有パスワード + JWT Cookie。localhost はスキップ | 稼働中 | 全体 |
+| 認証 | 共有パスワード + JWT Cookie。localhost はスキップ。`/privacy` と `/terms` は未ログイン公開 | 稼働中 | 全体 |
+| プライバシーポリシー | `/privacy`。ログイン不要。Google Tasks の OAuth ブランド確認用。ナビは出さない | 稼働中 | 公開 |
+| 利用規約 | `/terms`。ログイン不要。ai-org の利用条件。ナビは出さない。公開 URL は `https://ai-org.studiofoods.net/terms` | 稼働中 | 公開 |
 | 業務台帳 | カレンダー / ガント / 看板。担当・期間・カテゴリ・タグ（追加・編集時は名前で検索）・繰り返し | 稼働中 | 全体 |
+| 今日のタスク | 業務台帳から、今日にかかるタスクと昨日までに終わるはずで未完了のタスクを出し、その場で完了にする。下書きは含めない。ナビは「今日のタスク」 | 稼働中 | 全体 |
 | Google Tasks 同期 | 業務台帳と双方向（10分 Cron / 手動）。全リストを取得し、新規の台帳タスクはリスト `ai-org` へ | 稼働中 | 全体 |
 | X投稿スケジュール | 投稿文・画像・予約。投稿先 `studiofoods`（表示名: @MIERUagri_漫画）/ `agri`（表示名: @MIERUagri）/ `mieru`（表示名: @MIERUkaikei）/ `mieru_manga`（表示名: @MIERUkaikei_漫画）/ `studiofoods_official`（表示名: @studio_foods）。一覧のステータスは下書き・承認済・予約・完了・失敗をボタンで出し、ワンクリックで更新する。投稿済以外への AI コメント（複数AI・複数件、未対応／対応済）を確認。ナビは「投稿」 | 稼働中 | コンテンツ |
 | X API 自動投稿 | Cron からの X API 投稿 | 停止中 | — |
@@ -47,6 +50,6 @@
 - **想定トラフィック**: 社内数名 + Cron / Bot。高負荷の公開サービスではない。
 - **レスポンス目標**: p95 は未定義（計測していない）。
 - **対応環境**: デスクトップ Web 推奨。ネイティブ iOS / Android アプリはない。
-- **実行基盤**: outside-local-ubuntu の `/home/s-takahashi/development/ai-org` で PostgreSQL 14。公開 URL は `bun run deploy`（`next build` + `next start` @ 3080）。サーバー上の開発は `dev:server`（3081）。認証シークレット未設定なら、localhost 以外は 500。
+- **実行基盤**: outside-local-ubuntu の `/home/s-takahashi/development/ai-org` で PostgreSQL 14。公開 URL は `bun run deploy`（`next build` + `next start` @ 3080）。サーバー上の開発は `dev:server`（3081）。認証シークレット未設定なら、localhost 以外の画面は 500。例外は `/privacy` と `/terms`。
 - **観測**: `console`。Sentry 等の APM は未導入。
 - **データ保全**: 正本は PostgreSQL。画像はローカルディスク。Google Sheets / Tasks は同期先であり DB の代替ではない。

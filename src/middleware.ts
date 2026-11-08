@@ -50,7 +50,9 @@ export async function middleware(request: NextRequest) {
 		isInternalApiPath(pathname) ||
 		pathname === "/api/auth/login" ||
 		pathname === "/api/v1" ||
-		pathname.startsWith("/api/v1/")
+		pathname.startsWith("/api/v1/") ||
+		pathname === "/privacy" ||
+		pathname === "/terms"
 	) {
 		return withPathname(NextResponse.next(), pathname);
 	}

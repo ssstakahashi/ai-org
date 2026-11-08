@@ -12,6 +12,11 @@ export default function LoginPage() {
 				<Suspense fallback={<p className="login-lede">読み込み中...</p>}>
 					<LoginForm />
 				</Suspense>
+				<p className="login-lede">
+					<a href="/terms">利用規約</a>
+					{" · "}
+					<a href="/privacy">プライバシーポリシー</a>
+				</p>
 			</section>
 		</main>
 	);

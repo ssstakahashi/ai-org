@@ -6,11 +6,12 @@ OpenAPI / Swagger は無い。画面は App Router、更新の大半は Server A
 
 ## 1. 画面一覧・遷移フロー
 
-ナビ正本は [src/lib/app-nav.ts](../src/lib/app-nav.ts)。`/login` 以外でトップナビを出す。トップレベルの「投稿」はドロップダウン（サイドメニューでは見出し）で、小要素はブログ下書き・ネタ・X投稿スケジュール。「情報」はドロップダウン（サイドメニューでは見出し）で、小要素は掲示板・Web分析・OpenClaw・API ルール・会計マニュアル。「組織」はドロップダウン（サイドメニューでは見出し）で、小要素は従業員・組織ルール・自動化一覧。
+ナビ正本は [src/lib/app-nav.ts](../src/lib/app-nav.ts)。`/login`、`/privacy`、`/terms` 以外でトップナビを出す。トップレベルは「業務台帳」の次に「今日のタスク」（`/today`）。「投稿」はドロップダウン（サイドメニューでは見出し）で、小要素はブログ下書き・ネタ・X投稿スケジュール。「情報」はドロップダウン（サイドメニューでは見出し）で、小要素は掲示板・Web分析・OpenClaw・API ルール・会計マニュアル。「組織」はドロップダウン（サイドメニューでは見出し）で、小要素は従業員・組織ルール・自動化一覧。
 
 ```mermaid
 flowchart TD
   Login["/login"] --> Home["/"]
+  Home --> Today["/today"]
   Home --> XSchedule["/x-schedule"]
   Home --> BlogDrafts["/blog-drafts"]
   Home --> BlogIdeas["/blog-ideas"]
@@ -36,8 +37,11 @@ flowchart TD
 
 | パス | 画面 | ナビ |
 |---|---|---|
-| `/login` | パスワードログイン | なし |
+| `/login` | パスワードログイン。利用規約とプライバシーポリシーへのリンクあり | なし |
+| `/privacy` | プライバシーポリシー。未ログインで公開（Google OAuth のブランド確認用）。公開 URL は `https://ai-org.studiofoods.net/privacy` | なし |
+| `/terms` | 利用規約。未ログインで公開。公開 URL は `https://ai-org.studiofoods.net/terms` | なし |
 | `/` | 業務台帳（カレンダー / ガント / 看板）。タスク追加・編集のタグは名前で検索して絞り込める。検索に一致しない選択中タグは残る。Google Tasks OAuth callback もここ | トップ |
+| `/today` | 今日のタスク。業務台帳から、期間が今日（日本時間）を含むタスクと、期間の終わりが昨日以前で未完了のタスクを出す。下書きは含めない。未完了行の「完了」で `tasks.status` を `done` にする（Google Tasks 同期も既存の完了処理に乗る） | トップ |
 | `/x-schedule` | X投稿スケジュール（タブ: @MIERUagri_漫画 / @MIERUagri / @MIERUkaikei / @MIERUkaikei_漫画 / @studio_foods）。一覧のステータスは全候補をボタン表示し、ワンクリックで更新。投稿済以外の記事の AI コメント確認（未対応／対応済） | トップ（投稿） |
 | `/blog-drafts` | ブログ下書きの確認・承認。一覧表に使用予定画像（TOP / 図表）を表示。確認ポップアップは本文中のインライン SVG を画像として表示。未公開記事の AI コメント確認（未対応／対応済）。Sheets 双方向同期はデフォルト無効（環境変数 `BLOG_DRAFTS_SHEET_AUTO_SYNC=1` で有効化）。notes に「本番へは出さない」を含む行は同期時の削除から保護 | トップ（投稿） |
 | `/blog-ideas` | ネタの CSV アップロードと参照（タブ: SideBusiness / Agri / 税務 / DX / 業務プロセス改革 / M＆A / 労務 / 3社比較）。一覧の「下書き」列に、未転用 / ブログ下書き / X下書き / 両方を出す。各ネタの転用先（ブログ / X の媒体）とタグ（ページ台帳と同じマスタ）を記録。SideBusiness タブは一覧の上に4象限（縦: 副業時の月収レンジ中央値、横: 参入難易度）を出し、点のクリックで詳細ダイアログを開く | トップ（投稿） |
@@ -70,7 +74,7 @@ flowchart TD
 
 ロール別 ACL はない。社内共有パスワード 1 本。
 
-- **本番ホスト**: JWT Cookie `ai-org-session`（httpOnly、SameSite=lax、最大 30 日）。未ログインは `/login?next=…`。
+- **本番ホスト**: JWT Cookie `ai-org-session`（httpOnly、SameSite=lax、最大 30 日）。未ログインは `/login?next=…`。`/privacy` と `/terms` はセッション不要で、認証シークレット未設定でも 500 にしない。
 - **localhost / 127.0.0.1**（`Host` ヘッダーが上記のとき）: 認証スキップ（[src/middleware.ts](../src/middleware.ts)）。Cloudflare Tunnel 経由の `https://ai-org.studiofoods.net` は `Host` が公開名になるため認証が有効。
 - **HTTP API の詳細**（認証・エンドポイント一覧）: [api-rules.md](./api-rules.md)。画面は `/api-rules`、ボットは `GET /api/v1/rules`（HTML 既定）または `GET /api/v1/spec`（JSON 既定、`Accept: text/markdown` 可）。
 - **`/api/internal/*`**: セッション対象外。ingest secret（上記 api-rules）。新規の自動処理は `/api/v1` を使う。

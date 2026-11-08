@@ -359,6 +359,7 @@ const TASK_ORDER = `ORDER BY
 
 function revalidateTaskPages() {
 	revalidatePath("/");
+	revalidatePath("/today");
 	revalidatePath("/x-schedule");
 	revalidatePath("/categories");
 	revalidatePath("/tags");

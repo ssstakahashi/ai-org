@@ -18,6 +18,7 @@ export type AppNavLayout = "bar" | "drawer";
 
 export const APP_NAV: AppNavItem[] = [
 	{ kind: "link", href: "/", label: "業務台帳", matchRoot: true },
+	{ kind: "link", href: "/today", label: "今日のタスク" },
 	{
 		kind: "group",
 		id: "posts",

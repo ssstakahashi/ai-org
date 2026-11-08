@@ -101,6 +101,41 @@ body {
 	font-size: 0.95rem;
 }
 
+.login-panel a,
+.privacy-body a,
+.terms-body a {
+	color: var(--accent);
+	text-decoration: underline;
+}
+
+.privacy-page,
+.terms-page {
+	width: min(48rem, 100%);
+}
+
+.privacy-body,
+.terms-body {
+	display: grid;
+	gap: 0.85rem;
+}
+
+.privacy-body h2,
+.terms-body h2 {
+	margin: 0.35rem 0 0;
+}
+
+.privacy-body p,
+.privacy-body ul,
+.terms-body p,
+.terms-body ul {
+	margin: 0;
+}
+
+.privacy-body ul,
+.terms-body ul {
+	padding-left: 1.25rem;
+}
+
 .login-form {
 	margin-top: 0.5rem;
 }

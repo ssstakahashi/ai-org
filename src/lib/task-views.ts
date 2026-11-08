@@ -114,6 +114,64 @@ export function taskCoversDate(task: TaskWithEmployee, dateKey: string): boolean
 	return period.start <= dateKey && dateKey <= period.end;
 }
 
+export type TodayTaskSelection = {
+	/** 日本時間の今日 YYYY-MM-DD */
+	todayKey: string;
+	/** 未了の区切り。昨日 YYYY-MM-DD */
+	throughKey: string;
+	/** 期間が今日を含むタスク（下書き以外。完了も含む） */
+	today: TaskWithEmployee[];
+	/** 期間の終わりが昨日以前で、完了以外（下書きは除く） */
+	unfinishedThroughYesterday: TaskWithEmployee[];
+};
+
+function compareTasksByStart(a: TaskWithEmployee, b: TaskWithEmployee): number {
+	const startCmp = (taskPeriod(a)?.start ?? "").localeCompare(taskPeriod(b)?.start ?? "");
+	if (startCmp !== 0) return startCmp;
+	const titleCmp = a.title.localeCompare(b.title, "ja");
+	if (titleCmp !== 0) return titleCmp;
+	return a.id.localeCompare(b.id);
+}
+
+function compareTasksByEnd(a: TaskWithEmployee, b: TaskWithEmployee): number {
+	const endCmp = (taskPeriod(a)?.end ?? "").localeCompare(taskPeriod(b)?.end ?? "");
+	if (endCmp !== 0) return endCmp;
+	return compareTasksByStart(a, b);
+}
+
+/**
+ * 今日のタスク画面向け。
+ * 今日: カレンダーと同じく下書き以外で、期間が今日（日本時間）を含むもの。
+ * 昨日までの未了: 期間の終わりが昨日以前で、ステータスが完了以外（下書きは除く）。
+ * 今日に含まれるタスクは未了側には出さない。
+ */
+export function selectTodayTasks(
+	tasks: TaskWithEmployee[],
+	now = new Date(),
+): TodayTaskSelection {
+	const todayKey = toDateKey(now);
+	const throughKey = toDateKey(addDays(now, -1));
+	const today: TaskWithEmployee[] = [];
+	const unfinishedThroughYesterday: TaskWithEmployee[] = [];
+
+	for (const task of tasks) {
+		if (!showsOnScheduleBoard(task)) continue;
+		const period = taskPeriod(task);
+		if (!period) continue;
+		if (period.start <= todayKey && todayKey <= period.end) {
+			today.push(task);
+			continue;
+		}
+		if (task.status !== "done" && period.end <= throughKey) {
+			unfinishedThroughYesterday.push(task);
+		}
+	}
+
+	today.sort(compareTasksByStart);
+	unfinishedThroughYesterday.sort(compareTasksByEnd);
+	return { todayKey, throughKey, today, unfinishedThroughYesterday };
+}
+
 export function taskOverlapsMonth(task: TaskWithEmployee, month: Date): boolean {
 	const period = taskPeriod(task);
 	if (!period) return false;

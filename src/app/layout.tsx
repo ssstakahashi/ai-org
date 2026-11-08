@@ -23,7 +23,7 @@ export default async function RootLayout({
 }>) {
 	const headerList = await headers();
 	const pathname = headerList.get("x-pathname") ?? "";
-	const showNav = pathname !== "/login";
+	const showNav = pathname !== "/login" && pathname !== "/privacy" && pathname !== "/terms";
 
 	return (
 		<html lang="ja">
