@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { M_PLUS_Rounded_1c } from "next/font/google";
 import { AppTopNav } from "@/components/AppTopNav";
+import { requestHasAppSession } from "@/lib/request-session";
 import "./globals.css";
 
 const mPlusRounded = M_PLUS_Rounded_1c({
@@ -13,7 +14,8 @@ const mPlusRounded = M_PLUS_Rounded_1c({
 
 export const metadata: Metadata = {
 	title: "ai-org | 業務台帳",
-	description: "AI従業員のタスクと成果物を管理する司令塔",
+	description:
+		"人と AI 従業員の業務タスクを管理する社内の業務台帳です。ログインしなくても、アプリの目的とデータの取り扱いを確認できます。",
 };
 
 export default async function RootLayout({
@@ -23,7 +25,12 @@ export default async function RootLayout({
 }>) {
 	const headerList = await headers();
 	const pathname = headerList.get("x-pathname") ?? "";
-	const showNav = pathname !== "/login" && pathname !== "/privacy" && pathname !== "/terms";
+	const signedIn = await requestHasAppSession();
+	const showNav =
+		signedIn &&
+		pathname !== "/login" &&
+		pathname !== "/privacy" &&
+		pathname !== "/terms";
 
 	return (
 		<html lang="ja">

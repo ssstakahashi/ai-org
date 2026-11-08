@@ -103,36 +103,43 @@ body {
 
 .login-panel a,
 .privacy-body a,
-.terms-body a {
+.terms-body a,
+.public-home-body a {
 	color: var(--accent);
 	text-decoration: underline;
 }
 
 .privacy-page,
-.terms-page {
+.terms-page,
+.public-home {
 	width: min(48rem, 100%);
 }
 
 .privacy-body,
-.terms-body {
+.terms-body,
+.public-home-body {
 	display: grid;
 	gap: 0.85rem;
 }
 
 .privacy-body h2,
-.terms-body h2 {
+.terms-body h2,
+.public-home-body h2 {
 	margin: 0.35rem 0 0;
 }
 
 .privacy-body p,
 .privacy-body ul,
 .terms-body p,
-.terms-body ul {
+.terms-body ul,
+.public-home-body p,
+.public-home-body ul {
 	margin: 0;
 }
 
 .privacy-body ul,
-.terms-body ul {
+.terms-body ul,
+.public-home-body ul {
 	padding-left: 1.25rem;
 }
 

@@ -12,6 +12,22 @@ function withPathname(response: NextResponse, pathname: string) {
 	return response;
 }
 
+function nextWithPathname(request: NextRequest, pathname: string) {
+	const requestHeaders = new Headers(request.headers);
+	requestHeaders.set("x-pathname", pathname);
+	const response = NextResponse.next({
+		request: { headers: requestHeaders },
+	});
+	response.headers.set("x-pathname", pathname);
+	return response;
+}
+
+function isGoogleTasksOAuthReturn(request: NextRequest) {
+	if (request.nextUrl.pathname !== "/") return false;
+	const params = request.nextUrl.searchParams;
+	return params.has("code") || params.has("error");
+}
+
 function isInternalApiPath(pathname: string) {
 	return (
 		pathname === "/api/internal/automation-ingest" ||
@@ -43,7 +59,7 @@ export async function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 
 	if (isLocalHostname(requestHostname(request))) {
-		return withPathname(NextResponse.next(), pathname);
+		return nextWithPathname(request, pathname);
 	}
 
 	if (
@@ -52,9 +68,10 @@ export async function middleware(request: NextRequest) {
 		pathname === "/api/v1" ||
 		pathname.startsWith("/api/v1/") ||
 		pathname === "/privacy" ||
-		pathname === "/terms"
+		pathname === "/terms" ||
+		(pathname === "/" && !isGoogleTasksOAuthReturn(request))
 	) {
-		return withPathname(NextResponse.next(), pathname);
+		return nextWithPathname(request, pathname);
 	}
 
 	const env = getAppEnv();
@@ -83,14 +100,14 @@ export async function middleware(request: NextRequest) {
 				next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
 			return withPathname(NextResponse.redirect(new URL(destination, request.url)), pathname);
 		}
-		return withPathname(NextResponse.next(), pathname);
+		return nextWithPathname(request, pathname);
 	}
 
 	if (!sessionValid) {
 		return loginRedirect(request);
 	}
 
-	return withPathname(NextResponse.next(), pathname);
+	return nextWithPathname(request, pathname);
 }
 
 export const config = {

@@ -114,6 +114,8 @@ export default function TermsPage() {
 				<p>運営者: 高橋昌兵</p>
 				<p>本規約に関する連絡は、運営者までお願いします。</p>
 				<p>
+					<a href="/">アプリの説明</a>
+					{" · "}
 					<a href="/privacy">プライバシーポリシー</a>
 					{" · "}
 					<a href="/login">ログイン</a>
