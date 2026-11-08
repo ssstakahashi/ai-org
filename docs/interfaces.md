@@ -37,7 +37,7 @@ flowchart TD
 
 | パス | 画面 | ナビ |
 |---|---|---|
-| `/login` | パスワードログイン。利用規約とプライバシーポリシーへのリンクあり | なし |
+| `/login` | 先頭はアプリの目的とプライバシーポリシー。その下に、業務画面を開くためのパスワード欄。同意画面のホームページがこの URL でも、ログイン欄だけにはならない | なし |
 | `/privacy` | プライバシーポリシー。未ログインで公開。取得する情報、利用目的、保存、第三者提供、Google Tasks の Limited Use を日英で記載。公開 URL は `https://ai-org.studiofoods.net/privacy` | なし |
 | `/privacy-policy` | `/privacy` と同じプライバシーポリシー。同意画面のプライバシーポリシー URL をこちらに変えて再確認できる | なし |
 | `/terms` | 利用規約。未ログインで公開。公開 URL は `https://ai-org.studiofoods.net/terms` | なし |

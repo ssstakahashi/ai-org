@@ -23,7 +23,7 @@ flowchart LR
   Next --> Google["Sheets_and_Tasks"]
 ```
 
-- ブラウザは App Router の画面と Server Actions が中心。自動処理の DB 入口は `/api/v1`。閲覧画面はログイン必須。例外は `/login`、未ログインの `/` と `/about`（アプリの目的を説明する公開ページ）、`/privacy`、`/privacy-policy`、`/terms`、`/robots.txt`。ログイン後の `/` は業務台帳。Google Tasks の OAuth 戻り（`/?code=` または `/?error=`）はログイン必須。
+- ブラウザは App Router の画面と Server Actions が中心。自動処理の DB 入口は `/api/v1`。閲覧画面はログイン必須。例外は `/login`（アプリの説明の下にパスワード欄）、未ログインの `/` と `/about`（アプリの目的を説明する公開ページ）、`/privacy`、`/privacy-policy`、`/terms`、`/robots.txt`。ログイン後の `/` は業務台帳。Google Tasks の OAuth 戻り（`/?code=` または `/?error=`）はログイン必須。
 - データベースは、このサーバーの PostgreSQL 14。画像とファイルのうち ai-org が持つものは、このサーバーの `MEDIA_ROOT`。D1 と Wrangler は実行経路に入れない。
 - 公開ブログの新規サムネは、既存のブログ画像 API（`https://mieru-storage-backend.studiofoods.net/api/v1/blog_images`）のまま。公開済みの旧 R2 URL は書き換えない。見分けは `blog_posts.thumbnail_origin`（`r2` / `blog_image_api`）。
 - 正の URL は `https://ai-org.studiofoods.net/`。旧 `ai-org.s-takahashi-241.workers.dev` の転送期間は `OLD_URL_REDIRECT_UNTIL`。未設定の間は転送を残す。転送の実体は公開側の設定。

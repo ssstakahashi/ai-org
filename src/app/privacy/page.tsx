@@ -20,8 +20,16 @@ export default function PrivacyPage() {
 				<p>運営者は高橋昌兵です。制定日、最終更新日はいずれも 2026年11月8日です。</p>
 				<p>
 					ai-org は、運営者と運営者が認めた人が、業務タスクを記録し確認するための社内の業務台帳です。一般向けの会員登録はありません。このページはログインなしで読めます。アプリの目的は
-					<a href="/">ホームページ</a>
+					<a href="https://ai-org.studiofoods.net/">ホームページ</a>
 					にも書いています。
+				</p>
+
+				<h2>What this app collects and how it is used</h2>
+				<p>
+					ai-org collects a shared sign-in password check, business records typed by signed-in users, Google Tasks data after consent, and ordinary server logs. The password is not stored as a user profile. Google data is limited to the scope https://www.googleapis.com/auth/tasks: task list names, task titles, notes, due dates, completion status, updated time, and a refresh token used only to keep syncing. The app does not collect Gmail, Google Drive, Calendar, Contacts, or the Google account name and email through that consent.
+				</p>
+				<p>
+					Those records are used to run the task ledger and to sync tasks with Google Tasks. They are stored on the operator&apos;s server until deleted. They are not sold, not used for advertising, and not used to train general AI models. Synced task text is sent back to Google only to perform the sync. Access, correction, or deletion requests go to info@st-go.work. The same practices are written in detail in Japanese below and in the English summary further down.
 				</p>
 
 				<h2>取得する情報</h2>
