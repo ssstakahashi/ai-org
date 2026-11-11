@@ -220,33 +220,15 @@ curl -sS -X POST \
 
 `/x-schedule` から「予約分をいま投稿」または行の「Xへ投稿」でも実行できます。
 
-## X投稿 → Google スプレッドシート転記
-
-`/x-schedule` で投稿を作成・更新・削除・ステータス変更・X投稿完了すると、指定の Google スプレッドシートへ自動転記します。
-
-転記先（固定）: [スプレッドシート](https://docs.google.com/spreadsheets/d/1a1ZZgAgHoxgoG6y2FB_SVFRb9YBlIFiW7rm1IlJeIvI/edit?gid=1053570355)
+## Google スプレッドシート（ブログ下書き・Spark）
 
 | 変数 | 内容 |
 |---|---|
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Service Account の client_email |
 | `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | Service Account の private_key（PEM。`\n` エスケープ可） |
-| `APP_PUBLIC_URL` | 任意。画像 URL を絶対パスで書き込むときのサイト URL |
+| `APP_PUBLIC_URL` | 任意。ブログ同期で画像 URL を絶対パスにするときのサイト URL |
 
-セットアップ:
-
-1. Google Cloud で **Google Sheets API** を有効化し、Service Account を作成
-2. 転記先シートを SA のメールアドレスに **編集者** で共有
-3. 1行目に `ID` 列が必要（空シートなら初回同期時にヘッダーを自動作成）
-
-値は `.env` または `/etc/ai-org.env` に書きます。
-
-```bash
-# .env に書く: GOOGLE_SERVICE_ACCOUNT_EMAIL
-# .env に書く: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
-# .env に書く: APP_PUBLIC_URL   # 任意
-```
-
-転記列（デフォルト）: ID / タイトル / 投稿文 / ステータス / 予約日時 / メモ / 画像URL / X投稿ID / X投稿URL / エラー / 作成日時 / 更新日時
+ブログ下書きの Sheets 双方向同期および Spark 自動化一覧の取得で利用します。X投稿スケジュール（`/x-schedule`）は DB のみで、スプレッドシートとは同期しません。
 
 ## Google Spark 自動化の取得
 
@@ -256,7 +238,7 @@ Spark（Gemini）は ai-org を直接編集できないため、指定スプレ�
 
 列: `ID` / `自動化タイトル` / `ステータス` / `実行タイミング` / `処理内容・プロンプト`
 
-X投稿転記と同じ `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` を使い、シートを Service Account に **閲覧者** で共有してください。
+上記と同じ `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` を使い、シートを Service Account に **閲覧者** で共有してください。
 
 `/automations` を開いたとき、および「スプレッドシートから取得」ボタンで再取得します。
 

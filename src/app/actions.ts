@@ -7,13 +7,7 @@ import { copyTaskImage, getUploadFile, getUploadFiles, putBlogPostImage, putTask
 import { LOCAL_SOURCE, recordAutomationRun } from "@/lib/automation-ingest";
 import { pullSparkAutomationsFromSheet } from "@/lib/spark-sheet-sync";
 import { publishDueXPosts, publishXPostNow, type PublishResult } from "@/lib/publish-x-posts";
-import {
-	isSheetsSyncConfigured,
-	queueXPostSheetRemoval,
-	queueXPostSheetSync,
-	syncAllXPostsToSheet,
-	type SyncAllXPostsResult,
-} from "@/lib/x-post-sheets-sync";
+import { isSheetsSyncConfigured } from "@/lib/google-sheets-sync-env";
 import {
 	removeBlogPostFromAllSheets,
 	syncBlogPostToSheetById,
@@ -1439,8 +1433,6 @@ export async function createXPost(
 				contentSubcategory,
 			)
 			.run();
-		const env = await getBoundEnv();
-		queueXPostSheetSync(env, id);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return { error: `投稿の保存に失敗しました: ${message}` };
@@ -1578,8 +1570,6 @@ export async function updateXPost(
 				id,
 			)
 			.run();
-		const env = await getBoundEnv();
-		queueXPostSheetSync(env, id);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return { error: `投稿の更新に失敗しました: ${message}` };
@@ -2157,8 +2147,6 @@ export async function updateXPostStatus(formData: FormData) {
 		.bind(status, id)
 		.run();
 
-	const env = await getBoundEnv();
-	queueXPostSheetSync(env, id);
 	revalidateXPostPages();
 }
 
@@ -2179,46 +2167,7 @@ export async function deleteXPost(formData: FormData) {
 
 	await db.prepare("DELETE FROM x_post_comments WHERE x_post_id = ?").bind(id).run();
 	await db.prepare("DELETE FROM x_posts WHERE id = ?").bind(id).run();
-	const env = await getBoundEnv();
-	queueXPostSheetRemoval(env, id);
 	revalidateXPostPages();
-}
-
-/** x_posts 全件を Google スプレッドシートへ手動同期 */
-export async function syncXPostsToSheet(): Promise<
-	SyncAllXPostsResult & { fatalError?: string }
-> {
-	const env = await getBoundEnv();
-	const startedAt = new Date().toISOString();
-	try {
-		const result = await syncAllXPostsToSheet(env);
-		await recordAutomationRun(env.DB, {
-			source: LOCAL_SOURCE,
-			automationId: "x-sheet-sync-ui",
-			ok: result.failed === 0,
-			startedAt,
-			finishedAt: new Date().toISOString(),
-			error:
-				result.failed > 0 ? result.errors.join("; ").slice(0, 2000) : null,
-			meta: {
-				total: result.total,
-				synced: result.synced,
-				failed: result.failed,
-			},
-		});
-		return result;
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		await recordAutomationRun(env.DB, {
-			source: LOCAL_SOURCE,
-			automationId: "x-sheet-sync-ui",
-			ok: false,
-			startedAt,
-			finishedAt: new Date().toISOString(),
-			error: message,
-		});
-		return { total: 0, synced: 0, failed: 0, errors: [], fatalError: message };
-	}
 }
 
 /** 業務台帳と Google Tasks を手動で双方向同期 */

@@ -8,7 +8,7 @@ import { localAutomationsWithSource } from "@/lib/automations";
 import { getBoundEnv, getDb } from "@/lib/db";
 import { listSparkAutomations, type SparkAutomation } from "@/lib/spark-automations";
 import { pullSparkAutomationsFromSheet } from "@/lib/spark-sheet-sync";
-import { isSheetsSyncConfigured } from "@/lib/x-post-sheets-sync";
+import { isSheetsSyncConfigured } from "@/lib/google-sheets-sync-env";
 
 export const dynamic = "force-dynamic";
 

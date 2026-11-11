@@ -117,11 +117,10 @@ erDiagram
 
 ## 3. Google Sheets（DB 外）
 
-定数は [src/lib/bulletin-board.ts](../src/lib/bulletin-board.ts)、[src/lib/x-post-sheets-sync.ts](../src/lib/x-post-sheets-sync.ts)、[src/lib/spark-sheet-sync.ts](../src/lib/spark-sheet-sync.ts)。
+定数は [src/lib/bulletin-board.ts](../src/lib/bulletin-board.ts)、[src/lib/blog-posts-sheets-sync.ts](../src/lib/blog-posts-sheets-sync.ts)、[src/lib/spark-sheet-sync.ts](../src/lib/spark-sheet-sync.ts)。
 
 | 用途 | 定数 | DB との関係 |
 |---|---|---|
-| X投稿転記 | `X_POST_SHEET_ID` | `x_posts` と双方向 |
 | ブログ投稿管理（SF HP） | `STUDIOFOODS_HP_BLOG_SHEET_ID` | `blog_posts`（`studiofoods_hp`）と同期 |
 | ブログ投稿管理（Agri LP） | `AGRI_LP_BLOG_SHEET_ID` | `blog_posts`（`agri_lp`）と同期 |
 | Spark 自動化 | `SPARK_SHEET_ID` | 行 → `remote_automations`（`source=spark`） |

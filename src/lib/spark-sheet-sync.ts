@@ -11,7 +11,7 @@ import {
 import {
 	isSheetsSyncConfigured,
 	type SheetsSyncEnv,
-} from "@/lib/x-post-sheets-sync";
+} from "@/lib/google-sheets-sync-env";
 
 /** Spark（Gemini）が書き込む自動化一覧（ユーザー指定） */
 export const SPARK_SHEET_ID = "1yAQXXH7yYkZ9Xm89tGKoUwqnDFXOZ6XfdXm0T1pQZwA";

@@ -30,7 +30,7 @@ import {
 	BLOG_POST_DESTINATION_OPTIONS,
 	BLOG_POST_STATUS_OPTIONS,
 } from "@/lib/types";
-import { isSheetsSyncConfigured } from "@/lib/x-post-sheets-sync";
+import { isSheetsSyncConfigured } from "@/lib/google-sheets-sync-env";
 
 export const dynamic = "force-dynamic";
 

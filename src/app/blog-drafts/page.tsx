@@ -8,7 +8,7 @@ import {
 	BLOG_POST_DESTINATION_OPTIONS,
 	type BlogPostDestination,
 } from "@/lib/types";
-import { isSheetsSyncConfigured } from "@/lib/x-post-sheets-sync";
+import { isSheetsSyncConfigured } from "@/lib/google-sheets-sync-env";
 
 export const dynamic = "force-dynamic";
 

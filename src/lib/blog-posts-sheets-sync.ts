@@ -19,7 +19,7 @@ import {
 	type BlogPostDestination,
 	type BlogPostStatus,
 } from "@/lib/types";
-import { isSheetsSyncConfigured, type SheetsSyncEnv } from "@/lib/x-post-sheets-sync";
+import { isSheetsSyncConfigured, type SheetsSyncEnv } from "@/lib/google-sheets-sync-env";
 
 type SheetField =
 	| "id"

@@ -19,9 +19,9 @@
 # agri 等からの自動化 push 受信
 # AUTOMATION_INGEST_SECRET=
 
-# X投稿 → Google スプレッドシート転記（Service Account）
+# ブログ下書き・Spark 用 Google スプレッドシート（Service Account）
 # 1. Google Cloud で Sheets API を有効化し Service Account を作成
-# 2. 転記先シートを SA の client_email に「編集者」で共有
+# 2. 対象シートを SA の client_email に共有（ブログは編集者、Spark は閲覧者）
 # 3. 秘密鍵 JSON の client_email / private_key を設定
 # GOOGLE_SERVICE_ACCOUNT_EMAIL=
 # GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=

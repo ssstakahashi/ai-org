@@ -1,5 +1,4 @@
 import { createXPost, getXCredentials, uploadXMedia } from "@/lib/x-client";
-import { queueXPostSheetSync, type SheetsSyncEnv } from "@/lib/x-post-sheets-sync";
 
 
 /** 有料X APIを使わない方針。投稿実行は Grok Bot のブラウザ操作へ。 */
@@ -13,7 +12,7 @@ function assertApiPublishingAllowed() {
 	}
 }
 
-export type PublishEnv = SheetsSyncEnv & {
+export type PublishEnv = {
 	DB: D1Database;
 	MEDIA: R2Bucket;
 	X_API_KEY?: string;
@@ -57,7 +56,6 @@ async function markDone(env: PublishEnv, postId: string, xPostId: string) {
 		)
 		.bind(xPostId, postId)
 		.run();
-	queueXPostSheetSync(env, postId);
 }
 
 async function markFailed(env: PublishEnv, postId: string, message: string) {
@@ -69,7 +67,6 @@ async function markFailed(env: PublishEnv, postId: string, message: string) {
 		)
 		.bind(message.slice(0, 1000), postId)
 		.run();
-	queueXPostSheetSync(env, postId);
 }
 
 async function publishOne(env: PublishEnv, post: DuePost) {
