@@ -90,6 +90,7 @@ curl -X PUT {{API_V1_BASE}}/x-posts/xpost_abc123 \
     "status": "scheduled",
     "scheduled_at": "2026-11-06T12:00:00+09:00",
     "destination": "studiofoods_official",
+    "content_subcategory": "tax",
     "base_updated_at": "2026-11-05T23:30:00.000Z"
   }'
 ```

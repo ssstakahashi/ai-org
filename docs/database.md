@@ -86,7 +86,7 @@ erDiagram
 
 ### X投稿・ブログ
 
-- **x_posts**: 投稿文・画像キー・予約。`destination` は `studiofoods`（表示名: @MIERUagri_漫画、既定）/ `agri`（表示名: @MIERUagri）/ `mieru`（表示名: @MIERUkaikei）/ `mieru_manga`（表示名: @MIERUkaikei_漫画）/ `studiofoods_official`（表示名: @studio_foods）。
+- **x_posts**: 投稿文・画像キー・予約。`destination` は `studiofoods`（表示名: @MIERUagri_漫画、既定）/ `agri`（表示名: @MIERUagri）/ `mieru`（表示名: @MIERUkaikei）/ `mieru_manga`（表示名: @MIERUkaikei_漫画）/ `studiofoods_official`（表示名: @studio_foods）。`content_subcategory` は投稿先タブ内の分野キー（表示ラベルと選択肢は [src/lib/x-post-content-subcategories.ts](../src/lib/x-post-content-subcategories.ts)）。未設定は空文字。
 - **x_post_comments**: 投稿済以外の X 投稿への AI コメント。1記事に複数AI・複数件。`employee_id` は任意（AI従業員）。`status` は `open`（未対応）/ `done`（対応済）。投稿済（`done`）への投入は拒否。
 - **blog_posts**: 公式ブログ下書き。`status` は `draft` / `approved` / `published` / `rejected`。`destination` は `studiofoods_hp` / `agri_lp`。`category` / `tags` はマスタ FK ではなく TEXT。画像は `thumbnail_key` と `figure_keys`（JSON）。`thumbnail_origin` は `r2` / `blog_image_api`。`body_hash`、`version`、`external_check_date`、`external_check_result`、`rewrite_mark`（notes から切り出した「最終構成」「広報」）、`published_at`、`published_url` を持つ。
 - **blog_post_comments**: 未公開下書きへのコメント。1記事に複数。`status` は DB 上 `open` / `done`。`/api/v1` では `done` を `resolved` と出す。`target_body_hash`、`verdict`、`quote`、`reason`、`suggestion`、`resolved_by`、`decision_status`（`needs_decision` / `decided`）を持つ。公開済への投入は拒否。

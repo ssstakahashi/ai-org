@@ -1,0 +1,1 @@
+ALTER TABLE x_posts ADD COLUMN IF NOT EXISTS content_subcategory TEXT NOT NULL DEFAULT '';

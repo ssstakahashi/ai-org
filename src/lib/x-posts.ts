@@ -9,7 +9,7 @@ import {
 
 export const X_POST_SELECT = `SELECT
 	id, title, body, image_key, status, scheduled_at, notes, destination,
-	x_post_id, last_error, created_at, updated_at
+	content_subcategory, x_post_id, last_error, created_at, updated_at
  FROM x_posts`;
 
 export const X_POST_ORDER = `ORDER BY COALESCE(scheduled_at, created_at) DESC`;
@@ -34,6 +34,7 @@ export function withXPostDestination(post: XPost): XPost {
 		destination: parseXPostDestination(post.destination, {
 			fallback: X_POST_DESTINATION_DEFAULT,
 		}),
+		content_subcategory: post.content_subcategory ?? "",
 	};
 }
 

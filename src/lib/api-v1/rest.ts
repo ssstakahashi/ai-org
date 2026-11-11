@@ -8,7 +8,8 @@ import {
 	type XPost,
 	type XPostDestination,
 } from "@/lib/types";
-import { X_POST_SELECT } from "@/lib/x-posts";
+import { parseXPostContentSubcategory } from "@/lib/x-post-content-subcategories";
+import { parseXPostDestination, X_POST_SELECT } from "@/lib/x-posts";
 import { asRecord, asText, encodeCursor, pageClause, type PageQuery } from "@/lib/api-v1/http";
 import type { ApiActor } from "@/lib/api-v1/auth";
 import { parseAppDateTime } from "@/lib/timezone";
@@ -492,11 +493,23 @@ export async function putX(db: D1Database, id: string, raw: unknown) {
 	const destination =
 		destinationFromAccount(asText(body.account) || asText(body.destination)) ?? "studiofoods";
 	const status = asText(body.status) ? dbXStatus(asText(body.status)) : "draft";
+	let contentSubcategory = "";
+	try {
+		contentSubcategory = parseXPostContentSubcategory(
+			"content_subcategory" in body ? body.content_subcategory : "",
+			parseXPostDestination(destination),
+		);
+	} catch {
+		throw new BlogRuleError(400, "validation", "content_subcategory が不正です");
+	}
 	const existing = await db
 		.prepare(`${X_POST_SELECT} WHERE id = ?`)
 		.bind(id)
 		.first<XPost>();
 	if (existing) {
+		if (!("content_subcategory" in body)) {
+			contentSubcategory = existing.content_subcategory ?? "";
+		}
 		const base = asText(body.base_updated_at);
 		if (!base) {
 			throw new BlogRuleError(409, "stale_body", "更新には base_updated_at が必要です", {
@@ -511,6 +524,7 @@ export async function putX(db: D1Database, id: string, raw: unknown) {
 			text === (existing.body ?? "") &&
 			status === existing.status &&
 			destination === existing.destination &&
+			contentSubcategory === (existing.content_subcategory ?? "") &&
 			(imageKey ?? "") === (existing.image_key ?? "") &&
 			notes === (existing.notes ?? "") &&
 			(scheduledAt ?? "") === (existing.scheduled_at ?? "");
@@ -524,18 +538,29 @@ export async function putX(db: D1Database, id: string, raw: unknown) {
 				.prepare(
 					`UPDATE x_posts
 					 SET title = ?, body = ?, image_key = ?, status = ?, scheduled_at = ?,
-					     notes = ?, destination = ?, updated_at = datetime('now')
+					     notes = ?, destination = ?, content_subcategory = ?,
+					     updated_at = datetime('now')
 					 WHERE id = ?`,
 				)
-				.bind(title, text, imageKey, status, scheduledAt, notes, destination, id)
+				.bind(
+					title,
+					text,
+					imageKey,
+					status,
+					scheduledAt,
+					notes,
+					destination,
+					contentSubcategory,
+					id,
+				)
 				.run();
 		}
 	} else {
 		await db
 			.prepare(
 				`INSERT INTO x_posts
-					(id, title, body, image_key, status, scheduled_at, notes, destination)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+					(id, title, body, image_key, status, scheduled_at, notes, destination, content_subcategory)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.bind(
 				id,
@@ -546,6 +571,7 @@ export async function putX(db: D1Database, id: string, raw: unknown) {
 				asText(body.scheduled_at) || null,
 				asText(body.notes),
 				destination,
+				contentSubcategory,
 			)
 			.run();
 	}

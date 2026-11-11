@@ -2,6 +2,11 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.71 (2026-11-11)
+
+- X投稿スケジュールに分野（サブカテゴリー）を追加（Agri / 会計タブ内の選択肢、一覧表示、スプレッドシート・API v1 連携）
+- `x_posts.content_subcategory` カラムを追加（migration `0043` / `pg/0005`）
+
 ## 0.0.70 (2026-11-06)
 
 - ボット向け `GET /api/v1/rules`（HTML、`X-API-Key`）を追加。`/spec` と Accept による JSON / Markdown / HTML 取得を整理

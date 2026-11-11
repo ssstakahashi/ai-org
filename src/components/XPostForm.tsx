@@ -13,6 +13,7 @@ import { StatusIcon } from "@/components/StatusIcon";
 import { mediaUrl } from "@/lib/media-path";
 import { toAppDateTimeLocal } from "@/lib/timezone";
 import { replaceInputFile, toWebpFile } from "@/lib/to-webp";
+import { xPostContentSubcategoryOptions } from "@/lib/x-post-content-subcategories";
 import { formatXPostLengthInfo, xPostLengthInfo } from "@/lib/x-post-length";
 import {
 	X_POST_DESTINATION_DEFAULT,
@@ -49,7 +50,12 @@ export function XPostForm({
 }: Props) {
 	const isEdit = Boolean(post);
 	const statuses = isEdit ? EDIT_STATUSES : CREATE_STATUSES;
-	const destination = post?.destination ?? defaultDestination;
+	const initialDestination = post?.destination ?? defaultDestination;
+	const [formDestination, setFormDestination] =
+		useState<XPostDestination>(initialDestination);
+	const [contentSubcategory, setContentSubcategory] = useState(
+		post?.content_subcategory ?? "",
+	);
 	const [status, setStatus] = useState<TaskStatus>(post?.status ?? defaultStatus);
 	const [clientError, setClientError] = useState<string | null>(null);
 	const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
@@ -92,6 +98,23 @@ export function XPostForm({
 	}, [post?.title, post?.body]);
 
 	useEffect(() => {
+		const nextDestination = post?.destination ?? defaultDestination;
+		setFormDestination(nextDestination);
+		setContentSubcategory(post?.content_subcategory ?? "");
+	}, [post?.destination, post?.content_subcategory, defaultDestination]);
+
+	const subcategoryOptions = xPostContentSubcategoryOptions(formDestination);
+
+	function handleDestinationChange(next: XPostDestination) {
+		setFormDestination(next);
+		setContentSubcategory((current) => {
+			if (!current) return current;
+			const allowed = xPostContentSubcategoryOptions(next);
+			return allowed.some((option) => option.value === current) ? current : "";
+		});
+	}
+
+	useEffect(() => {
 		return () => {
 			if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
 		};
@@ -106,7 +129,7 @@ export function XPostForm({
 
 	function appendDestination(payload: FormData, form: HTMLFormElement | null | undefined) {
 		const input = form?.elements.namedItem("destination");
-		const value = input instanceof HTMLSelectElement ? input.value.trim() : destination;
+		const value = input instanceof HTMLSelectElement ? input.value.trim() : formDestination;
 		if (value) payload.set("destination", value);
 	}
 
@@ -249,13 +272,38 @@ export function XPostForm({
 				</div>
 				<label>
 					<span>投稿先</span>
-					<select name="destination" defaultValue={destination}>
+					<select
+						name="destination"
+						value={formDestination}
+						onChange={(event) =>
+							handleDestinationChange(event.target.value as XPostDestination)
+						}
+					>
 						{X_POST_DESTINATION_OPTIONS.map((value) => (
 							<option key={value} value={value}>
 								{X_POST_DESTINATION_LABEL[value]}
 							</option>
 						))}
 					</select>
+				</label>
+				<label>
+					<span>分野（サブカテゴリー）</span>
+					<select
+						name="content_subcategory"
+						value={contentSubcategory}
+						onChange={(event) => setContentSubcategory(event.target.value)}
+						disabled={subcategoryOptions.length === 0 || imageBusy}
+					>
+						<option value="">— 未設定 —</option>
+						{subcategoryOptions.map((option) => (
+							<option key={option.value} value={option.value}>
+								{option.label}
+							</option>
+						))}
+					</select>
+					<p className="field-hint">
+						投稿先タブ内での分野（例: Agri なら栽培・農業日誌、会計なら税務・インボイス）
+					</p>
 				</label>
 				<label>
 					<span>

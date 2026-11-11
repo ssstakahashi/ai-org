@@ -7,6 +7,9 @@ import {
 	type TaskStatus,
 	type XPost,
 } from "@/lib/types";
+import {
+	xPostContentSubcategoryLabel,
+} from "@/lib/x-post-content-subcategories";
 import { X_POST_SELECT, withXPostDestination } from "@/lib/x-posts";
 
 /** 転記先スプレッドシート（ユーザー指定） */
@@ -22,6 +25,7 @@ export type SheetsSyncEnv = {
 type SheetField =
 	| "id"
 	| "title"
+	| "content_subcategory"
 	| "body"
 	| "status"
 	| "scheduled_at"
@@ -41,6 +45,7 @@ type SheetField =
 const DEFAULT_HEADERS: Record<SheetField, string> = {
 	id: "ID",
 	title: "タイトル",
+	content_subcategory: "サブカテゴリー",
 	body: "投稿文",
 	status: "ステータス",
 	scheduled_at: "予約日時",
@@ -61,6 +66,13 @@ const DEFAULT_HEADERS: Record<SheetField, string> = {
 const HEADER_ALIASES: Record<SheetField, string[]> = {
 	id: ["id", "ID"],
 	title: ["タイトル", "title", "Title", "投稿カテゴリー/キャンペーン名", "キャンペーン名"],
+	content_subcategory: [
+		"サブカテゴリー",
+		"サブカテゴリ",
+		"分野",
+		"投稿内容分野",
+		"content_subcategory",
+	],
 	body: ["投稿文", "body", "本文", "投稿内容・テキスト案", "投稿内容", "テキスト案"],
 	status: ["ステータス", "status", "Status"],
 	scheduled_at: ["予約日時", "scheduled_at", "予約"],
@@ -88,6 +100,7 @@ const HEADER_ALIASES: Record<SheetField, string[]> = {
 const FIELD_ORDER: SheetField[] = [
 	"id",
 	"title",
+	"content_subcategory",
 	"body",
 	"status",
 	"scheduled_at",
@@ -184,6 +197,10 @@ function rowValues(post: XPost, layout: SheetLayout, env: SheetsSyncEnv): string
 	const values: Record<SheetField, string> = {
 		id: post.id,
 		title: post.title,
+		content_subcategory:
+			xPostContentSubcategoryLabel(post.destination, post.content_subcategory) ??
+			post.content_subcategory ??
+			"",
 		body: post.body,
 		status: X_POST_STATUS_LABEL[post.status as TaskStatus] ?? post.status,
 		scheduled_at: formatDateTime(post.scheduled_at),

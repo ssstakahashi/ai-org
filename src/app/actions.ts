@@ -94,6 +94,7 @@ import {
 	slugifyBlogSlug,
 	type BlogFigure,
 } from "@/lib/blog-posts";
+import { parseXPostContentSubcategory } from "@/lib/x-post-content-subcategories";
 import {
 	listXPostsFromDb,
 	parseXPostDestination,
@@ -1382,6 +1383,18 @@ export async function createXPost(
 		return { error: error instanceof Error ? error.message : "投稿先が不正です" };
 	}
 
+	let contentSubcategory: string;
+	try {
+		contentSubcategory = parseXPostContentSubcategory(
+			formData.get("content_subcategory"),
+			destination,
+		);
+	} catch (error) {
+		return {
+			error: error instanceof Error ? error.message : "サブカテゴリーが不正です",
+		};
+	}
+
 	if (!title) {
 		return { error: "タイトルは必須です" };
 	}
@@ -1411,10 +1424,20 @@ export async function createXPost(
 		await db
 			.prepare(
 				`INSERT INTO x_posts
-					(id, title, body, image_key, status, scheduled_at, notes, destination)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+					(id, title, body, image_key, status, scheduled_at, notes, destination, content_subcategory)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
-			.bind(id, title, body, imageKey, status, scheduledAt, notes, destination)
+			.bind(
+				id,
+				title,
+				body,
+				imageKey,
+				status,
+				scheduledAt,
+				notes,
+				destination,
+				contentSubcategory,
+			)
 			.run();
 		const env = await getBoundEnv();
 		queueXPostSheetSync(env, id);
@@ -1460,6 +1483,18 @@ export async function updateXPost(
 		destination = parseXPostDestination(formData.get("destination"));
 	} catch (error) {
 		return { error: error instanceof Error ? error.message : "投稿先が不正です" };
+	}
+
+	let contentSubcategory: string;
+	try {
+		contentSubcategory = parseXPostContentSubcategory(
+			formData.get("content_subcategory"),
+			destination,
+		);
+	} catch (error) {
+		return {
+			error: error instanceof Error ? error.message : "サブカテゴリーが不正です",
+		};
 	}
 
 	if (!id) {
@@ -1526,11 +1561,22 @@ export async function updateXPost(
 				     scheduled_at = ?,
 				     notes = ?,
 				     destination = ?,
+				     content_subcategory = ?,
 				     last_error = '',
 				     updated_at = datetime('now')
 				 WHERE id = ?`,
 			)
-			.bind(title, body, imageKey, status, scheduledAt, notes, destination, id)
+			.bind(
+				title,
+				body,
+				imageKey,
+				status,
+				scheduledAt,
+				notes,
+				destination,
+				contentSubcategory,
+				id,
+			)
 			.run();
 		const env = await getBoundEnv();
 		queueXPostSheetSync(env, id);

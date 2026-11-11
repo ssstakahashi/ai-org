@@ -159,6 +159,8 @@ export type XPost = {
 	scheduled_at: string | null;
 	notes: string;
 	destination: XPostDestination;
+	/** 投稿先タブ内の分野（キー）。表示は x-post-content-subcategories */
+	content_subcategory: string;
 	x_post_id: string | null;
 	last_error: string;
 	created_at: string;

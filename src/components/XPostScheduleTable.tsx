@@ -21,6 +21,7 @@ import { XPostForm } from "@/components/XPostForm";
 import { mediaUrl } from "@/lib/media-path";
 import { recoverFromStaleServerAction } from "@/lib/server-action-client";
 import { formatInAppTz } from "@/lib/timezone";
+import { xPostContentSubcategoryLabel } from "@/lib/x-post-content-subcategories";
 import { formatXPostLengthInfo, xPostLengthInfo } from "@/lib/x-post-length";
 import {
 	X_POST_DESTINATION_DEFAULT,
@@ -210,6 +211,9 @@ export function XPostScheduleTable({ posts, commentsByPostId = {} }: Props) {
 	const [editFormKey, setEditFormKey] = useState(0);
 	const [actionMessage, setActionMessage] = useState<string | null>(null);
 	const detailBodyLength = detailing ? xPostLengthInfo(detailing.body) : null;
+	const detailSubcategoryLabel = detailing
+		? xPostContentSubcategoryLabel(detailing.destination, detailing.content_subcategory)
+		: null;
 
 	const closeCreateDialog = useCallback(() => {
 		createDialogRef.current?.close();
@@ -323,6 +327,10 @@ export function XPostScheduleTable({ posts, commentsByPostId = {} }: Props) {
 							{visiblePosts.map((post) => {
 								const bodyLength = xPostLengthInfo(post.body);
 								const commentHint = commentCountHint(commentsByPostId[post.id] ?? []);
+								const subcategoryLabel = xPostContentSubcategoryLabel(
+									post.destination,
+									post.content_subcategory,
+								);
 								return (
 									<tr key={post.id} className={`status-${post.status}`}>
 										<td className="meta-cell">
@@ -376,6 +384,9 @@ export function XPostScheduleTable({ posts, commentsByPostId = {} }: Props) {
 												className="x-schedule-content-btn"
 												onClick={() => openDetail(post)}
 											>
+												{subcategoryLabel ? (
+													<p className="x-schedule-post-chars">{subcategoryLabel}</p>
+												) : null}
 												<p className="x-schedule-post-title">{post.title}</p>
 												<p className="x-schedule-post-body">
 													{truncate(post.body)}
@@ -480,6 +491,7 @@ export function XPostScheduleTable({ posts, commentsByPostId = {} }: Props) {
 							<div className="task-meta">
 								<StatusBadge status={detailing.status} />
 								<span>{X_POST_DESTINATION_LABEL[detailing.destination]}</span>
+								{detailSubcategoryLabel ? <span>{detailSubcategoryLabel}</span> : null}
 								<span className="when">{formatWhen(detailing.scheduled_at)}</span>
 								<span
 									className={
