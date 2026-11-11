@@ -13,7 +13,10 @@ import { StatusIcon } from "@/components/StatusIcon";
 import { mediaUrl } from "@/lib/media-path";
 import { toAppDateTimeLocal } from "@/lib/timezone";
 import { replaceInputFile, toWebpFile } from "@/lib/to-webp";
-import { xPostContentSubcategoryOptions } from "@/lib/x-post-content-subcategories";
+import {
+	xPostContentSubcategoryOptions,
+	xPostContentSubcategoryPresetSelectValue,
+} from "@/lib/x-post-content-subcategories";
 import { formatXPostLengthInfo, xPostLengthInfo } from "@/lib/x-post-length";
 import {
 	X_POST_DESTINATION_DEFAULT,
@@ -104,14 +107,18 @@ export function XPostForm({
 	}, [post?.destination, post?.content_subcategory, defaultDestination]);
 
 	const subcategoryOptions = xPostContentSubcategoryOptions(formDestination);
+	const subcategoryPreset = xPostContentSubcategoryPresetSelectValue(
+		formDestination,
+		contentSubcategory,
+	);
 
 	function handleDestinationChange(next: XPostDestination) {
 		setFormDestination(next);
-		setContentSubcategory((current) => {
-			if (!current) return current;
-			const allowed = xPostContentSubcategoryOptions(next);
-			return allowed.some((option) => option.value === current) ? current : "";
-		});
+	}
+
+	function handleSubcategoryPresetChange(next: string) {
+		if (!next) return;
+		setContentSubcategory(next);
 	}
 
 	useEffect(() => {
@@ -286,25 +293,48 @@ export function XPostForm({
 						))}
 					</select>
 				</label>
-				<label>
+				<div className="full x-post-subcategory-field">
 					<span>分野（サブカテゴリー）</span>
-					<select
-						name="content_subcategory"
-						value={contentSubcategory}
-						onChange={(event) => setContentSubcategory(event.target.value)}
-						disabled={subcategoryOptions.length === 0 || imageBusy}
-					>
-						<option value="">— 未設定 —</option>
-						{subcategoryOptions.map((option) => (
-							<option key={option.value} value={option.value}>
-								{option.label}
-							</option>
-						))}
-					</select>
+					<label>
+						<span className="field-hint">候補から選ぶ</span>
+						<select
+							value={subcategoryPreset}
+							onChange={(event) => handleSubcategoryPresetChange(event.target.value)}
+							disabled={imageBusy}
+						>
+							<option value="">— 未設定 —</option>
+							{subcategoryOptions.map((option) => (
+								<option key={option.value} value={option.value}>
+									{option.label}（{option.value}）
+								</option>
+							))}
+						</select>
+					</label>
+					<label>
+						<span className="field-hint">またはキーを入力（英小文字・ハイフン可）</span>
+						<input
+							type="text"
+							name="content_subcategory"
+							value={contentSubcategory}
+							onChange={(event) => setContentSubcategory(event.target.value)}
+							placeholder="例: tax, work-tip, sidebusiness"
+							disabled={imageBusy}
+							autoComplete="off"
+							spellCheck={false}
+							list={`x-post-subcategory-${formDestination}`}
+						/>
+						<datalist id={`x-post-subcategory-${formDestination}`}>
+							{subcategoryOptions.map((option) => (
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
+							))}
+						</datalist>
+					</label>
 					<p className="field-hint">
-						投稿先タブ内での分野（例: Agri なら栽培・農業日誌、会計なら税務・インボイス）
+						投稿先ごとの推奨分類から選ぶか、上の欄にキーを直接入力できます。未入力のときは分野なしです。
 					</p>
-				</label>
+				</div>
 				<label>
 					<span>
 						予約日時

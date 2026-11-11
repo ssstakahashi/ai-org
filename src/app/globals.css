@@ -2490,6 +2490,21 @@ button.ghost {
 	outline-offset: 2px;
 }
 
+.x-schedule-subcategory-chip {
+	margin: 0 0 0.4rem;
+	font-size: 0.78rem;
+	font-weight: 600;
+	line-height: 1.2;
+	white-space: nowrap;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.task-meta .x-schedule-subcategory-chip {
+	margin: 0;
+}
+
 .x-schedule-post-title {
 	margin: 0;
 	font-weight: 600;

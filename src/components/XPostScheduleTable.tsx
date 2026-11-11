@@ -383,7 +383,9 @@ export function XPostScheduleTable({ posts, commentsByPostId = {} }: Props) {
 												onClick={() => openDetail(post)}
 											>
 												{subcategoryLabel ? (
-													<p className="x-schedule-post-chars">{subcategoryLabel}</p>
+													<span className="badge badge-category x-schedule-subcategory-chip">
+														{subcategoryLabel}
+													</span>
 												) : null}
 												<p className="x-schedule-post-title">{post.title}</p>
 												<p className="x-schedule-post-body">
@@ -489,7 +491,11 @@ export function XPostScheduleTable({ posts, commentsByPostId = {} }: Props) {
 							<div className="task-meta">
 								<StatusBadge status={detailing.status} />
 								<span>{X_POST_DESTINATION_LABEL[detailing.destination]}</span>
-								{detailSubcategoryLabel ? <span>{detailSubcategoryLabel}</span> : null}
+								{detailSubcategoryLabel ? (
+									<span className="badge badge-category x-schedule-subcategory-chip">
+										{detailSubcategoryLabel}
+									</span>
+								) : null}
 								<span className="when">{formatWhen(detailing.scheduled_at)}</span>
 								<span
 									className={
