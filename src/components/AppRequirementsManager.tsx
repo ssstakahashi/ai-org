@@ -52,6 +52,8 @@ type Props = {
 	appEntryByAppNameId: Record<string, AppEntry>;
 };
 
+type AppListSort = "manual" | "count-desc" | "count-asc";
+
 export function AppRequirementsManager({
 	appNames,
 	requirements,
@@ -77,6 +79,7 @@ export function AppRequirementsManager({
 	const [expandedAppDetailIds, setExpandedAppDetailIds] = useState<Set<string>>(
 		() => new Set(),
 	);
+	const [appListSort, setAppListSort] = useState<AppListSort>("manual");
 
 	const requirementCounts = useMemo(() => {
 		const counts = new Map<string, number>();
@@ -85,6 +88,23 @@ export function AppRequirementsManager({
 		}
 		return counts;
 	}, [requirements]);
+
+	const canReorderApps = appListSort === "manual" && !reorderingApps;
+
+	const displayedApps = useMemo(() => {
+		if (appListSort === "manual") return orderedApps;
+		const indexById = new Map(
+			orderedApps.map((app, index) => [app.id, index] as const),
+		);
+		const direction = appListSort === "count-desc" ? -1 : 1;
+		return [...orderedApps].sort((a, b) => {
+			const countDiff =
+				(requirementCounts.get(a.id) ?? 0) -
+				(requirementCounts.get(b.id) ?? 0);
+			if (countDiff !== 0) return countDiff * direction;
+			return (indexById.get(a.id) ?? 0) - (indexById.get(b.id) ?? 0);
+		});
+	}, [appListSort, orderedApps, requirementCounts]);
 
 	useEffect(() => {
 		setOrderedApps(appNames);
@@ -169,7 +189,7 @@ export function AppRequirementsManager({
 	);
 
 	async function moveApp(sourceId: string, targetId: string) {
-		if (sourceId === targetId || reorderingApps) return;
+		if (sourceId === targetId || reorderingApps || appListSort !== "manual") return;
 
 		const fromIndex = orderedApps.findIndex((item) => item.id === sourceId);
 		const toIndex = orderedApps.findIndex((item) => item.id === targetId);
@@ -213,12 +233,17 @@ export function AppRequirementsManager({
 	}
 
 	function onAppDragStart(event: DragEvent<HTMLButtonElement>, id: string) {
+		if (appListSort !== "manual") {
+			event.preventDefault();
+			return;
+		}
 		event.dataTransfer.effectAllowed = "move";
 		event.dataTransfer.setData("text/plain", id);
 		setDraggingAppId(id);
 	}
 
 	function onAppDragOver(event: DragEvent<HTMLLIElement>, id: string) {
+		if (appListSort !== "manual") return;
 		event.preventDefault();
 		event.dataTransfer.dropEffect = "move";
 		if (dropTargetAppId !== id) setDropTargetAppId(id);
@@ -307,7 +332,7 @@ export function AppRequirementsManager({
 				</div>
 				<p className="panel-lede">
 					左の App 一覧から選択して要件を編集します。行をクリックすると編集ダイアログが開きます。
-					ステータスが「承認済」の要件は Cursor Automation から export できます。左の
+					ステータスが「承認済」の要件は Cursor Automation から export できます。左の一覧は表示順・件数が多い順・少ない順で並び替えできます。表示順のときは左の
 					ハンドルで App の表示順、表内のハンドルで要件の表示順を変更できます。
 				</p>
 
@@ -318,13 +343,30 @@ export function AppRequirementsManager({
 				) : (
 					<div className="requirement-layout">
 						<aside className="requirement-app-sidebar">
-							<p className="requirement-sidebar-label">App</p>
+							<div className="requirement-sidebar-head">
+								<p className="requirement-sidebar-label">App</p>
+								<label className="requirement-app-sort-field">
+									<span className="sr-only">並び替え</span>
+									<select
+										className="requirement-app-sort"
+										value={appListSort}
+										aria-label="Appの並び替え"
+										onChange={(event) =>
+											setAppListSort(event.target.value as AppListSort)
+										}
+									>
+										<option value="manual">表示順</option>
+										<option value="count-desc">件数が多い順</option>
+										<option value="count-asc">件数が少ない順</option>
+									</select>
+								</label>
+							</div>
 							<ul
 								className="requirement-app-list"
 								role="tablist"
 								aria-label="App の選択"
 							>
-								{orderedApps.map((app) => {
+								{displayedApps.map((app) => {
 									const active = app.id === selectedAppId;
 									const count = requirementCounts.get(app.id) ?? 0;
 									const appEntry = appEntryByAppNameId[app.id];
@@ -345,6 +387,7 @@ export function AppRequirementsManager({
 												active ? "active" : "",
 												isDragging ? "is-dragging" : "",
 												isDropTarget ? "is-drop-target" : "",
+												canReorderApps ? "" : "is-sort-locked",
 											]
 												.filter(Boolean)
 												.join(" ")}
@@ -359,9 +402,14 @@ export function AppRequirementsManager({
 											<button
 												type="button"
 												className="apps-sheet-drag-handle requirement-app-drag-handle"
-												draggable={!reorderingApps}
+												draggable={canReorderApps}
+												disabled={!canReorderApps}
 												aria-label={`${app.name} の表示順を変更`}
-												title="ドラッグして App の表示順を変更"
+												title={
+													canReorderApps
+														? "ドラッグして App の表示順を変更"
+														: "件数順のときは表示順に戻すとドラッグできます"
+												}
 												onDragStart={(event) => onAppDragStart(event, app.id)}
 												onDragEnd={onAppDragEnd}
 											>
