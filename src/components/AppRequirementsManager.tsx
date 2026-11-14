@@ -20,6 +20,11 @@ import { masterTintStyle } from "@/lib/colors";
 import { AppRequirementStatusField } from "@/components/AppRequirementStatusField";
 import { StatusIcon } from "@/components/StatusIcon";
 import {
+	getAppRequirementsPrefs,
+	saveAppRequirementsPrefs,
+	type AppListSort,
+} from "@/lib/app-requirements-prefs";
+import {
 	formatMasterLabel,
 	getDevPolicyMeta,
 	APP_REQUIREMENT_STATUS_LABEL,
@@ -52,8 +57,6 @@ type Props = {
 	appEntryByAppNameId: Record<string, AppEntry>;
 };
 
-type AppListSort = "manual" | "count-desc" | "count-asc";
-
 export function AppRequirementsManager({
 	appNames,
 	requirements,
@@ -80,6 +83,11 @@ export function AppRequirementsManager({
 		() => new Set(),
 	);
 	const [appListSort, setAppListSort] = useState<AppListSort>("manual");
+	const [hiddenAppIds, setHiddenAppIds] = useState<Set<string>>(
+		() => new Set(),
+	);
+	const [prefsReady, setPrefsReady] = useState(false);
+	const [filterOpen, setFilterOpen] = useState(false);
 
 	const requirementCounts = useMemo(() => {
 		const counts = new Map<string, number>();
@@ -91,7 +99,7 @@ export function AppRequirementsManager({
 
 	const canReorderApps = appListSort === "manual" && !reorderingApps;
 
-	const displayedApps = useMemo(() => {
+	const sortedApps = useMemo(() => {
 		if (appListSort === "manual") return orderedApps;
 		const indexById = new Map(
 			orderedApps.map((app, index) => [app.id, index] as const),
@@ -106,37 +114,76 @@ export function AppRequirementsManager({
 		});
 	}, [appListSort, orderedApps, requirementCounts]);
 
+	const displayedApps = useMemo(
+		() => sortedApps.filter((app) => !hiddenAppIds.has(app.id)),
+		[hiddenAppIds, sortedApps],
+	);
+
+	const hiddenCount = orderedApps.length - displayedApps.length;
+
+	const filterGroups = useMemo(() => {
+		const groups: { key: string; label: string; apps: AppName[] }[] = [];
+		const index = new Map<string, { key: string; label: string; apps: AppName[] }>();
+		for (const app of orderedApps) {
+			const key = app.app_group_id ?? "__none__";
+			let group = index.get(key);
+			if (!group) {
+				group = {
+					key,
+					label: app.app_group.trim() || "未分類",
+					apps: [],
+				};
+				index.set(key, group);
+				groups.push(group);
+			}
+			group.apps.push(app);
+		}
+		return groups;
+	}, [orderedApps]);
+
+	useEffect(() => {
+		const prefs = getAppRequirementsPrefs();
+		setAppListSort(prefs.sort);
+		setHiddenAppIds(new Set(prefs.hiddenAppIds));
+		setPrefsReady(true);
+	}, []);
+
+	useEffect(() => {
+		if (!prefsReady) return;
+		saveAppRequirementsPrefs(
+			{
+				sort: appListSort,
+				hiddenAppIds: [...hiddenAppIds],
+			},
+			orderedApps.map((app) => app.id),
+		);
+	}, [appListSort, hiddenAppIds, orderedApps, prefsReady]);
+
 	useEffect(() => {
 		setOrderedApps(appNames);
 	}, [appNames]);
 
 	useEffect(() => {
-		if (!selectedAppId && orderedApps[0]) {
-			setSelectedAppId(orderedApps[0].id);
-			return;
+		if (displayedApps.length === 0) return;
+		if (!selectedAppId || !displayedApps.some((app) => app.id === selectedAppId)) {
+			setSelectedAppId(displayedApps[0].id);
 		}
-		if (
-			selectedAppId &&
-			orderedApps.length > 0 &&
-			!orderedApps.some((app) => app.id === selectedAppId)
-		) {
-			setSelectedAppId(orderedApps[0].id);
-		}
-	}, [orderedApps, selectedAppId]);
+	}, [displayedApps, selectedAppId]);
 
 	const filteredFromProps = useMemo(
 		() =>
-			selectedAppId
+			selectedAppId &&
+			displayedApps.some((app) => app.id === selectedAppId)
 				? requirements.filter((item) => item.app_name_id === selectedAppId)
 				: [],
-		[requirements, selectedAppId],
+		[displayedApps, requirements, selectedAppId],
 	);
 
 	useEffect(() => {
 		setOrderedItems(filteredFromProps);
 	}, [filteredFromProps]);
 
-	const selectedApp = orderedApps.find((item) => item.id === selectedAppId);
+	const selectedApp = displayedApps.find((item) => item.id === selectedAppId);
 	const selectedCount = selectedAppId
 		? requirementCounts.get(selectedAppId) ?? 0
 		: 0;
@@ -305,6 +352,34 @@ export function AppRequirementsManager({
 		});
 	}
 
+	function setAppVisible(appId: string, visible: boolean) {
+		setHiddenAppIds((current) => {
+			const next = new Set(current);
+			if (visible) next.delete(appId);
+			else next.add(appId);
+			return next;
+		});
+	}
+
+	function setGroupVisible(apps: AppName[], visible: boolean) {
+		setHiddenAppIds((current) => {
+			const next = new Set(current);
+			for (const app of apps) {
+				if (visible) next.delete(app.id);
+				else next.add(app.id);
+			}
+			return next;
+		});
+	}
+
+	function showAllApps() {
+		setHiddenAppIds(new Set());
+	}
+
+	function hideAllApps() {
+		setHiddenAppIds(new Set(orderedApps.map((app) => app.id)));
+	}
+
 	return (
 		<>
 			<section className="panel">
@@ -332,7 +407,8 @@ export function AppRequirementsManager({
 				</div>
 				<p className="panel-lede">
 					左の App 一覧から選択して要件を編集します。行をクリックすると編集ダイアログが開きます。
-					ステータスが「承認済」の要件は Cursor Automation から export できます。左の一覧は表示順・件数が多い順・少ない順で並び替えできます。表示順のときは左の
+					ステータスが「承認済」の要件は Cursor Automation から export できます。左の一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する
+					App を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左の
 					ハンドルで App の表示順、表内のハンドルで要件の表示順を変更できます。
 				</p>
 
@@ -361,6 +437,113 @@ export function AppRequirementsManager({
 									</select>
 								</label>
 							</div>
+							<div className="requirement-app-filter">
+								<button
+									type="button"
+									className={
+										filterOpen || hiddenCount > 0
+											? "requirement-app-filter-toggle is-active"
+											: "requirement-app-filter-toggle"
+									}
+									aria-expanded={filterOpen}
+									aria-controls="requirement-app-filter-panel"
+									onClick={() => setFilterOpen((open) => !open)}
+								>
+									<span>絞り込み</span>
+									<span className="requirement-app-filter-summary">
+										{displayedApps.length}/{orderedApps.length}
+									</span>
+								</button>
+								{filterOpen ? (
+									<div
+										id="requirement-app-filter-panel"
+										className="requirement-app-filter-panel"
+									>
+										<div className="requirement-app-filter-actions">
+											<button type="button" onClick={showAllApps}>
+												全選択
+											</button>
+											<button type="button" onClick={hideAllApps}>
+												全解除
+											</button>
+											<button type="button" onClick={showAllApps}>
+												リセット
+											</button>
+										</div>
+										<ul className="requirement-app-filter-groups">
+											{filterGroups.map((group) => {
+												const visibleInGroup = group.apps.filter(
+													(app) => !hiddenAppIds.has(app.id),
+												).length;
+												const groupChecked =
+													visibleInGroup === group.apps.length;
+												const groupIndeterminate =
+													visibleInGroup > 0 &&
+													visibleInGroup < group.apps.length;
+												return (
+													<li
+														key={group.key}
+														className="requirement-app-filter-group"
+													>
+														<label className="requirement-app-filter-group-label">
+															<IndeterminateCheckbox
+																checked={groupChecked}
+																indeterminate={groupIndeterminate}
+																ariaLabel={`${group.label} をまとめて表示`}
+																onChange={(visible) =>
+																	setGroupVisible(group.apps, visible)
+																}
+															/>
+															<span>{group.label}</span>
+															<span className="requirement-app-filter-group-count">
+																{visibleInGroup}/{group.apps.length}
+															</span>
+														</label>
+														<ul className="requirement-app-filter-apps">
+															{group.apps.map((app) => {
+																const visible = !hiddenAppIds.has(app.id);
+																return (
+																	<li key={app.id}>
+																		<label className="requirement-app-filter-app">
+																			<input
+																				type="checkbox"
+																				checked={visible}
+																				onChange={(event) =>
+																					setAppVisible(
+																						app.id,
+																						event.target.checked,
+																					)
+																				}
+																			/>
+																			<span
+																				className="apps-master-readonly"
+																				style={masterTintStyle(
+																					app.color,
+																					app.text_color,
+																				)}
+																			>
+																				{formatMasterLabel(
+																					app.name,
+																					app.icon,
+																				)}
+																			</span>
+																		</label>
+																	</li>
+																);
+															})}
+														</ul>
+													</li>
+												);
+											})}
+										</ul>
+									</div>
+								) : null}
+							</div>
+							{displayedApps.length === 0 ? (
+								<p className="requirement-app-filter-empty">
+									表示する App がありません。絞り込みを変更してください。
+								</p>
+							) : null}
 							<ul
 								className="requirement-app-list"
 								role="tablist"
@@ -479,6 +662,12 @@ export function AppRequirementsManager({
 						</aside>
 
 						<div className="requirement-main">
+							{displayedApps.length === 0 ? (
+								<p className="empty">
+									表示する App がありません。左の絞り込みを変更してください。
+								</p>
+							) : null}
+
 							{selectedApp && orderedItems.length === 0 ? (
 								<p className="empty">
 									{formatMasterLabel(selectedApp.name, selectedApp.icon)}{" "}
@@ -833,6 +1022,36 @@ function RequirementAppDetailPanel({
 				</div>
 			))}
 		</dl>
+	);
+}
+
+function IndeterminateCheckbox({
+	checked,
+	indeterminate,
+	onChange,
+	ariaLabel,
+}: {
+	checked: boolean;
+	indeterminate: boolean;
+	onChange: (checked: boolean) => void;
+	ariaLabel: string;
+}) {
+	const ref = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		if (ref.current) {
+			ref.current.indeterminate = indeterminate;
+		}
+	}, [indeterminate]);
+
+	return (
+		<input
+			ref={ref}
+			type="checkbox"
+			checked={checked}
+			aria-label={ariaLabel}
+			onChange={(event) => onChange(event.target.checked)}
+		/>
 	);
 }
 

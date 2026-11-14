@@ -2729,6 +2729,118 @@ button.ghost {
 	border-radius: 8px;
 }
 
+.requirement-app-filter {
+	margin: 0 0 0.5rem;
+}
+
+.requirement-app-filter-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.4rem;
+	width: 100%;
+	border-radius: 8px;
+	padding: 0.28rem 0.5rem;
+	font-size: 0.75rem;
+	color: var(--muted);
+	background: #fff;
+}
+
+.requirement-app-filter-toggle.is-active {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 25%, var(--line));
+	background: var(--accent-soft);
+	font-weight: 600;
+}
+
+.requirement-app-filter-summary {
+	flex-shrink: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+.requirement-app-filter-panel {
+	margin-top: 0.35rem;
+	padding: 0.45rem;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background: #fff;
+}
+
+.requirement-app-filter-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3rem;
+	margin-bottom: 0.45rem;
+}
+
+.requirement-app-filter-actions button {
+	padding: 0.2rem 0.5rem;
+	font-size: 0.72rem;
+	border-radius: 999px;
+}
+
+.requirement-app-filter-groups,
+.requirement-app-filter-apps {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+}
+
+.requirement-app-filter-group + .requirement-app-filter-group {
+	margin-top: 0.4rem;
+	padding-top: 0.4rem;
+	border-top: 1px solid var(--line);
+}
+
+.requirement-app-filter-group-label,
+.requirement-app-filter-app {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	min-width: 0;
+	font-size: 0.75rem;
+	line-height: 1.35;
+	cursor: pointer;
+}
+
+.requirement-app-filter-group-label {
+	font-weight: 600;
+}
+
+.requirement-app-filter-group-count {
+	margin-left: auto;
+	flex-shrink: 0;
+	color: var(--muted);
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+}
+
+.requirement-app-filter-apps {
+	margin: 0.2rem 0 0 0.15rem;
+}
+
+.requirement-app-filter-app span {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.requirement-app-filter-panel input[type="checkbox"] {
+	width: auto;
+	flex-shrink: 0;
+	margin: 0;
+	padding: 0;
+	accent-color: var(--accent);
+}
+
+.requirement-app-filter-empty {
+	margin: 0 0 0.5rem;
+	font-size: 0.78rem;
+	color: var(--muted);
+}
+
 .requirement-app-list {
 	list-style: none;
 	margin: 0;
