@@ -35,7 +35,12 @@ export function CompleteTaskButton({ taskId }: Props) {
 
 	return (
 		<>
-			<button type="button" className="primary" disabled={pending} onClick={handleComplete}>
+			<button
+				type="button"
+				className="primary complete-task-button"
+				disabled={pending}
+				onClick={handleComplete}
+			>
 				<StatusIcon status="done" className="task-detail-btn-icon" />
 				<span>{pending ? "保存中…" : "完了"}</span>
 			</button>

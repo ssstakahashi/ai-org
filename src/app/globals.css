@@ -2084,6 +2084,20 @@ button.ghost {
 	gap: 0.5rem;
 }
 
+.complete-task-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	width: auto;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.complete-task-button .task-detail-btn-icon,
+.complete-task-button span {
+	flex-shrink: 0;
+}
+
 .panel-head .task-actions {
 	align-items: flex-start;
 }
