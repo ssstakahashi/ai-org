@@ -4,7 +4,7 @@
 
 正本は `migrations/pg/*.sql`（PostgreSQL 14）。初期スキーマは `0001_schema.sql`。旧 `migrations/*.sql`（SQLite、0001〜0041）は履歴で、Ubuntu では適用しない。型の要約は [src/lib/types.ts](../src/lib/types.ts)。ORM / Prisma はない。
 
-テーブル数は 29。日時は TEXT のまま（`app_now()` は UTC の `YYYY-MM-DD HH:MM:SS`。アプリが書く ISO 文字列も同じ列に入る）。ID はアプリ側で `prefix_uuid`。`sort_order` / `is_active` / `ok` は INTEGER の 0/1。外部キーは `DEFERRABLE`。
+テーブル数は 30。日時は TEXT のまま（`app_now()` は UTC の `YYYY-MM-DD HH:MM:SS`。アプリが書く ISO 文字列も同じ列に入る）。ID はアプリ側で `prefix_uuid`。`sort_order` / `is_active` / `ok` は INTEGER の 0/1。外部キーは `DEFERRABLE`。
 
 ## 1. ER図
 
@@ -53,6 +53,8 @@ erDiagram
   app_types ||--o{ apps : types
   app_names ||--o{ apps : named
   app_names ||--o{ app_requirements : requires
+  app_requirements ||--o{ app_requirement_tags : has
+  tags ||--o{ app_requirement_tags : tagged
   app_names ||--o| app_test_plans : plans
   app_names ||--o{ app_test_results : tests
   app_crons
@@ -105,6 +107,7 @@ erDiagram
 - **apps**: デプロイ先・スタックメモ（`dev_folder`, `frontend`, `db`, URL 等）。同様に TEXT 冗長カラムあり。
 - **app_crons**: Cron 登録（論理的に App 関連、FK なし）。
 - **app_requirements**: App 名に紐づく要件。`status` は `draft` / `approved` / `in_progress` / `done` / `cancelled`。`created_at` は記録日時。`completed_at` は `done` になった時刻（それ以外は NULL。再度 `done` にしたときは、すでに `done` なら時刻を維持する）。時刻は UTC の TEXT。
+- **app_requirement_tags**: 要件とタグマスタ（`tags`。タスク・ページと共通）の中間。1 要件に複数タグ。
 - **app_test_plans**: App ごとのテスト計画（1 App 1 行、`body` は Markdown 想定の自由記述）。
 - **app_test_results**: テスト結果の時系列記録。`outcome` は `pass` / `fail` / `partial` / `blocked` / `skipped` / `info`。`recorded_at` で並べる。`requirement_id` は任意で、完了（`done`）と判定された要件に紐づける。要件を削除しても結果は残り、紐づけだけ外れる。
 

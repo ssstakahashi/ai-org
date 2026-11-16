@@ -1648,6 +1648,19 @@ a.logout-button:hover {
 	flex-shrink: 0;
 }
 
+.requirement-item-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.requirement-item-tags .tag-chip {
+	font-size: 0.75rem;
+}
+
 .requirement-item-times {
 	display: flex;
 	flex-wrap: wrap;

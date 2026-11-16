@@ -243,6 +243,7 @@ export type AppRequirementWithApp = AppRequirement & {
 	app_name_color: string;
 	app_name_text_color: string;
 	app_name_icon: string;
+	tags: Tag[];
 };
 
 export const APP_REQUIREMENT_STATUS_LABEL: Record<AppRequirementStatus, string> = {

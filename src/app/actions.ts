@@ -443,6 +443,61 @@ const APP_REQUIREMENT_SELECT = `SELECT
 			 FROM app_requirements r
 			 JOIN app_names n ON n.id = r.app_name_id`;
 
+type AppRequirementRow = Omit<AppRequirementWithApp, "tags">;
+
+async function attachAppRequirementTags(
+	rows: AppRequirementRow[],
+): Promise<AppRequirementWithApp[]> {
+	if (rows.length === 0) return [];
+
+	const db = await getDb();
+	const results = await queryInChunks<Tag & { requirement_id: string }>(
+		db,
+		rows.map((row) => row.id),
+		(placeholders) =>
+			`SELECT rt.requirement_id, tg.id, tg.name, tg.color, tg.text_color, tg.created_at
+			 FROM app_requirement_tags rt
+			 JOIN tags tg ON tg.id = rt.tag_id
+			 WHERE rt.requirement_id IN (${placeholders})
+			 ORDER BY tg.name ASC`,
+	);
+
+	const byRequirement = new Map<string, Tag[]>();
+	for (const row of results ?? []) {
+		const list = byRequirement.get(row.requirement_id) ?? [];
+		list.push({
+			id: row.id,
+			name: row.name,
+			color: row.color,
+			text_color: row.text_color,
+			created_at: row.created_at,
+		});
+		byRequirement.set(row.requirement_id, list);
+	}
+
+	return rows.map((row) => ({
+		...row,
+		tags: byRequirement.get(row.id) ?? [],
+	}));
+}
+
+async function syncAppRequirementTags(
+	db: Awaited<ReturnType<typeof getDb>>,
+	requirementId: string,
+	tagIds: string[],
+) {
+	const statements: D1PreparedStatement[] = [
+		db.prepare("DELETE FROM app_requirement_tags WHERE requirement_id = ?").bind(requirementId),
+	];
+	const insert = db.prepare(
+		"INSERT INTO app_requirement_tags (requirement_id, tag_id) VALUES (?, ?)",
+	);
+	for (const tagId of tagIds) {
+		statements.push(insert.bind(requirementId, tagId));
+	}
+	await db.batch(statements);
+}
+
 export async function listAppRequirements(
 	appNameId?: string,
 ): Promise<AppRequirementWithApp[]> {
@@ -452,8 +507,8 @@ export async function listAppRequirements(
 		? `${APP_REQUIREMENT_SELECT} WHERE r.app_name_id = ? ORDER BY r.sort_order ASC, r.title ASC`
 		: `${APP_REQUIREMENT_SELECT} ORDER BY n.sort_order ASC, n.name ASC, r.sort_order ASC, r.title ASC`;
 	const stmt = trimmed ? db.prepare(sql).bind(trimmed) : db.prepare(sql);
-	const { results } = await stmt.all<AppRequirementWithApp>();
-	return results ?? [];
+	const { results } = await stmt.all<AppRequirementRow>();
+	return attachAppRequirementTags(results ?? []);
 }
 
 async function resolveAppNameId(
@@ -493,25 +548,37 @@ export async function createAppRequirement(formData: FormData) {
 		.bind(appNameId)
 		.first<{ max_sort: number }>();
 
+	const { selectedTagIds, newTagNames } = readPageTagIds(formData);
+	const tagIds = await resolveTagIds(db, selectedTagIds, newTagNames);
+
 	const id = newId("req");
-	await db
-		.prepare(
-			`INSERT INTO app_requirements
-				(id, app_name_id, title, body, status, sort_order, completed_at)
-			 VALUES (?, ?, ?, ?, ?, ?, CASE WHEN ? = 'done' THEN datetime('now') ELSE NULL END)`,
-		)
-		.bind(
-			id,
-			appNameId,
-			title,
-			body,
-			status,
-			(maxSort?.max_sort ?? 0) + 10,
-			status,
-		)
-		.run();
+	const statements: D1PreparedStatement[] = [
+		db
+			.prepare(
+				`INSERT INTO app_requirements
+					(id, app_name_id, title, body, status, sort_order, completed_at)
+				 VALUES (?, ?, ?, ?, ?, ?, CASE WHEN ? = 'done' THEN datetime('now') ELSE NULL END)`,
+			)
+			.bind(
+				id,
+				appNameId,
+				title,
+				body,
+				status,
+				(maxSort?.max_sort ?? 0) + 10,
+				status,
+			),
+	];
+	const tagInsert = db.prepare(
+		"INSERT INTO app_requirement_tags (requirement_id, tag_id) VALUES (?, ?)",
+	);
+	for (const tagId of tagIds) {
+		statements.push(tagInsert.bind(id, tagId));
+	}
+	await db.batch(statements);
 
 	revalidateAppsPage();
+	revalidatePath("/tags");
 }
 
 export async function updateAppRequirement(formData: FormData) {
@@ -531,6 +598,9 @@ export async function updateAppRequirement(formData: FormData) {
 
 	await resolveAppNameId(db, appNameId);
 
+	const { selectedTagIds, newTagNames } = readPageTagIds(formData);
+	const tagIds = await resolveTagIds(db, selectedTagIds, newTagNames);
+
 	await db
 		.prepare(
 			`UPDATE app_requirements
@@ -549,7 +619,10 @@ export async function updateAppRequirement(formData: FormData) {
 		.bind(appNameId, title, body, status, status, id)
 		.run();
 
+	await syncAppRequirementTags(db, id, tagIds);
+
 	revalidateAppsPage();
+	revalidatePath("/tags");
 }
 
 export async function deleteAppRequirement(formData: FormData) {
@@ -2006,6 +2079,7 @@ export async function deleteTag(formData: FormData) {
 	await db.prepare("DELETE FROM task_tags WHERE tag_id = ?").bind(id).run();
 	await db.prepare("DELETE FROM page_tags WHERE tag_id = ?").bind(id).run();
 	await db.prepare("DELETE FROM blog_idea_tags WHERE tag_id = ?").bind(id).run();
+	await db.prepare("DELETE FROM app_requirement_tags WHERE tag_id = ?").bind(id).run();
 	await db.prepare("DELETE FROM tags WHERE id = ?").bind(id).run();
 	revalidateTaskPages();
 	revalidatePath("/blog-ideas");

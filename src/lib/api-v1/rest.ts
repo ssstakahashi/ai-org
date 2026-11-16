@@ -718,6 +718,30 @@ export async function putAppNames(db: D1Database, raw: unknown) {
 	return { ok: true, total: rows.length };
 }
 
+async function syncRequirementTags(
+	db: D1Database,
+	requirementId: string,
+	tagIds: string[],
+) {
+	const statements: D1PreparedStatement[] = [
+		db.prepare(`DELETE FROM app_requirement_tags WHERE requirement_id = ?`).bind(requirementId),
+	];
+	const insert = db.prepare(
+		`INSERT INTO app_requirement_tags (requirement_id, tag_id) VALUES (?, ?)`,
+	);
+	for (const tagId of tagIds) {
+		statements.push(insert.bind(requirementId, tagId));
+	}
+	await db.batch(statements);
+}
+
+function readRequirementTagIds(record: Record<string, unknown>): string[] | undefined {
+	if (!("tag_ids" in record)) return undefined;
+	const raw = record.tag_ids;
+	if (!Array.isArray(raw)) return [];
+	return [...new Set(raw.map((item) => asText(item)).filter(Boolean))];
+}
+
 export async function listRequirements(db: D1Database) {
 	const { results } = await db
 		.prepare(
@@ -727,7 +751,34 @@ export async function listRequirements(db: D1Database) {
 			 ORDER BY sort_order, created_at`,
 		)
 		.all<Record<string, unknown>>();
-	const requirements = results ?? [];
+	const rows = results ?? [];
+	if (rows.length === 0) {
+		return { requirements: [], total: 0 };
+	}
+
+	const tagRows = await db
+		.prepare(
+			`SELECT rt.requirement_id, rt.tag_id
+			 FROM app_requirement_tags rt
+			 ORDER BY rt.tag_id`,
+		)
+		.all<{ requirement_id: string; tag_id: string }>();
+
+	const byRequirement = new Map<string, string[]>();
+	for (const row of tagRows.results ?? []) {
+		const list = byRequirement.get(row.requirement_id) ?? [];
+		list.push(row.tag_id);
+		byRequirement.set(row.requirement_id, list);
+	}
+
+	const requirements = rows.map((row) => {
+		const id = asText(row.id);
+		return {
+			...row,
+			tag_ids: byRequirement.get(id) ?? [],
+		};
+	});
+
 	return { requirements, total: requirements.length };
 }
 
@@ -787,6 +838,19 @@ export async function putRequirements(db: D1Database, raw: unknown) {
 					status,
 				)
 				.run();
+		}
+		const tagIds = readRequirementTagIds(record);
+		if (tagIds !== undefined) {
+			for (const tagId of tagIds) {
+				const tag = await db
+					.prepare(`SELECT id FROM tags WHERE id = ?`)
+					.bind(tagId)
+					.first<{ id: string }>();
+				if (!tag) {
+					throw new BlogRuleError(400, "validation", `tag_id が存在しません: ${tagId}`);
+				}
+			}
+			await syncRequirementTags(db, id, tagIds);
 		}
 	}
 	revalidatePath("/apps/requirements");

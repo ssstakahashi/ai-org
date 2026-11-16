@@ -43,6 +43,7 @@ import {
 	type AppRequirementStatus,
 	type AppRequirementWithApp,
 	type AppTestResultWithApp,
+	type Tag,
 	type TaskStatus,
 } from "@/lib/types";
 
@@ -113,10 +114,54 @@ function sortRequirementsForDisplay(
 	});
 }
 
+function RequirementTagFields({
+	requirement,
+	tags,
+}: {
+	requirement?: AppRequirementWithApp;
+	tags: Tag[];
+}) {
+	const selectedTagIds = new Set(requirement?.tags.map((tag) => tag.id) ?? []);
+
+	return (
+		<fieldset className="tag-fieldset">
+			<legend>タグ</legend>
+			{tags.length > 0 ? (
+				<div className="tag-options">
+					{tags.map((tag) => (
+						<label
+							key={tag.id}
+							className="tag-option"
+							style={masterTintStyle(tag.color, tag.text_color)}
+						>
+							<input
+								type="checkbox"
+								name="tag_ids"
+								value={tag.id}
+								defaultChecked={selectedTagIds.has(tag.id)}
+							/>
+							<span>{tag.name}</span>
+						</label>
+					))}
+				</div>
+			) : (
+				<p className="field-hint">
+					まだタグがありません。タグタブで追加するか、下の欄で新規作成できます。
+				</p>
+			)}
+			<label className="new-tag-field">
+				<span>新規タグ（カンマ区切りで追加）</span>
+				<input name="new_tags" placeholder="例: UI, API" />
+			</label>
+		</fieldset>
+	);
+}
+
 type Props = {
 	appNames: AppName[];
 	requirements: AppRequirementWithApp[];
 	testResults: AppTestResultWithApp[];
+	tags: Tag[];
 	appEntryByAppNameId: Record<string, AppEntry>;
 };
 
@@ -124,6 +169,7 @@ export function AppRequirementsManager({
 	appNames,
 	requirements,
 	testResults,
+	tags,
 	appEntryByAppNameId,
 }: Props) {
 	const router = useRouter();
@@ -893,6 +939,22 @@ export function AppRequirementsManager({
 															<span>本文</span>
 														</button>
 													</div>
+													{item.tags.length > 0 ? (
+														<ul className="requirement-item-tags" aria-label="タグ">
+															{item.tags.map((tag) => (
+																<li
+																	key={tag.id}
+																	className="tag-chip"
+																	style={masterTintStyle(
+																		tag.color,
+																		tag.text_color,
+																	)}
+																>
+																	{tag.name}
+																</li>
+															))}
+														</ul>
+													) : null}
 													<p className="requirement-item-times">
 														<time dateTime={item.created_at}>
 															記録 {formatRequirementTime(item.created_at)}
@@ -985,6 +1047,7 @@ export function AppRequirementsManager({
 									/>
 								</label>
 								<AppRequirementStatusField />
+								<RequirementTagFields tags={tags} />
 							</form>
 							<div className="task-actions task-dialog-footer">
 								<button
@@ -1043,6 +1106,7 @@ export function AppRequirementsManager({
 										/>
 									</label>
 									<AppRequirementStatusField selectedStatus={editing.status} />
+									<RequirementTagFields requirement={editing} tags={tags} />
 								</div>
 							</form>
 							<div

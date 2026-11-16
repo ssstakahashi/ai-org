@@ -61,7 +61,7 @@ OpenAPI / Swagger は無い。リポジトリ上の正本は `docs/api-rules.md`
 | `POST` | `/images` | writer | 画像アップロード。multipart/form-data で `image` フィールド。PNG/JPEG/WebP（8MB 以内）を WebP 化して保存し `{"image_key"}` を返す。x-posts の `PUT` で `image_key` に指定 |
 | `GET` / `PUT` | `/board/links` | reader / writer | 既存リンクを残して追加。VERSION を返す |
 | `GET` / `PUT` | `/employees` | reader / admin | 名簿。ID 維持 |
-| `GET` / `PUT` | `/apps/names`、`/apps/requirements` | reader / writer | アプリ名と要件。要件の `created_at` は記録日時、`completed_at` は完了日時（`done` のとき。状態が `done` になった時刻をサーバが入れる） |
+| `GET` / `PUT` | `/apps/names`、`/apps/requirements` | reader / writer | アプリ名と要件。要件の `created_at` は記録日時、`completed_at` は完了日時（`done` のとき。状態が `done` になった時刻をサーバが入れる）。`GET` 各要件に `tag_ids`。`PUT` で任意の `tag_ids`（タグ id 配列）を渡すと紐づけを置換 |
 | `GET` / `PUT` | `/apps/test-plans` | reader / writer | App ごとのテスト計画（1 App 1 件。`PUT` は `app_name_id` と `body`。配列は `plans`） |
 | `GET` / `PUT` / `DELETE` | `/apps/test-results`、`/apps/test-results/{id}` | reader / writer | テスト結果の一覧・登録・更新・削除。`outcome` は `pass` / `fail` / `partial` / `blocked` / `skipped` / `info`。一覧は `app_name_id`・`requirement_id`・`limit`・`cursor`・`updated_since`（`recorded_at` 基準）。`requirement_id` を付けるのは、対象要件の status が `done` のとき |
 | `GET` / `PUT` | `/ledger/tasks`、`/ledger/tasks/{id}` | reader / publisher | 業務台帳。公開タスクを done にする |
