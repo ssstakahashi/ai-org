@@ -23,6 +23,7 @@ import {
 	getAppRequirementsPrefs,
 	saveAppRequirementsPrefs,
 	type AppListSort,
+	type RequirementListSort,
 } from "@/lib/app-requirements-prefs";
 import {
 	formatMasterLabel,
@@ -50,6 +51,29 @@ const REQUIREMENT_STATUS_ICON: Record<AppRequirementStatus, TaskStatus> = {
 	done: "done",
 	cancelled: "failed",
 };
+
+/** ステータス順: 未完了を上、完了・取消を下。同順位内は sort_order */
+const REQUIREMENT_STATUS_SORT_RANK: Record<AppRequirementStatus, number> = {
+	draft: 10,
+	approved: 20,
+	in_progress: 30,
+	done: 80,
+	cancelled: 90,
+};
+
+function sortRequirementsForDisplay(
+	items: AppRequirementWithApp[],
+	mode: RequirementListSort,
+): AppRequirementWithApp[] {
+	if (mode === "manual") return items;
+	return [...items].sort((a, b) => {
+		const byStatus =
+			REQUIREMENT_STATUS_SORT_RANK[a.status] -
+			REQUIREMENT_STATUS_SORT_RANK[b.status];
+		if (byStatus !== 0) return byStatus;
+		return a.sort_order - b.sort_order;
+	});
+}
 
 type Props = {
 	appNames: AppName[];
@@ -83,6 +107,8 @@ export function AppRequirementsManager({
 		() => new Set(),
 	);
 	const [appListSort, setAppListSort] = useState<AppListSort>("manual");
+	const [requirementListSort, setRequirementListSort] =
+		useState<RequirementListSort>("status");
 	const [hiddenAppIds, setHiddenAppIds] = useState<Set<string>>(
 		() => new Set(),
 	);
@@ -98,6 +124,8 @@ export function AppRequirementsManager({
 	}, [requirements]);
 
 	const canReorderApps = appListSort === "manual" && !reorderingApps;
+	const canReorderRequirements =
+		requirementListSort === "manual" && !reordering;
 
 	const sortedApps = useMemo(() => {
 		if (appListSort === "manual") return orderedApps;
@@ -144,6 +172,7 @@ export function AppRequirementsManager({
 	useEffect(() => {
 		const prefs = getAppRequirementsPrefs();
 		setAppListSort(prefs.sort);
+		setRequirementListSort(prefs.requirementListSort);
 		setHiddenAppIds(new Set(prefs.hiddenAppIds));
 		setPrefsReady(true);
 	}, []);
@@ -153,11 +182,12 @@ export function AppRequirementsManager({
 		saveAppRequirementsPrefs(
 			{
 				sort: appListSort,
+				requirementListSort,
 				hiddenAppIds: [...hiddenAppIds],
 			},
 			orderedApps.map((app) => app.id),
 		);
-	}, [appListSort, hiddenAppIds, orderedApps, prefsReady]);
+	}, [appListSort, requirementListSort, hiddenAppIds, orderedApps, prefsReady]);
 
 	useEffect(() => {
 		setOrderedApps(appNames);
@@ -182,6 +212,11 @@ export function AppRequirementsManager({
 	useEffect(() => {
 		setOrderedItems(filteredFromProps);
 	}, [filteredFromProps]);
+
+	const displayedRequirementItems = useMemo(
+		() => sortRequirementsForDisplay(orderedItems, requirementListSort),
+		[orderedItems, requirementListSort],
+	);
 
 	const selectedApp = displayedApps.find((item) => item.id === selectedAppId);
 	const selectedCount = selectedAppId
@@ -258,7 +293,13 @@ export function AppRequirementsManager({
 	}
 
 	async function moveRequirement(sourceId: string, targetId: string) {
-		if (sourceId === targetId || reordering) return;
+		if (
+			sourceId === targetId ||
+			reordering ||
+			requirementListSort !== "manual"
+		) {
+			return;
+		}
 
 		const fromIndex = orderedItems.findIndex((item) => item.id === sourceId);
 		const toIndex = orderedItems.findIndex((item) => item.id === targetId);
@@ -311,12 +352,17 @@ export function AppRequirementsManager({
 	}
 
 	function onDragStart(event: DragEvent<HTMLButtonElement>, id: string) {
+		if (requirementListSort !== "manual") {
+			event.preventDefault();
+			return;
+		}
 		event.dataTransfer.effectAllowed = "move";
 		event.dataTransfer.setData("text/plain", id);
 		setDraggingId(id);
 	}
 
 	function onDragOver(event: DragEvent<HTMLTableRowElement>, id: string) {
+		if (requirementListSort !== "manual") return;
 		event.preventDefault();
 		event.dataTransfer.dropEffect = "move";
 		if (dropTargetId !== id) setDropTargetId(id);
@@ -407,9 +453,10 @@ export function AppRequirementsManager({
 				</div>
 				<p className="panel-lede">
 					左の App 一覧から選択して要件を編集します。行をクリックすると編集ダイアログが開きます。
-					ステータスが「承認済」の要件は Cursor Automation から export できます。左の一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する
-					App を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左の
-					ハンドルで App の表示順、表内のハンドルで要件の表示順を変更できます。
+					ステータスが「承認済」の要件は Cursor Automation から export できます。要件一覧はデフォルトでステータス順（完了は下）に並び、各行にステータス名を表示します。左の
+					App 一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する App
+					を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左のハンドルで
+					App の表示順、表内のハンドルで要件の表示順を変更できます。
 				</p>
 
 				{orderedApps.length === 0 ? (
@@ -676,6 +723,29 @@ export function AppRequirementsManager({
 							) : null}
 
 							{orderedItems.length > 0 ? (
+								<div className="requirement-list-toolbar">
+									<label className="requirement-app-sort-field">
+										<span className="requirement-list-sort-label">要件の並び</span>
+										<select
+											className="requirement-app-sort"
+											value={requirementListSort}
+											aria-label="要件の並び替え"
+											onChange={(event) =>
+												setRequirementListSort(
+													event.target.value as RequirementListSort,
+												)
+											}
+										>
+											<option value="status">
+												ステータス順（完了は下）
+											</option>
+											<option value="manual">表示順</option>
+										</select>
+									</label>
+								</div>
+							) : null}
+
+							{displayedRequirementItems.length > 0 ? (
 								<div className="x-schedule-scroll">
 									<table className="x-schedule-table apps-sheet-table requirement-sheet-table">
 										<thead>
@@ -687,15 +757,18 @@ export function AppRequirementsManager({
 											</tr>
 										</thead>
 										<tbody>
-											{orderedItems.map((item) => {
+											{displayedRequirementItems.map((item) => {
 												const isDragging = draggingId === item.id;
 												const isDropTarget =
 													dropTargetId === item.id && draggingId !== item.id;
+												const isDone = item.status === "done";
 												return (
 													<tr
 														key={item.id}
 														className={[
 															"requirement-row",
+															REQUIREMENT_STATUS_CLASS[item.status],
+															isDone ? "requirement-row-is-done" : "",
 															isDragging ? "is-dragging" : "",
 															isDropTarget ? "is-drop-target" : "",
 														]
@@ -721,9 +794,14 @@ export function AppRequirementsManager({
 																<button
 																	type="button"
 																	className="apps-sheet-drag-handle"
-																	draggable={!reordering}
+																	draggable={canReorderRequirements}
+																	disabled={!canReorderRequirements}
 																	aria-label={`${item.title} を並び替え`}
-																	title="ドラッグして並び替え"
+																	title={
+																		canReorderRequirements
+																			? "ドラッグして並び替え"
+																			: "表示順に切り替えるとドラッグできます"
+																	}
 																	onDragStart={(event) =>
 																		onDragStart(event, item.id)
 																	}

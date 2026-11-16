@@ -1499,6 +1499,27 @@ a.logout-button:hover {
 	color: var(--foreground);
 }
 
+.requirement-list-toolbar {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: 0.5rem;
+}
+
+.requirement-list-sort-label {
+	font-size: 0.85rem;
+	color: var(--muted);
+}
+
+.requirement-sheet-table tbody tr.requirement-row-is-done td {
+	opacity: 0.55;
+	filter: saturate(0.75);
+}
+
+.requirement-sheet-table tbody tr.requirement-row-is-done:hover td,
+.requirement-sheet-table tbody tr.requirement-row-is-done:focus-visible td {
+	opacity: 0.78;
+}
+
 .requirement-body-preview {
 	font-size: 0.85rem;
 	color: var(--muted);
