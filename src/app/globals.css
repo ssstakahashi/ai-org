@@ -301,18 +301,24 @@ body {
 
 .brand-wrap {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	gap: 0.45rem;
 	flex-shrink: 0;
 }
 
-.app-topnav .brand {
-	margin: 0;
-	font-family: var(--font-display), sans-serif;
-	font-size: 0.95rem;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var(--accent);
+a.brand-logo {
+	display: inline-flex;
+	align-items: center;
+	line-height: 0;
+	text-decoration: none;
+	color: inherit;
+}
+
+.brand-logo-img {
+	display: block;
+	height: 28px;
+	width: auto;
+	flex-shrink: 0;
 }
 
 .brand-version {

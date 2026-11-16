@@ -78,7 +78,15 @@ export function AppTopNav({ logoutHref }: Props) {
 							<MenuIcon open={open} />
 						</button>
 						<div className="brand-wrap">
-							<p className="brand">ai-org</p>
+							<a href="/" className="brand-logo" aria-label="AI-ORG">
+								<img
+									src="/brand/aiorg-horizontal-upper-color.svg"
+									alt=""
+									className="brand-logo-img"
+									width={87}
+									height={28}
+								/>
+							</a>
 							<span className="brand-version">ver {APP_VERSION}</span>
 						</div>
 					</div>
