@@ -55,6 +55,7 @@ flowchart LR
 - 本文の正本は PostgreSQL。X 投稿とブログネタも同じ。X の更新は `base_updated_at` が古いと 409。
 - 失敗、認証エラー、0 件取り込み、照合の差は `ops_alerts` に残り、`/board` に出る。任意で `ALERT_WEBHOOK_URL`。
 - ロールは `reader` / `reviewer` / `writer` / `publisher` / `admin`。reviewer はコメントと判定のみ。writer は draft の本文。publisher は状態と業務台帳。admin は全操作。
+- App 要件コメントは `app_requirement_comments`。`GET /apps/requirements/{id}/comments` は reader 以上、`POST` と同じパスおよび `PATCH /apps/requirements/{id}/comments/{commentId}` は writer（と admin）。`status` は DB も API も `open` / `done`。要件が無いときは `not_found`。
 
 ## 3. 設計方針・コーディング規約
 

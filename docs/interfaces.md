@@ -59,7 +59,7 @@ flowchart TD
 | `/apps/names` | App 名マスタ | App サブタブ |
 | `/apps/groups` | AppGroup マスタ | App サブタブ |
 | `/apps/types` | AppType マスタ | App サブタブ |
-| `/apps/requirements` | App 要件定義（App 選択後の要件は、ステータスをタイトル上のチップ、タイトル下にタグチップ（複数可）、記録日時、完了したものは完了日時、本文をアコーディオンで表示。追加・編集でタグを付与（既存マスタまたは新規作成）。完了と判定された要件には、その場でテスト結果を記載できる。デフォルトはステータス順・完了は下・表示順は localStorage 保存） | App サブタブ |
+| `/apps/requirements` | App 要件定義（App 選択後の要件は、ステータスをタイトル上のチップ、タイトル下にタグチップ（複数可）、記録日時、完了したものは完了日時、本文をアコーディオンで表示。追加・編集でタグを付与（既存マスタまたは新規作成）。各要件にコメント一覧と投稿欄があり、未対応／対応済を切り替えられる。完了と判定された要件には、その場でテスト結果を記載できる。デフォルトはステータス順・完了は下・表示順は localStorage 保存） | App サブタブ |
 | `/apps/test-results` | App テスト計画・テスト結果。要件に紐づく結果はタイトルの下に要件名を出す | App サブタブ |
 | `/employees` | AI従業員マスタ | トップ（組織） |
 | `/org-rules` | 組織ルール一覧 | トップ（組織） |
@@ -101,7 +101,7 @@ HTTP API（Route Handler・`/api/v1`）の正本は [api-rules.md](./api-rules.m
 | X posts | list / create / update / status / delete / Sheets 同期 / 予約分投稿 / 即時投稿 / コメント一覧・対応状況 |
 | Google Tasks | 今すぐ同期 / 最終実行の取得 / OAuth 完了（全リスト取得、新規はリスト ai-org） |
 | Spark | シートから再取得 |
-| App names / groups / types / apps / crons / requirements | list / create / update / reorder / delete |
+| App names / groups / types / apps / crons / requirements | list / create / update / reorder / delete。要件コメントは list / create / 対応状況の更新。ボットは `/api/v1` の `apps/requirements/{id}/comments` |
 | App test plans / test results | 画面: list / save plan / create / update / delete。ボット: `/api/v1` の `apps/test-plans`・`apps/test-results` |
 | Blog | list / create / update / status / delete / コメント一覧・対応状況 / 投稿先シート同期 |
 | ネタ | list / CSV アップロード / 転用先（ブログ・X の媒体）の付与と解除 / タグの付与・解除・新規追加 |

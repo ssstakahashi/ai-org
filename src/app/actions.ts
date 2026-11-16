@@ -48,6 +48,7 @@ import {
 	APP_REQUIREMENT_STATUS_OPTIONS,
 	type AppRequirementStatus,
 	type AppRequirementWithApp,
+	type AppRequirementComment,
 	APP_TEST_RESULT_OUTCOME_OPTIONS,
 	type AppTestPlanWithApp,
 	type AppTestResultOutcome,
@@ -73,6 +74,12 @@ import {
 	type BlogPostStatus,
 } from "@/lib/types";
 import { listBlogPostCommentsFromDb, parseBlogPostCommentStatus, updateBlogPostCommentStatusInDb } from "@/lib/blog-post-comments";
+import {
+	insertAppRequirementComment,
+	listAppRequirementCommentsFromDb,
+	parseAppRequirementCommentStatus,
+	updateAppRequirementCommentStatusInDb,
+} from "@/lib/app-requirement-comments";
 import {
 	listXPostCommentsFromDb,
 	parseXPostCommentStatus,
@@ -631,6 +638,62 @@ export async function deleteAppRequirement(formData: FormData) {
 	if (!id) return;
 
 	await db.prepare("DELETE FROM app_requirements WHERE id = ?").bind(id).run();
+	revalidateAppsPage();
+}
+
+export async function listAppRequirementComments(
+	requirementIds?: string[],
+): Promise<AppRequirementComment[]> {
+	const db = await getDb();
+	return listAppRequirementCommentsFromDb(db, requirementIds);
+}
+
+export async function createAppRequirementComment(formData: FormData) {
+	const db = await getDb();
+	const requirementId = formText(formData, "requirement_id");
+	const body = String(formData.get("body") ?? "").trim();
+	const authorName = formText(formData, "author_name") || "担当";
+	if (!requirementId) {
+		throw new Error("要件が必要です");
+	}
+	if (!body) {
+		throw new Error("コメントは必須です");
+	}
+	try {
+		await insertAppRequirementComment(db, {
+			requirement_id: requirementId,
+			author_name: authorName,
+			body,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "";
+		if (message === "requirement not found") {
+			throw new Error("要件が見つかりません");
+		}
+		if (message === "employee not found") {
+			throw new Error("従業員が見つかりません");
+		}
+		throw error;
+	}
+	revalidateAppsPage();
+}
+
+export async function updateAppRequirementCommentStatus(formData: FormData) {
+	const db = await getDb();
+	const id = formText(formData, "id");
+	const status = parseAppRequirementCommentStatus(formData.get("status"));
+	if (!id) {
+		throw new Error("id が必要です");
+	}
+	try {
+		await updateAppRequirementCommentStatusInDb(db, id, status);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "";
+		if (message === "comment not found") {
+			throw new Error("コメントが見つかりません");
+		}
+		throw error;
+	}
 	revalidateAppsPage();
 }
 

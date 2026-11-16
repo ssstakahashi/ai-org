@@ -26,6 +26,7 @@ import {
 	APP_TEST_OUTCOME_STYLE_CLASS,
 	AppTestResultOutcomeField,
 } from "@/components/AppTestResultOutcomeField";
+import { AppRequirementComments } from "@/components/AppRequirementComments";
 import { StatusIcon } from "@/components/StatusIcon";
 import {
 	getAppRequirementsPrefs,
@@ -41,6 +42,7 @@ import {
 	type AppEntry,
 	type AppName,
 	type AppRequirementStatus,
+	type AppRequirementComment,
 	type AppRequirementWithApp,
 	type AppTestResultWithApp,
 	type Tag,
@@ -160,6 +162,7 @@ function RequirementTagFields({
 type Props = {
 	appNames: AppName[];
 	requirements: AppRequirementWithApp[];
+	comments: AppRequirementComment[];
 	testResults: AppTestResultWithApp[];
 	tags: Tag[];
 	appEntryByAppNameId: Record<string, AppEntry>;
@@ -168,6 +171,7 @@ type Props = {
 export function AppRequirementsManager({
 	appNames,
 	requirements,
+	comments,
 	testResults,
 	tags,
 	appEntryByAppNameId,
@@ -225,6 +229,16 @@ export function AppRequirementsManager({
 		}
 		return grouped;
 	}, [testResults]);
+
+	const commentsByRequirementId = useMemo(() => {
+		const grouped = new Map<string, AppRequirementComment[]>();
+		for (const comment of comments) {
+			const list = grouped.get(comment.requirement_id) ?? [];
+			list.push(comment);
+			grouped.set(comment.requirement_id, list);
+		}
+		return grouped;
+	}, [comments]);
 
 	const canReorderApps = appListSort === "manual" && !reorderingApps;
 	const canReorderRequirements =
@@ -973,6 +987,10 @@ export function AppRequirementsManager({
 															}
 														/>
 													) : null}
+													<AppRequirementComments
+														requirementId={item.id}
+														comments={commentsByRequirementId.get(item.id) ?? []}
+													/>
 													{bodyExpanded ? (
 														<div id={bodyId} className="requirement-item-panel">
 															{item.body || "（本文なし）"}

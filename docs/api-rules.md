@@ -63,11 +63,13 @@ OpenAPI / Swagger は無い。リポジトリ上の正本は `docs/api-rules.md`
 | `GET` / `PUT` | `/board/links` | reader / writer | 既存リンクを残して追加。VERSION を返す |
 | `GET` / `PUT` | `/employees` | reader / admin | 名簿。ID 維持 |
 | `GET` | `/apps/requirement-tags` | reader 以上 | 要件タグの一覧（`id` と `name` など）。`PUT /apps/requirements` の `tag_ids` に使う |
-| `GET` / `PUT` | `/apps/names`、`/apps/requirements` | reader / writer | アプリ名と要件。要件の `created_at` は記録日時、`completed_at` は完了日時（`done` のとき。状態が `done` になった時刻をサーバが入れる）。`GET` 各要件に `tag_ids`。`PUT` で任意の `tag_ids`（タグ id またはタグ名の配列）を渡すと紐づけを置換 |
+| `GET` / `PUT` | `/apps/names`、`/apps/requirements` | reader / writer | アプリ名と要件。要件の `created_at` は記録日時、`completed_at` は完了日時（`done` のとき。状態が `done` になった時刻をサーバが入れる）。`GET` 各要件に `tag_ids` と `comment_count`。`PUT` で任意の `tag_ids`（タグ id またはタグ名の配列）を渡すと紐づけを置換 |
+| `GET` / `POST` | `/apps/requirements/{id}/comments` | reader / writer | 要件コメント。本文 `body` は Markdown。`status=open` または `status=done` で絞り込み可。要件が無いときはレコード `not_found`。`POST` の `author_name`（または `author`）と `source` を省略すると API キー名。任意の `employee_id` |
+| `PATCH` | `/apps/requirements/{id}/comments/{commentId}` | writer | `status` を `open` または `done` にする。コメントが無い、または別要件のときは `not_found` |
 | `GET` / `PUT` | `/apps/test-plans` | reader / writer | App ごとのテスト計画（1 App 1 件。`PUT` は `app_name_id` と `body`。配列は `plans`） |
 | `GET` / `PUT` / `DELETE` | `/apps/test-results`、`/apps/test-results/{id}` | reader / writer | テスト結果の一覧・登録・更新・削除。`outcome` は `pass` / `fail` / `partial` / `blocked` / `skipped` / `info`。一覧は `app_name_id`・`requirement_id`・`limit`・`cursor`・`updated_since`（`recorded_at` 基準）。`requirement_id` を付けるのは、対象要件の status が `done` のとき |
 | `GET` / `PUT` | `/ledger/tasks`、`/ledger/tasks/{id}` | reader / publisher | 業務台帳。`GET /ledger/tasks/{id}` は単体取得（無いときはレコード `not_found`）。公開タスクを done にする |
-| `GET` | `/export` | reader 以上 | 全件 JSON |
+| `GET` | `/export` | reader 以上 | 全件 JSON（`app_requirement_comments` を含む） |
 | `POST` | `/ingest-reports` | writer | `accepted: 0` のとき理由つきで通知 |
 
 ### 画像アップロード例
@@ -107,6 +109,30 @@ curl -X DELETE {{API_V1_BASE}}/x-posts/xpost_abc123 \
 # レスポンス例:
 # {"ok":true,"id":"xpost_abc123"}
 ```
+
+### 要件コメントの例
+
+```bash
+curl -sS \
+  -H "X-API-Key: YOUR_READER_KEY" \
+  "{{API_V1_BASE}}/apps/requirements/req_abc/comments?status=open"
+
+# {"comments":[{"id":"reqc_...","requirement_id":"req_abc","author_name":"開発AI","source":"cursor","body":"修正確認しました。","status":"open","created_at":"...","updated_at":"...","employee_id":null,"employee_name":null}],"total":1}
+
+curl -sS -X POST {{API_V1_BASE}}/apps/requirements/req_abc/comments \
+  -H "X-API-Key: YOUR_WRITER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"author_name":"開発AI","source":"cursor","body":"修正確認しました。根拠: src/foo.ts、commit abc123。"}'
+
+# 201 {"comment":{"id":"reqc_...","requirement_id":"req_abc","status":"open", "...":"..."}}
+
+curl -sS -X PATCH {{API_V1_BASE}}/apps/requirements/req_abc/comments/reqc_abc \
+  -H "X-API-Key: YOUR_WRITER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"done"}'
+```
+
+要件が無いときは `404` `{"error":{"code":"not_found","message":"要件が見つかりません","detail":{}}}`。
 
 ## このアプリ外の API
 

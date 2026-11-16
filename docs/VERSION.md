@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.77 (2026-11-16)
+
+- App 要件にコメントを追加（`app_requirement_comments`、画面の一覧と投稿、API v1 の取得・投稿・対応状況）
+
 ## 0.0.76 (2026-11-16)
 
 - App 要件定義: 要件にタグを複数付与し一覧にチップ表示（`app_requirement_tags`、API v1 の `tag_ids`）

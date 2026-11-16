@@ -11,11 +11,17 @@ import {
 import { parseXPostContentSubcategory } from "@/lib/x-post-content-subcategories";
 import { parseXPostDestination, X_POST_SELECT } from "@/lib/x-posts";
 import { listXPostCommentsFromDb } from "@/lib/x-post-comments";
+import {
+	getAppRequirementCommentFromDb,
+	insertAppRequirementComment,
+	listAppRequirementCommentsFromDb,
+} from "@/lib/app-requirement-comments";
 import { asRecord, asText, encodeCursor, pageClause, type PageQuery } from "@/lib/api-v1/http";
 import type { ApiActor } from "@/lib/api-v1/auth";
 import { parseAppDateTime } from "@/lib/timezone";
 import {
 	APP_TEST_RESULT_OUTCOME_OPTIONS,
+	type AppRequirementComment,
 	type AppTestResultOutcome,
 } from "@/lib/types";
 import { getUploadFile, putXPostImage } from "@/lib/media-upload";
@@ -834,11 +840,24 @@ export async function listRequirements(db: D1Database) {
 		byRequirement.set(row.requirement_id, list);
 	}
 
+	const countRows = await db
+		.prepare(
+			`SELECT requirement_id, COUNT(*) AS comment_count
+			 FROM app_requirement_comments
+			 GROUP BY requirement_id`,
+		)
+		.all<{ requirement_id: string; comment_count: number | string }>();
+	const commentCounts = new Map<string, number>();
+	for (const row of countRows.results ?? []) {
+		commentCounts.set(row.requirement_id, Number(row.comment_count) || 0);
+	}
+
 	const requirements = rows.map((row) => {
 		const id = asText(row.id);
 		return {
 			...row,
 			tag_ids: byRequirement.get(id) ?? [],
+			comment_count: commentCounts.get(id) ?? 0,
 		};
 	});
 
@@ -914,6 +933,122 @@ export async function putRequirements(db: D1Database, raw: unknown) {
 	}
 	revalidatePath("/apps/requirements");
 	return { ok: true, total: rows.length };
+}
+
+function toApiRequirementComment(comment: AppRequirementComment) {
+	return {
+		id: comment.id,
+		requirement_id: comment.requirement_id,
+		employee_id: comment.employee_id,
+		author_name: comment.author_name,
+		source: comment.source,
+		body: comment.body,
+		status: comment.status,
+		created_at: comment.created_at,
+		updated_at: comment.updated_at,
+		employee_name: comment.employee_name,
+	};
+}
+
+async function assertRequirementExists(db: D1Database, id: string) {
+	const row = await db
+		.prepare(`SELECT id FROM app_requirements WHERE id = ?`)
+		.bind(id)
+		.first<{ id: string }>();
+	if (!row) {
+		throw new BlogRuleError(404, "not_found", "要件が見つかりません");
+	}
+}
+
+export async function listRequirementComments(db: D1Database, id: string, url: URL) {
+	if (!id) {
+		throw new BlogRuleError(404, "not_found", "要件が見つかりません");
+	}
+	await assertRequirementExists(db, id);
+	let comments = await listAppRequirementCommentsFromDb(db, [id]);
+	const status = url.searchParams.get("status")?.trim();
+	if (status === "open" || status === "done") {
+		comments = comments.filter((comment) => comment.status === status);
+	}
+	return {
+		comments: comments.map(toApiRequirementComment),
+		total: comments.length,
+	};
+}
+
+export async function createRequirementComment(
+	db: D1Database,
+	id: string,
+	raw: unknown,
+	actor: ApiActor,
+) {
+	if (!id) {
+		throw new BlogRuleError(404, "not_found", "要件が見つかりません");
+	}
+	const body = asRecord(raw);
+	const text = asText(body.body);
+	if (!text) {
+		throw new BlogRuleError(400, "validation", "body は必須です");
+	}
+	try {
+		const comment = await insertAppRequirementComment(db, {
+			requirement_id: id,
+			author_name: asText(body.author_name) || asText(body.author) || actor.name,
+			source: asText(body.source) || actor.name,
+			employee_id: asText(body.employee_id) || undefined,
+			body: text,
+		});
+		revalidatePath("/apps/requirements");
+		return { comment: toApiRequirementComment(comment) };
+	} catch (error) {
+		if (error instanceof BlogRuleError) throw error;
+		const message = error instanceof Error ? error.message : "";
+		if (message === "requirement not found") {
+			throw new BlogRuleError(404, "not_found", "要件が見つかりません");
+		}
+		if (message === "employee not found") {
+			throw new BlogRuleError(400, "validation", "employee_id が存在しません");
+		}
+		throw error;
+	}
+}
+
+export async function patchRequirementComment(
+	db: D1Database,
+	requirementId: string,
+	commentId: string,
+	raw: unknown,
+) {
+	if (!requirementId) {
+		throw new BlogRuleError(404, "not_found", "要件が見つかりません");
+	}
+	if (!commentId) {
+		throw new BlogRuleError(404, "not_found", "コメントがありません");
+	}
+	await assertRequirementExists(db, requirementId);
+	const existing = await getAppRequirementCommentFromDb(db, commentId);
+	if (!existing || existing.requirement_id !== requirementId) {
+		throw new BlogRuleError(404, "not_found", "コメントがありません");
+	}
+	const body = asRecord(raw);
+	const requested = asText(body.status);
+	if (requested !== "open" && requested !== "done") {
+		throw new BlogRuleError(400, "validation", "status は open または done です");
+	}
+	await db
+		.prepare(
+			`UPDATE app_requirement_comments
+			 SET status = ?, updated_at = datetime('now')
+			 WHERE id = ?`,
+		)
+		.bind(requested, commentId)
+		.run();
+	const saved = await getAppRequirementCommentFromDb(db, commentId);
+	if (!saved) {
+		throw new BlogRuleError(500, "internal", "コメントの保存に失敗しました");
+	}
+	revalidatePath("/apps/requirements");
+	return { comment: toApiRequirementComment(saved) };
 }
 
 function parseTestResultOutcome(raw: unknown): AppTestResultOutcome {
@@ -1346,7 +1481,7 @@ export async function deleteX(db: D1Database, id: string) {
 }
 
 export async function exportAll(db: D1Database) {
-	const [posts, ideas, xPosts, employees, names, requirements, testPlans, testResults, tasks] =
+	const [posts, ideas, xPosts, employees, names, requirements, requirementComments, testPlans, testResults, tasks] =
 		await Promise.all([
 			db.prepare(`SELECT * FROM blog_posts`).all<Record<string, unknown>>(),
 			db.prepare(`SELECT * FROM blog_ideas`).all<Record<string, unknown>>(),
@@ -1358,6 +1493,7 @@ export async function exportAll(db: D1Database) {
 				.all<Record<string, unknown>>(),
 			db.prepare(`SELECT * FROM app_names`).all<Record<string, unknown>>(),
 			db.prepare(`SELECT * FROM app_requirements`).all<Record<string, unknown>>(),
+			db.prepare(`SELECT * FROM app_requirement_comments`).all<Record<string, unknown>>(),
 			db.prepare(`SELECT * FROM app_test_plans`).all<Record<string, unknown>>(),
 			db.prepare(`SELECT * FROM app_test_results`).all<Record<string, unknown>>(),
 			db
@@ -1373,6 +1509,7 @@ export async function exportAll(db: D1Database) {
 		employees: employees.results ?? [],
 		app_names: names.results ?? [],
 		app_requirements: requirements.results ?? [],
+		app_requirement_comments: requirementComments.results ?? [],
 		app_test_plans: testPlans.results ?? [],
 		app_test_results: testResults.results ?? [],
 		tasks: tasks.results ?? [],

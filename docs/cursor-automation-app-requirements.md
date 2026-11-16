@@ -51,6 +51,10 @@ Automation の Instructions に次を設定します（URL とシークレット
    （Phase 1.5 で PATCH API 追加予定。現時点は手動更新）。
 
 5. 変更内容をコミットメッセージに要件 id を含めて記録する。
+
+6. 修正確認・根拠・PR は要件コメントに残す。
+   POST /api/v1/apps/requirements/{要件id}/comments （writer）
+   body は Markdown。対応済みは PATCH で status を done。
 ```
 
 ## 運用フロー
@@ -61,6 +65,7 @@ Automation の Instructions に次を設定します（URL とシークレット
 4. Agent が export を読み、`dev_folder` で実装
 5. 完了後、要件ステータスを **完了** に更新
 6. 完了と判定した要件には、同じ要件の「テスト結果を記載」か `PUT /api/v1/apps/test-results/{id}` の `requirement_id` でテスト結果を残す。`done` 以外の要件には紐づけられない
+7. 修正確認・根拠ファイル・コミット・PR の記録は、各要件のコメント（画面の投稿欄、または `POST /api/v1/apps/requirements/{id}/comments`）に書く
 
 ## 関連
 

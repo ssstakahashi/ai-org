@@ -140,6 +140,8 @@ curl -sS \
 管理画面: `/apps/requirements`  
 セットアップ手順: [docs/cursor-automation-app-requirements.md](./docs/cursor-automation-app-requirements.md)
 
+要件ごとの修正確認や PR の記録は、下の「App 要件のコメント」に書きます。テスト結果（`app_test_results`）はテストの成否用です。
+
 agri 側の適用手順: [integrations/agri-next-backend/README.md](./integrations/agri-next-backend/README.md)
 
 一覧: `/automations`
@@ -196,6 +198,32 @@ curl -sS -X POST \
 ```
 
 `title`（必要なら `destination`）でも指定できます。`employee_id` は AI 従業員マスタの id です。
+
+## App 要件のコメント
+
+要件ごとに、修正確認（根拠ファイル・コミット）や「PR を作りました」を Markdown で残せます。画面は `/apps/requirements` の各要件（一覧と投稿欄、未対応／対応済）。`status` は `open`（未対応）/ `done`（対応済）です。要件を削除するとコメントも消えます。
+
+`GET` は reader 以上、`POST` と `PATCH` は writer 以上（`writer` と `admin`）。`GET /api/v1/apps/requirements` の各要件には `comment_count` が付きます。
+
+```bash
+curl -sS \
+  -H "X-API-Key: $API_KEY" \
+  "https://<ai-org-host>/api/v1/apps/requirements/req_.../comments"
+
+curl -sS -X POST \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"author_name":"開発AI","source":"cursor","body":"修正確認しました。根拠: src/foo.ts、commit abc123。"}' \
+  "https://<ai-org-host>/api/v1/apps/requirements/req_.../comments"
+
+curl -sS -X PATCH \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"done"}' \
+  "https://<ai-org-host>/api/v1/apps/requirements/req_.../comments/reqc_..."
+```
+
+`author_name`（または `author`）と `source` を省略すると API キー名になります。任意で `employee_id`。要件が無いときは `404` `not_found` です。
 
 ## X 自動投稿
 
