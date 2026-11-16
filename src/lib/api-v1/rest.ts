@@ -10,6 +10,7 @@ import {
 } from "@/lib/types";
 import { parseXPostContentSubcategory } from "@/lib/x-post-content-subcategories";
 import { parseXPostDestination, X_POST_SELECT } from "@/lib/x-posts";
+import { listXPostCommentsFromDb } from "@/lib/x-post-comments";
 import { asRecord, asText, encodeCursor, pageClause, type PageQuery } from "@/lib/api-v1/http";
 import type { ApiActor } from "@/lib/api-v1/auth";
 import { parseAppDateTime } from "@/lib/timezone";
@@ -485,14 +486,48 @@ export async function countX(db: D1Database) {
 	return { total: Number(row?.count ?? 0) };
 }
 
+export async function getX(db: D1Database, id: string) {
+	const saved = await db
+		.prepare(`${X_POST_SELECT} WHERE id = ?`)
+		.bind(id)
+		.first<XPost>();
+	if (!saved) {
+		throw new BlogRuleError(404, "not_found", "投稿がありません");
+	}
+	return { x_post: toApiX(saved) };
+}
+
+export async function listXComments(db: D1Database, id: string, url: URL) {
+	const existing = await db
+		.prepare(`SELECT id FROM x_posts WHERE id = ?`)
+		.bind(id)
+		.first<{ id: string }>();
+	if (!existing) {
+		throw new BlogRuleError(404, "not_found", "投稿がありません");
+	}
+	let comments = await listXPostCommentsFromDb(db, [id]);
+	const status = url.searchParams.get("status")?.trim();
+	if (status === "open" || status === "done") {
+		comments = comments.filter((comment) => comment.status === status);
+	}
+	return { comments, total: comments.length };
+}
+
 export async function putX(db: D1Database, id: string, raw: unknown) {
 	const body = asRecord(raw);
 	const title = asText(body.title);
 	if (!title) throw new BlogRuleError(400, "validation", "title は必須です");
 	const text = typeof body.body === "string" ? body.body : "";
+	const existing = await db
+		.prepare(`${X_POST_SELECT} WHERE id = ?`)
+		.bind(id)
+		.first<XPost>();
+	const destinationRaw = asText(body.account) || asText(body.destination);
 	const destination =
-		destinationFromAccount(asText(body.account) || asText(body.destination)) ?? "studiofoods";
-	const status = asText(body.status) ? dbXStatus(asText(body.status)) : "draft";
+		destinationFromAccount(destinationRaw) ?? existing?.destination ?? "studiofoods";
+	const status = asText(body.status)
+		? dbXStatus(asText(body.status))
+		: (existing?.status ?? "draft");
 	let contentSubcategory = "";
 	try {
 		contentSubcategory = parseXPostContentSubcategory(
@@ -502,10 +537,6 @@ export async function putX(db: D1Database, id: string, raw: unknown) {
 	} catch {
 		throw new BlogRuleError(400, "validation", "content_subcategory が不正です");
 	}
-	const existing = await db
-		.prepare(`${X_POST_SELECT} WHERE id = ?`)
-		.bind(id)
-		.first<XPost>();
 	if (existing) {
 		if (!("content_subcategory" in body)) {
 			contentSubcategory = existing.content_subcategory ?? "";
@@ -519,6 +550,8 @@ export async function putX(db: D1Database, id: string, raw: unknown) {
 		const imageKey = asText(body.image_key) || existing.image_key;
 		const notes = asText(body.notes) || existing.notes;
 		const scheduledAt = asText(body.scheduled_at) || existing.scheduled_at;
+		const xPostId =
+			"x_post_id" in body ? asText(body.x_post_id) || null : existing.x_post_id;
 		const same =
 			title === existing.title &&
 			text === (existing.body ?? "") &&
@@ -527,7 +560,8 @@ export async function putX(db: D1Database, id: string, raw: unknown) {
 			contentSubcategory === (existing.content_subcategory ?? "") &&
 			(imageKey ?? "") === (existing.image_key ?? "") &&
 			notes === (existing.notes ?? "") &&
-			(scheduledAt ?? "") === (existing.scheduled_at ?? "");
+			(scheduledAt ?? "") === (existing.scheduled_at ?? "") &&
+			(xPostId ?? "") === (existing.x_post_id ?? "");
 		if (!same && base < existing.updated_at) {
 			throw new BlogRuleError(409, "stale_body", "本文が先に更新されています", {
 				updated_at: existing.updated_at,
@@ -538,7 +572,7 @@ export async function putX(db: D1Database, id: string, raw: unknown) {
 				.prepare(
 					`UPDATE x_posts
 					 SET title = ?, body = ?, image_key = ?, status = ?, scheduled_at = ?,
-					     notes = ?, destination = ?, content_subcategory = ?,
+					     notes = ?, destination = ?, content_subcategory = ?, x_post_id = ?,
 					     updated_at = datetime('now')
 					 WHERE id = ?`,
 				)
@@ -551,6 +585,7 @@ export async function putX(db: D1Database, id: string, raw: unknown) {
 					notes,
 					destination,
 					contentSubcategory,
+					xPostId,
 					id,
 				)
 				.run();
@@ -559,8 +594,9 @@ export async function putX(db: D1Database, id: string, raw: unknown) {
 		await db
 			.prepare(
 				`INSERT INTO x_posts
-					(id, title, body, image_key, status, scheduled_at, notes, destination, content_subcategory)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					(id, title, body, image_key, status, scheduled_at, notes, destination,
+					 content_subcategory, x_post_id)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.bind(
 				id,
@@ -572,6 +608,7 @@ export async function putX(db: D1Database, id: string, raw: unknown) {
 				asText(body.notes),
 				destination,
 				contentSubcategory,
+				"x_post_id" in body ? asText(body.x_post_id) || null : null,
 			)
 			.run();
 	}
@@ -742,6 +779,32 @@ function readRequirementTagIds(record: Record<string, unknown>): string[] | unde
 	return [...new Set(raw.map((item) => asText(item)).filter(Boolean))];
 }
 
+async function resolveRequirementTagId(db: D1Database, raw: string): Promise<string> {
+	const byId = await db
+		.prepare(`SELECT id FROM tags WHERE id = ?`)
+		.bind(raw)
+		.first<{ id: string }>();
+	if (byId) return byId.id;
+	const byName = await db
+		.prepare(`SELECT id FROM tags WHERE lower(name) = lower(?)`)
+		.bind(raw)
+		.first<{ id: string }>();
+	if (byName) return byName.id;
+	throw new BlogRuleError(400, "validation", `tag_id が存在しません: ${raw}`);
+}
+
+export async function listRequirementTags(db: D1Database) {
+	const { results } = await db
+		.prepare(
+			`SELECT id, name, color, text_color, created_at
+			 FROM tags
+			 ORDER BY name ASC`,
+		)
+		.all<Record<string, unknown>>();
+	const tags = results ?? [];
+	return { tags, total: tags.length };
+}
+
 export async function listRequirements(db: D1Database) {
 	const { results } = await db
 		.prepare(
@@ -841,16 +904,12 @@ export async function putRequirements(db: D1Database, raw: unknown) {
 		}
 		const tagIds = readRequirementTagIds(record);
 		if (tagIds !== undefined) {
+			const resolved: string[] = [];
 			for (const tagId of tagIds) {
-				const tag = await db
-					.prepare(`SELECT id FROM tags WHERE id = ?`)
-					.bind(tagId)
-					.first<{ id: string }>();
-				if (!tag) {
-					throw new BlogRuleError(400, "validation", `tag_id が存在しません: ${tagId}`);
-				}
+				const tag = await resolveRequirementTagId(db, tagId);
+				if (!resolved.includes(tag)) resolved.push(tag);
 			}
-			await syncRequirementTags(db, id, tagIds);
+			await syncRequirementTags(db, id, resolved);
 		}
 	}
 	revalidatePath("/apps/requirements");
@@ -1085,6 +1144,21 @@ export async function deleteTestResult(db: D1Database, id: string) {
 	revalidatePath("/apps/test-results");
 	revalidatePath("/apps/requirements");
 	return { ok: true, id };
+}
+
+export async function getTask(db: D1Database, id: string) {
+	const task = await db
+		.prepare(
+			`SELECT id, employee_id, title, body, status, start_at, end_at, notes, created_at, updated_at
+			 FROM tasks
+			 WHERE id = ?`,
+		)
+		.bind(id)
+		.first<Record<string, string>>();
+	if (!task) {
+		throw new BlogRuleError(404, "not_found", "タスクがありません");
+	}
+	return { task };
 }
 
 export async function listTasks(db: D1Database, url: URL, page: PageQuery) {

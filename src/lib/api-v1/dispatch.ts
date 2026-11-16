@@ -30,15 +30,19 @@ import {
 	countX,
 	deleteX,
 	exportAll,
+	getTask,
+	getX,
 	listAppNames,
 	listBoardLinks,
 	listEmployees,
 	listIdeas,
+	listRequirementTags,
 	listRequirements,
 	listTasks,
 	listTestPlans,
 	listTestResults,
 	listX,
+	listXComments,
 	patchIdea,
 	putAppNames,
 	putBoardLink,
@@ -191,6 +195,18 @@ export async function handleApiV1(request: NextRequest, path: string[]): Promise
 			denied(ROLE_READ);
 			return apiJson(await countX(db), 200, requestId);
 		}
+		if (method === "GET" && path[0] === "x-posts" && path[2] === "comments" && path.length === 3) {
+			denied(ROLE_READ);
+			return apiJson(
+				await listXComments(db, decodeURIComponent(path[1] ?? ""), url),
+				200,
+				requestId,
+			);
+		}
+		if (method === "GET" && path[0] === "x-posts" && path.length === 2 && path[1] !== "count") {
+			denied(ROLE_READ);
+			return apiJson(await getX(db, decodeURIComponent(path[1] ?? "")), 200, requestId);
+		}
 		if (method === "PUT" && path[0] === "x-posts" && path.length === 2 && path[1] !== "count") {
 			denied(ROLE_WRITE);
 			return apiJson(await putX(db, decodeURIComponent(path[1] ?? ""), await readJson(request)), 200, requestId);
@@ -227,6 +243,10 @@ export async function handleApiV1(request: NextRequest, path: string[]): Promise
 		if (key === "PUT apps/names") {
 			denied(ROLE_WRITE);
 			return apiJson(await putAppNames(db, await readJson(request)), 200, requestId);
+		}
+		if (key === "GET apps/requirement-tags") {
+			denied(ROLE_READ);
+			return apiJson(await listRequirementTags(db), 200, requestId);
 		}
 		if (key === "GET apps/requirements") {
 			denied(ROLE_READ);
@@ -267,6 +287,10 @@ export async function handleApiV1(request: NextRequest, path: string[]): Promise
 		if (key === "GET ledger/tasks") {
 			denied(ROLE_READ);
 			return apiJson(await listTasks(db, url, parsePage(url)), 200, requestId);
+		}
+		if (method === "GET" && path[0] === "ledger" && path[1] === "tasks" && path.length === 3) {
+			denied(ROLE_READ);
+			return apiJson(await getTask(db, decodeURIComponent(path[2] ?? "")), 200, requestId);
 		}
 		if (method === "PUT" && path[0] === "ledger" && path[1] === "tasks" && path.length === 3) {
 			denied(ROLE_PUBLISH);

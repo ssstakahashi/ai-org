@@ -57,14 +57,16 @@ OpenAPI / Swagger は無い。リポジトリ上の正本は `docs/api-rules.md`
 | `GET` / `POST` | `/blog-posts/{slug}/comments` | reader / reviewer | コメント。API の `resolved` は DB の `done` |
 | `PATCH` | `/comments/{id}` | reviewer | open → resolved、`decision_status` |
 | `GET` / `POST` / `PUT` / `PATCH` | `/blog-ideas`、`/blog-ideas/{id}` | reader / writer | ネタ。`GET /blog-ideas/count`。`POST` はバッチupsert（最大50件、`external_id` で重複防止）。`PATCH {id}` は部分更新。詳細は `docs/api/blog-ideas.md` |
-| `GET` / `PUT` / `DELETE` | `/x-posts` と `/x-posts/{id}` | reader / writer | 固定 ID。更新は `base_updated_at`。`posted` は DB の `done`。`GET /x-posts/count` |
+| `GET` / `PUT` / `DELETE` | `/x-posts` と `/x-posts/{id}` | reader / writer | 固定 ID。`GET /x-posts/{id}` は単体取得（無いときはレコード `not_found`）。更新は `base_updated_at`。`PUT` で省略した項目（`destination`・`status` を含む）は既存値を保持する。`x_post_id`（投稿済み tweet id）も保存できる。`posted` は DB の `done`。`GET /x-posts/count` |
+| `GET` | `/x-posts/{id}/comments` | reader 以上 | X投稿コメント。`status=open` または `status=done` で絞り込み可。投稿が無いときはレコード `not_found` |
 | `POST` | `/images` | writer | 画像アップロード。multipart/form-data で `image` フィールド。PNG/JPEG/WebP（8MB 以内）を WebP 化して保存し `{"image_key"}` を返す。x-posts の `PUT` で `image_key` に指定 |
 | `GET` / `PUT` | `/board/links` | reader / writer | 既存リンクを残して追加。VERSION を返す |
 | `GET` / `PUT` | `/employees` | reader / admin | 名簿。ID 維持 |
-| `GET` / `PUT` | `/apps/names`、`/apps/requirements` | reader / writer | アプリ名と要件。要件の `created_at` は記録日時、`completed_at` は完了日時（`done` のとき。状態が `done` になった時刻をサーバが入れる）。`GET` 各要件に `tag_ids`。`PUT` で任意の `tag_ids`（タグ id 配列）を渡すと紐づけを置換 |
+| `GET` | `/apps/requirement-tags` | reader 以上 | 要件タグの一覧（`id` と `name` など）。`PUT /apps/requirements` の `tag_ids` に使う |
+| `GET` / `PUT` | `/apps/names`、`/apps/requirements` | reader / writer | アプリ名と要件。要件の `created_at` は記録日時、`completed_at` は完了日時（`done` のとき。状態が `done` になった時刻をサーバが入れる）。`GET` 各要件に `tag_ids`。`PUT` で任意の `tag_ids`（タグ id またはタグ名の配列）を渡すと紐づけを置換 |
 | `GET` / `PUT` | `/apps/test-plans` | reader / writer | App ごとのテスト計画（1 App 1 件。`PUT` は `app_name_id` と `body`。配列は `plans`） |
 | `GET` / `PUT` / `DELETE` | `/apps/test-results`、`/apps/test-results/{id}` | reader / writer | テスト結果の一覧・登録・更新・削除。`outcome` は `pass` / `fail` / `partial` / `blocked` / `skipped` / `info`。一覧は `app_name_id`・`requirement_id`・`limit`・`cursor`・`updated_since`（`recorded_at` 基準）。`requirement_id` を付けるのは、対象要件の status が `done` のとき |
-| `GET` / `PUT` | `/ledger/tasks`、`/ledger/tasks/{id}` | reader / publisher | 業務台帳。公開タスクを done にする |
+| `GET` / `PUT` | `/ledger/tasks`、`/ledger/tasks/{id}` | reader / publisher | 業務台帳。`GET /ledger/tasks/{id}` は単体取得（無いときはレコード `not_found`）。公開タスクを done にする |
 | `GET` | `/export` | reader 以上 | 全件 JSON |
 | `POST` | `/ingest-reports` | writer | `accepted: 0` のとき理由つきで通知 |
 
@@ -91,6 +93,7 @@ curl -X PUT {{API_V1_BASE}}/x-posts/xpost_abc123 \
     "scheduled_at": "2026-11-06T12:00:00+09:00",
     "destination": "studiofoods_official",
     "content_subcategory": "tax",
+    "x_post_id": "2121709997679677846",
     "base_updated_at": "2026-11-05T23:30:00.000Z"
   }'
 ```
