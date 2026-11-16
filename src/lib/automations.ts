@@ -105,7 +105,7 @@ export const AUTOMATIONS: AutomationEntry[] = [
 		status: "none",
 		trigger: "手動 / スケジュール（Cursor Automations で設定）",
 		summary:
-			"GET /api/internal/requirements から承認済み要件を Markdown で取得し、各 App の dev_folder リポで実装する。",
+			"export API から承認済み要件を取得し、dev_folder のリポで実装する。完了判定後の要件にはテスト結果を requirement_id 付きで残せる。",
 		location:
 			"src/app/api/internal/requirements/route.ts → docs/cursor-automation-app-requirements.md",
 		href: "/apps/requirements",

@@ -59,8 +59,8 @@ flowchart TD
 | `/apps/names` | App 名マスタ | App サブタブ |
 | `/apps/groups` | AppGroup マスタ | App サブタブ |
 | `/apps/types` | AppType マスタ | App サブタブ |
-| `/apps/requirements` | App 要件定義（App 選択後の要件一覧はステータス名付き。デフォルトはステータス順・完了は下・表示順は localStorage 保存） | App サブタブ |
-| `/apps/test-results` | App テスト計画・テスト結果 | App サブタブ |
+| `/apps/requirements` | App 要件定義（App 選択後の要件は、ステータスをタイトル上のチップ、記録日時、完了したものは完了日時、本文をタイトル下のアコーディオンで表示。完了と判定された要件には、その場でテスト結果を記載できる。デフォルトはステータス順・完了は下・表示順は localStorage 保存） | App サブタブ |
+| `/apps/test-results` | App テスト計画・テスト結果。要件に紐づく結果はタイトルの下に要件名を出す | App サブタブ |
 | `/employees` | AI従業員マスタ | トップ（組織） |
 | `/org-rules` | 組織ルール一覧 | トップ（組織） |
 | `/org-rules/authority` | 職務権限表 | 組織ルール サブタブ |

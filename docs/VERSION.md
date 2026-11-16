@@ -2,6 +2,11 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.75 (2026-11-16)
+
+- App 要件定義: 要件一覧をアコーディオン化（ステータスチップ・記録日時・完了日時・本文開閉）
+- 完了要件にテスト結果を記載可能（`app_test_results.requirement_id`、要件定義画面と API v1）
+
 ## 0.0.74 (2026-11-16)
 
 - App 要件定義: 要件一覧にステータス名表示、デフォルトはステータス順（完了は下）・完了行を暗く表示、並びは localStorage 保存

@@ -1544,6 +1544,194 @@ a.logout-button:hover {
 	display: none;
 }
 
+.requirement-item-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.requirement-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.35rem;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background: #fff;
+	min-width: 0;
+	padding: 0.45rem 0.55rem 0.45rem 0;
+}
+
+.requirement-item:hover {
+	background: color-mix(in srgb, var(--accent) 6%, white);
+}
+
+.requirement-item.is-dragging {
+	opacity: 0.55;
+}
+
+.requirement-item.is-drop-target {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.requirement-item-is-done {
+	opacity: 0.55;
+	filter: saturate(0.75);
+}
+
+.requirement-item-is-done:hover {
+	opacity: 0.78;
+}
+
+.requirement-item-drag-handle {
+	min-width: 1.75rem;
+	min-height: 1.75rem;
+	flex-shrink: 0;
+	align-self: flex-start;
+	margin-left: 0.2rem;
+	margin-top: 0.15rem;
+}
+
+.requirement-item.is-sort-locked .requirement-item-drag-handle,
+.requirement-item-drag-handle:disabled {
+	opacity: 0.35;
+	cursor: not-allowed;
+}
+
+.requirement-item-main {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.28rem;
+}
+
+.requirement-item-title-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.35rem;
+	width: 100%;
+	min-width: 0;
+}
+
+.requirement-item-title {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: var(--foreground);
+	font-weight: 500;
+	line-height: 1.4;
+	text-align: left;
+	overflow-wrap: anywhere;
+	cursor: pointer;
+}
+
+.requirement-item-title:hover {
+	color: var(--accent);
+}
+
+.requirement-item-title:focus-visible {
+	outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+	outline-offset: 2px;
+}
+
+.requirement-item-title-row .requirement-app-accordion-toggle {
+	margin-top: 0;
+	flex-shrink: 0;
+}
+
+.requirement-item-times {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.2rem 0.75rem;
+	width: 100%;
+	margin: 0;
+	font-size: 0.75rem;
+	line-height: 1.35;
+	color: var(--muted);
+}
+
+.requirement-item-tests {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.4rem;
+	width: 100%;
+}
+
+.requirement-item-test {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem 0.55rem;
+	width: 100%;
+	font-size: 0.75rem;
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.requirement-item-test-body {
+	flex: 1 1 100%;
+	margin: 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.requirement-item-test-form .status-field.full .status-options {
+	flex-wrap: wrap;
+}
+
+.requirement-item-test-form .status-field.full .status-option {
+	flex: 0 0 auto;
+	min-width: max-content;
+	white-space: nowrap;
+}
+
+.requirement-item-test-form label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.requirement-item-test-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+}
+
+.requirement-item-test-error {
+	margin: 0;
+	color: var(--danger);
+	font-size: 0.8rem;
+}
+
+.requirement-linked-label {
+	margin-top: 0.15rem;
+	font-size: 0.75rem;
+	font-weight: 400;
+	color: var(--muted);
+}
+
+.requirement-item-panel {
+	width: 100%;
+	margin: 0;
+	padding-top: 0.35rem;
+	border-top: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+	font-size: 0.85rem;
+	color: var(--muted);
+	white-space: pre-wrap;
+	line-height: 1.45;
+	overflow-wrap: anywhere;
+}
+
 .requirement-dialog-actions {
 	margin-top: 0.25rem;
 }

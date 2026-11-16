@@ -721,7 +721,8 @@ export async function putAppNames(db: D1Database, raw: unknown) {
 export async function listRequirements(db: D1Database) {
 	const { results } = await db
 		.prepare(
-			`SELECT id, app_name_id, title, body, status, sort_order, created_at, updated_at
+			`SELECT id, app_name_id, title, body, status, sort_order,
+			        created_at, updated_at, completed_at
 			 FROM app_requirements
 			 ORDER BY sort_order, created_at`,
 		)
@@ -751,18 +752,40 @@ export async function putRequirements(db: D1Database, raw: unknown) {
 				.prepare(
 					`UPDATE app_requirements
 					 SET app_name_id = ?, title = ?, body = ?, status = ?, sort_order = ?,
+					     completed_at = CASE
+					       WHEN ? <> 'done' THEN NULL
+					       WHEN status = 'done' THEN completed_at
+					       ELSE datetime('now')
+					     END,
 					     updated_at = datetime('now')
 					 WHERE id = ?`,
 				)
-				.bind(appNameId, title, asText(record.body), status, Number(record.sort_order ?? 0) || 0, id)
+				.bind(
+					appNameId,
+					title,
+					asText(record.body),
+					status,
+					Number(record.sort_order ?? 0) || 0,
+					status,
+					id,
+				)
 				.run();
 		} else {
 			await db
 				.prepare(
-					`INSERT INTO app_requirements (id, app_name_id, title, body, status, sort_order)
-					 VALUES (?, ?, ?, ?, ?, ?)`,
+					`INSERT INTO app_requirements
+						(id, app_name_id, title, body, status, sort_order, completed_at)
+					 VALUES (?, ?, ?, ?, ?, ?, CASE WHEN ? = 'done' THEN datetime('now') ELSE NULL END)`,
 				)
-				.bind(id, appNameId, title, asText(record.body), status, Number(record.sort_order ?? 0) || 0)
+				.bind(
+					id,
+					appNameId,
+					title,
+					asText(record.body),
+					status,
+					Number(record.sort_order ?? 0) || 0,
+					status,
+				)
 				.run();
 		}
 	}
@@ -794,6 +817,34 @@ async function assertAppNameId(db: D1Database, appNameId: string) {
 		.first<{ id: string }>();
 	if (!row) {
 		throw new BlogRuleError(400, "validation", "app_name_id が存在しません");
+	}
+}
+
+async function assertDoneRequirementForTestResult(
+	db: D1Database,
+	requirementId: string,
+	appNameId: string,
+) {
+	const requirement = await db
+		.prepare(
+			`SELECT id, app_name_id, status
+			 FROM app_requirements
+			 WHERE id = ?`,
+		)
+		.bind(requirementId)
+		.first<{ id: string; app_name_id: string; status: string }>();
+	if (!requirement) {
+		throw new BlogRuleError(404, "not_found", "要件が見つかりません");
+	}
+	if (requirement.app_name_id !== appNameId) {
+		throw new BlogRuleError(400, "validation", "要件はこの App の要件ではありません");
+	}
+	if (requirement.status !== "done") {
+		throw new BlogRuleError(
+			400,
+			"validation",
+			"完了と判定された要件にだけテスト結果を記載できます",
+		);
 	}
 }
 
@@ -855,6 +906,11 @@ export async function listTestResults(db: D1Database, url: URL, page: PageQuery)
 		filters.push("app_name_id = ?");
 		binds.push(appNameId);
 	}
+	const requirementId = url.searchParams.get("requirement_id")?.trim();
+	if (requirementId) {
+		filters.push("requirement_id = ?");
+		binds.push(requirementId);
+	}
 	const paging = pageClause(page, "recorded_at");
 	const whereParts = [...filters, paging.sql.replace(/^ AND /, "")].filter(Boolean);
 	const whereSql = whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
@@ -867,7 +923,8 @@ export async function listTestResults(db: D1Database, url: URL, page: PageQuery)
 		.first<{ count: number }>();
 	const { results } = await db
 		.prepare(
-			`SELECT id, app_name_id, title, body, outcome, recorded_at, created_at, updated_at
+			`SELECT id, app_name_id, requirement_id, title, body, outcome, recorded_at,
+			        created_at, updated_at
 			 FROM app_test_results ${whereSql}
 			 ORDER BY recorded_at DESC, id DESC
 			 LIMIT ?`,
@@ -893,13 +950,14 @@ export async function putTestResult(db: D1Database, id: string, raw: unknown) {
 	const body = asRecord(raw);
 	const existing = await db
 		.prepare(
-			`SELECT id, app_name_id, title, body, outcome, recorded_at
+			`SELECT id, app_name_id, requirement_id, title, body, outcome, recorded_at
 			 FROM app_test_results WHERE id = ?`,
 		)
 		.bind(id)
 		.first<{
 			id: string;
 			app_name_id: string;
+			requirement_id: string | null;
 			title: string;
 			body: string;
 			outcome: string;
@@ -916,27 +974,35 @@ export async function putTestResult(db: D1Database, id: string, raw: unknown) {
 		? parseTestResultOutcome(body.outcome)
 		: parseTestResultOutcome(existing?.outcome ?? "info");
 	const recordedAt = parseRecordedAt(body.recorded_at, existing?.recorded_at);
+	const requirementId = "requirement_id" in body
+		? asText(body.requirement_id)
+		: existing?.requirement_id ?? "";
+	if (requirementId && requirementId !== (existing?.requirement_id ?? "")) {
+		await assertDoneRequirementForTestResult(db, requirementId, appNameId);
+	}
 
 	if (existing) {
 		await db
 			.prepare(
 				`UPDATE app_test_results
-				 SET app_name_id = ?, title = ?, body = ?, outcome = ?, recorded_at = ?,
-				     updated_at = datetime('now')
+				 SET app_name_id = ?, requirement_id = ?, title = ?, body = ?, outcome = ?,
+				     recorded_at = ?, updated_at = datetime('now')
 				 WHERE id = ?`,
 			)
-			.bind(appNameId, title, resultBody, outcome, recordedAt, id)
+			.bind(appNameId, requirementId || null, title, resultBody, outcome, recordedAt, id)
 			.run();
 	} else {
 		await db
 			.prepare(
-				`INSERT INTO app_test_results (id, app_name_id, title, body, outcome, recorded_at)
-				 VALUES (?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO app_test_results
+					(id, app_name_id, requirement_id, title, body, outcome, recorded_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			)
-			.bind(id, appNameId, title, resultBody, outcome, recordedAt)
+			.bind(id, appNameId, requirementId || null, title, resultBody, outcome, recordedAt)
 			.run();
 	}
 	revalidatePath("/apps/test-results");
+	revalidatePath("/apps/requirements");
 	return { ok: true, id, updated: Boolean(existing) };
 }
 
@@ -953,6 +1019,7 @@ export async function deleteTestResult(db: D1Database, id: string) {
 	}
 	await db.prepare(`DELETE FROM app_test_results WHERE id = ?`).bind(id).run();
 	revalidatePath("/apps/test-results");
+	revalidatePath("/apps/requirements");
 	return { ok: true, id };
 }
 

@@ -234,6 +234,8 @@ export type AppRequirement = {
 	sort_order: number;
 	created_at: string;
 	updated_at: string;
+	/** status が done になった時刻。done 以外は null */
+	completed_at: string | null;
 };
 
 export type AppRequirementWithApp = AppRequirement & {
@@ -287,6 +289,7 @@ export type AppTestPlanWithApp = AppTestPlan & {
 export type AppTestResult = {
 	id: string;
 	app_name_id: string;
+	requirement_id: string | null;
 	title: string;
 	body: string;
 	outcome: AppTestResultOutcome;
@@ -300,6 +303,7 @@ export type AppTestResultWithApp = AppTestResult & {
 	app_name_color: string;
 	app_name_text_color: string;
 	app_name_icon: string;
+	requirement_title: string;
 };
 
 export const APP_TEST_RESULT_OUTCOME_LABEL: Record<AppTestResultOutcome, string> = {

@@ -104,9 +104,9 @@ erDiagram
 - **app_groups** / **app_types** / **app_names**: マスタ。`app_names` は FK に加え TEXT の冗長カラム（`app_group`, `app_type`）を持つ。
 - **apps**: デプロイ先・スタックメモ（`dev_folder`, `frontend`, `db`, URL 等）。同様に TEXT 冗長カラムあり。
 - **app_crons**: Cron 登録（論理的に App 関連、FK なし）。
-- **app_requirements**: App 名に紐づく要件。`status` は `draft` / `approved` / `in_progress` / `done` / `cancelled`。
+- **app_requirements**: App 名に紐づく要件。`status` は `draft` / `approved` / `in_progress` / `done` / `cancelled`。`created_at` は記録日時。`completed_at` は `done` になった時刻（それ以外は NULL。再度 `done` にしたときは、すでに `done` なら時刻を維持する）。時刻は UTC の TEXT。
 - **app_test_plans**: App ごとのテスト計画（1 App 1 行、`body` は Markdown 想定の自由記述）。
-- **app_test_results**: テスト結果の時系列記録。`outcome` は `pass` / `fail` / `partial` / `blocked` / `skipped` / `info`。`recorded_at` で並べる。
+- **app_test_results**: テスト結果の時系列記録。`outcome` は `pass` / `fail` / `partial` / `blocked` / `skipped` / `info`。`recorded_at` で並べる。`requirement_id` は任意で、完了（`done`）と判定された要件に紐づける。要件を削除しても結果は残り、紐づけだけ外れる。
 
 ### 自動化・Google Tasks
 

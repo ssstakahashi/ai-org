@@ -8,16 +8,24 @@ import {
 	useRef,
 	useState,
 	type DragEvent,
+	type FormEvent,
 } from "react";
 import {
 	createAppRequirement,
+	createAppTestResult,
 	deleteAppRequirement,
 	reorderAppNames,
 	reorderAppRequirements,
 	updateAppRequirement,
 } from "@/app/actions";
 import { masterTintStyle } from "@/lib/colors";
+import { formatInAppTz } from "@/lib/timezone";
 import { AppRequirementStatusField } from "@/components/AppRequirementStatusField";
+import {
+	APP_TEST_OUTCOME_ICON,
+	APP_TEST_OUTCOME_STYLE_CLASS,
+	AppTestResultOutcomeField,
+} from "@/components/AppTestResultOutcomeField";
 import { StatusIcon } from "@/components/StatusIcon";
 import {
 	getAppRequirementsPrefs,
@@ -29,10 +37,12 @@ import {
 	formatMasterLabel,
 	getDevPolicyMeta,
 	APP_REQUIREMENT_STATUS_LABEL,
+	APP_TEST_RESULT_OUTCOME_LABEL,
 	type AppEntry,
 	type AppName,
 	type AppRequirementStatus,
 	type AppRequirementWithApp,
+	type AppTestResultWithApp,
 	type TaskStatus,
 } from "@/lib/types";
 
@@ -61,6 +71,34 @@ const REQUIREMENT_STATUS_SORT_RANK: Record<AppRequirementStatus, number> = {
 	cancelled: 90,
 };
 
+const STORED_UTC_RE =
+	/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/;
+
+function parseStoredUtc(value: string): Date | null {
+	const trimmed = value.trim();
+	const match = STORED_UTC_RE.exec(trimmed);
+	if (match) {
+		const [, year, month, day, hour, minute, second = "00"] = match;
+		const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
+		return Number.isNaN(date.getTime()) ? null : date;
+	}
+	const date = new Date(trimmed);
+	return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatRequirementTime(value: string | null): string {
+	if (!value) return "";
+	const date = parseStoredUtc(value);
+	if (!date) return value;
+	return formatInAppTz(date, {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+}
+
 function sortRequirementsForDisplay(
 	items: AppRequirementWithApp[],
 	mode: RequirementListSort,
@@ -78,12 +116,14 @@ function sortRequirementsForDisplay(
 type Props = {
 	appNames: AppName[];
 	requirements: AppRequirementWithApp[];
+	testResults: AppTestResultWithApp[];
 	appEntryByAppNameId: Record<string, AppEntry>;
 };
 
 export function AppRequirementsManager({
 	appNames,
 	requirements,
+	testResults,
 	appEntryByAppNameId,
 }: Props) {
 	const router = useRouter();
@@ -114,6 +154,9 @@ export function AppRequirementsManager({
 	);
 	const [prefsReady, setPrefsReady] = useState(false);
 	const [filterOpen, setFilterOpen] = useState(false);
+	const [expandedRequirementIds, setExpandedRequirementIds] = useState<
+		Set<string>
+	>(() => new Set());
 
 	const requirementCounts = useMemo(() => {
 		const counts = new Map<string, number>();
@@ -122,6 +165,20 @@ export function AppRequirementsManager({
 		}
 		return counts;
 	}, [requirements]);
+
+	const testResultsByRequirementId = useMemo(() => {
+		const grouped = new Map<string, AppTestResultWithApp[]>();
+		for (const result of testResults) {
+			if (!result.requirement_id) continue;
+			const list = grouped.get(result.requirement_id) ?? [];
+			list.push(result);
+			grouped.set(result.requirement_id, list);
+		}
+		for (const list of grouped.values()) {
+			list.sort((a, b) => b.recorded_at.localeCompare(a.recorded_at));
+		}
+		return grouped;
+	}, [testResults]);
 
 	const canReorderApps = appListSort === "manual" && !reorderingApps;
 	const canReorderRequirements =
@@ -361,14 +418,14 @@ export function AppRequirementsManager({
 		setDraggingId(id);
 	}
 
-	function onDragOver(event: DragEvent<HTMLTableRowElement>, id: string) {
+	function onDragOver(event: DragEvent<HTMLLIElement>, id: string) {
 		if (requirementListSort !== "manual") return;
 		event.preventDefault();
 		event.dataTransfer.dropEffect = "move";
 		if (dropTargetId !== id) setDropTargetId(id);
 	}
 
-	async function onDrop(event: DragEvent<HTMLTableRowElement>, targetId: string) {
+	async function onDrop(event: DragEvent<HTMLLIElement>, targetId: string) {
 		event.preventDefault();
 		const sourceId = event.dataTransfer.getData("text/plain") || draggingId;
 		setDraggingId(null);
@@ -382,8 +439,16 @@ export function AppRequirementsManager({
 		setDropTargetId(null);
 	}
 
-	function stopRowActivate(event: { stopPropagation: () => void }) {
-		event.stopPropagation();
+	function toggleRequirement(id: string) {
+		setExpandedRequirementIds((current) => {
+			const next = new Set(current);
+			if (next.has(id)) {
+				next.delete(id);
+			} else {
+				next.add(id);
+			}
+			return next;
+		});
 	}
 
 	function toggleAppDetail(appId: string) {
@@ -452,11 +517,11 @@ export function AppRequirementsManager({
 					) : null}
 				</div>
 				<p className="panel-lede">
-					左の App 一覧から選択して要件を編集します。行をクリックすると編集ダイアログが開きます。
-					ステータスが「承認済」の要件は Cursor Automation から export できます。要件一覧はデフォルトでステータス順（完了は下）に並び、各行にステータス名を表示します。左の
+					左の App 一覧から選択して要件を編集します。タイトルをクリックすると編集ダイアログが開きます。各要件はステータスをタイトル上のチップで示し、記録日時を出します。完了したものは完了日時も出します。完了と判定された要件には、その場でテスト結果を記載できます。本文はタイトルの下で開閉できます。
+					ステータスが「承認済」の要件は Cursor Automation から export できます。要件一覧はデフォルトでステータス順（完了は下）に並びます。左の
 					App 一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する App
 					を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左のハンドルで
-					App の表示順、表内のハンドルで要件の表示順を変更できます。
+					App の表示順、一覧のハンドルで要件の表示順を変更できます。
 				</p>
 
 				{orderedApps.length === 0 ? (
@@ -746,103 +811,116 @@ export function AppRequirementsManager({
 							) : null}
 
 							{displayedRequirementItems.length > 0 ? (
-								<div className="x-schedule-scroll">
-									<table className="x-schedule-table apps-sheet-table requirement-sheet-table">
-										<thead>
-											<tr>
-												<th>並び</th>
-												<th>タイトル</th>
-												<th>本文</th>
-												<th>ステータス</th>
-											</tr>
-										</thead>
-										<tbody>
-											{displayedRequirementItems.map((item) => {
-												const isDragging = draggingId === item.id;
-												const isDropTarget =
-													dropTargetId === item.id && draggingId !== item.id;
-												const isDone = item.status === "done";
-												return (
-													<tr
-														key={item.id}
+								<ul className="requirement-item-list">
+									{displayedRequirementItems.map((item) => {
+										const isDragging = draggingId === item.id;
+										const isDropTarget =
+											dropTargetId === item.id && draggingId !== item.id;
+										const isDone = item.status === "done";
+										const bodyExpanded = expandedRequirementIds.has(item.id);
+										const bodyId = `requirement-item-body-${item.id}`;
+										return (
+											<li
+												key={item.id}
+												className={[
+													"requirement-item",
+													REQUIREMENT_STATUS_CLASS[item.status],
+													isDone ? "requirement-item-is-done" : "",
+													isDragging ? "is-dragging" : "",
+													isDropTarget ? "is-drop-target" : "",
+													canReorderRequirements ? "" : "is-sort-locked",
+												]
+													.filter(Boolean)
+													.join(" ")}
+												onDragOver={(event) => onDragOver(event, item.id)}
+												onDrop={(event) => void onDrop(event, item.id)}
+												onDragLeave={() => {
+													if (dropTargetId === item.id) setDropTargetId(null);
+												}}
+											>
+												<button
+													type="button"
+													className="apps-sheet-drag-handle requirement-item-drag-handle"
+													draggable={canReorderRequirements}
+													disabled={!canReorderRequirements}
+													aria-label={`${item.title} を並び替え`}
+													title={
+														canReorderRequirements
+															? "ドラッグして並び替え"
+															: "表示順に切り替えるとドラッグできます"
+													}
+													onDragStart={(event) => onDragStart(event, item.id)}
+													onDragEnd={onDragEnd}
+												>
+													<span aria-hidden="true">⋮⋮</span>
+												</button>
+												<div className="requirement-item-main">
+													<span
 														className={[
-															"requirement-row",
+															"status-badge",
+															"requirement-status-badge",
 															REQUIREMENT_STATUS_CLASS[item.status],
-															isDone ? "requirement-row-is-done" : "",
-															isDragging ? "is-dragging" : "",
-															isDropTarget ? "is-drop-target" : "",
-														]
-															.filter(Boolean)
-															.join(" ")}
-														onClick={() => openEditDialog(item)}
-														onKeyDown={(event) => {
-															if (event.key === "Enter" || event.key === " ") {
-																event.preventDefault();
-																openEditDialog(item);
-															}
-														}}
-														tabIndex={0}
-														aria-label={`${item.title} を編集`}
-														onDragOver={(event) => onDragOver(event, item.id)}
-														onDrop={(event) => void onDrop(event, item.id)}
-														onDragLeave={() => {
-															if (dropTargetId === item.id) setDropTargetId(null);
-														}}
+														].join(" ")}
 													>
-														<td onClick={stopRowActivate}>
-															<div className="apps-sheet-cell">
-																<button
-																	type="button"
-																	className="apps-sheet-drag-handle"
-																	draggable={canReorderRequirements}
-																	disabled={!canReorderRequirements}
-																	aria-label={`${item.title} を並び替え`}
-																	title={
-																		canReorderRequirements
-																			? "ドラッグして並び替え"
-																			: "表示順に切り替えるとドラッグできます"
-																	}
-																	onDragStart={(event) =>
-																		onDragStart(event, item.id)
-																	}
-																	onDragEnd={onDragEnd}
-																>
-																	<span aria-hidden="true">⋮⋮</span>
-																</button>
-															</div>
-														</td>
-														<td>
-															<div className="apps-sheet-cell requirement-row-title">
-																{item.title}
-															</div>
-														</td>
-														<td className="requirement-body-cell">
-															<div className="requirement-body-preview">
-																{item.body || "（本文なし）"}
-															</div>
-														</td>
-														<td>
+														<StatusIcon
+															status={REQUIREMENT_STATUS_ICON[item.status]}
+														/>
+														<span>
+															{APP_REQUIREMENT_STATUS_LABEL[item.status]}
+														</span>
+													</span>
+													<div className="requirement-item-title-row">
+														<button
+															type="button"
+															className="requirement-item-title"
+															onClick={() => openEditDialog(item)}
+														>
+															{item.title}
+														</button>
+														<button
+															type="button"
+															className="requirement-app-accordion-toggle"
+															aria-expanded={bodyExpanded}
+															aria-controls={bodyId}
+															onClick={() => toggleRequirement(item.id)}
+														>
 															<span
-																className={[
-																	"requirement-status-badge",
-																	"status-option",
-																	REQUIREMENT_STATUS_CLASS[item.status],
-																].join(" ")}
+																className="requirement-app-accordion-chevron"
+																aria-hidden="true"
 															>
-																<StatusIcon
-																	status={REQUIREMENT_STATUS_ICON[item.status]}
-																/>
-																<span>
-																	{APP_REQUIREMENT_STATUS_LABEL[item.status]}
-																</span>
+																▶
 															</span>
-														</td>
-													</tr>
-												);
-											})}
-										</tbody>
-									</table>
-								</div>
+															<span>本文</span>
+														</button>
+													</div>
+													<p className="requirement-item-times">
+														<time dateTime={item.created_at}>
+															記録 {formatRequirementTime(item.created_at)}
+														</time>
+														{item.completed_at ? (
+															<time dateTime={item.completed_at}>
+																完了 {formatRequirementTime(item.completed_at)}
+															</time>
+														) : null}
+													</p>
+													{isDone ? (
+														<RequirementTestResults
+															requirement={item}
+															results={
+																testResultsByRequirementId.get(item.id) ?? []
+															}
+														/>
+													) : null}
+													{bodyExpanded ? (
+														<div id={bodyId} className="requirement-item-panel">
+															{item.body || "（本文なし）"}
+														</div>
+													) : null}
+												</div>
+											</li>
+										);
+									})}
+								</ul>
 							) : null}
 						</div>
 					</div>
@@ -1100,6 +1178,95 @@ function RequirementAppDetailPanel({
 				</div>
 			))}
 		</dl>
+	);
+}
+
+function RequirementTestResults({
+	requirement,
+	results,
+}: {
+	requirement: AppRequirementWithApp;
+	results: AppTestResultWithApp[];
+}) {
+	const router = useRouter();
+	const [open, setOpen] = useState(false);
+	const [saving, setSaving] = useState(false);
+	const [error, setError] = useState("");
+
+	async function onSubmit(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		if (saving) return;
+		setSaving(true);
+		setError("");
+		try {
+			await createAppTestResult(new FormData(event.currentTarget));
+			setOpen(false);
+			router.refresh();
+		} catch (submitError) {
+			setError(
+				submitError instanceof Error
+					? submitError.message
+					: "テスト結果を保存できませんでした",
+			);
+		} finally {
+			setSaving(false);
+		}
+	}
+
+	return (
+		<div className="requirement-item-tests">
+			{results.map((result) => (
+				<div key={result.id} className="requirement-item-test">
+					<span
+						className={[
+							"status-badge",
+							"requirement-status-badge",
+							APP_TEST_OUTCOME_STYLE_CLASS[result.outcome],
+						].join(" ")}
+					>
+						<StatusIcon status={APP_TEST_OUTCOME_ICON[result.outcome]} />
+						<span>{APP_TEST_RESULT_OUTCOME_LABEL[result.outcome]}</span>
+					</span>
+					<time dateTime={result.recorded_at}>
+						{formatRequirementTime(result.recorded_at)}
+					</time>
+					{result.body ? (
+						<p className="requirement-item-test-body">{result.body}</p>
+					) : null}
+				</div>
+			))}
+			{open ? (
+				<form className="requirement-item-test-form" onSubmit={onSubmit}>
+					<input type="hidden" name="app_name_id" value={requirement.app_name_id} />
+					<input type="hidden" name="requirement_id" value={requirement.id} />
+					<input type="hidden" name="title" value={requirement.title} />
+					<label>
+						<span>テスト結果</span>
+						<textarea
+							name="body"
+							rows={4}
+							required
+							className="requirement-body-textarea"
+							placeholder="確認した内容と結果"
+						/>
+					</label>
+					<AppTestResultOutcomeField defaultOutcome="info" />
+					{error ? <p className="requirement-item-test-error">{error}</p> : null}
+					<div className="requirement-item-test-actions">
+						<button type="button" onClick={() => setOpen(false)} disabled={saving}>
+							キャンセル
+						</button>
+						<button type="submit" className="primary" disabled={saving}>
+							保存
+						</button>
+					</div>
+				</form>
+			) : (
+				<button type="button" onClick={() => setOpen(true)}>
+					テスト結果を記載
+				</button>
+			)}
+		</div>
 	);
 }
 

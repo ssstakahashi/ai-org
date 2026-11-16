@@ -336,6 +336,11 @@ export function AppTestResultsManager({
 													<td>
 														<div className="apps-sheet-cell requirement-row-title">
 															{item.title}
+															{item.requirement_title ? (
+																<div className="requirement-linked-label">
+																	要件: {item.requirement_title}
+																</div>
+															) : null}
 														</div>
 													</td>
 													<td className="requirement-body-cell">

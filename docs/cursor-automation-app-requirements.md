@@ -60,6 +60,7 @@ Automation の Instructions に次を設定します（URL とシークレット
 3. Cursor Automation を手動実行、またはスケジュール（例: 平日 9:00）
 4. Agent が export を読み、`dev_folder` で実装
 5. 完了後、要件ステータスを **完了** に更新
+6. 完了と判定した要件には、同じ要件の「テスト結果を記載」か `PUT /api/v1/apps/test-results/{id}` の `requirement_id` でテスト結果を残す。`done` 以外の要件には紐づけられない
 
 ## 関連
 

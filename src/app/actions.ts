@@ -435,7 +435,7 @@ function parseAppRequirementStatus(raw: unknown): AppRequirementStatus {
 
 const APP_REQUIREMENT_SELECT = `SELECT
 				r.id, r.app_name_id, r.title, r.body, r.status, r.sort_order,
-				r.created_at, r.updated_at,
+				r.created_at, r.updated_at, r.completed_at,
 				n.name AS app_name,
 				COALESCE(n.color, '') AS app_name_color,
 				COALESCE(n.text_color, '') AS app_name_text_color,
@@ -496,10 +496,19 @@ export async function createAppRequirement(formData: FormData) {
 	const id = newId("req");
 	await db
 		.prepare(
-			`INSERT INTO app_requirements (id, app_name_id, title, body, status, sort_order)
-			 VALUES (?, ?, ?, ?, ?, ?)`,
+			`INSERT INTO app_requirements
+				(id, app_name_id, title, body, status, sort_order, completed_at)
+			 VALUES (?, ?, ?, ?, ?, ?, CASE WHEN ? = 'done' THEN datetime('now') ELSE NULL END)`,
 		)
-		.bind(id, appNameId, title, body, status, (maxSort?.max_sort ?? 0) + 10)
+		.bind(
+			id,
+			appNameId,
+			title,
+			body,
+			status,
+			(maxSort?.max_sort ?? 0) + 10,
+			status,
+		)
 		.run();
 
 	revalidateAppsPage();
@@ -529,10 +538,15 @@ export async function updateAppRequirement(formData: FormData) {
 			     title = ?,
 			     body = ?,
 			     status = ?,
+			     completed_at = CASE
+			       WHEN ? <> 'done' THEN NULL
+			       WHEN status = 'done' THEN completed_at
+			       ELSE datetime('now')
+			     END,
 			     updated_at = datetime('now')
 			 WHERE id = ?`,
 		)
-		.bind(appNameId, title, body, status, id)
+		.bind(appNameId, title, body, status, status, id)
 		.run();
 
 	revalidateAppsPage();
@@ -632,14 +646,16 @@ export async function saveAppTestPlan(formData: FormData) {
 }
 
 const APP_TEST_RESULT_SELECT = `SELECT
-				r.id, r.app_name_id, r.title, r.body, r.outcome, r.recorded_at,
+				r.id, r.app_name_id, r.requirement_id, r.title, r.body, r.outcome, r.recorded_at,
 				r.created_at, r.updated_at,
 				n.name AS app_name,
 				COALESCE(n.color, '') AS app_name_color,
 				COALESCE(n.text_color, '') AS app_name_text_color,
-				COALESCE(n.icon, '') AS app_name_icon
+				COALESCE(n.icon, '') AS app_name_icon,
+				COALESCE(req.title, '') AS requirement_title
 			 FROM app_test_results r
-			 JOIN app_names n ON n.id = r.app_name_id`;
+			 JOIN app_names n ON n.id = r.app_name_id
+			 LEFT JOIN app_requirements req ON req.id = r.requirement_id`;
 
 export async function listAppTestResults(
 	appNameId?: string,
@@ -654,22 +670,59 @@ export async function listAppTestResults(
 	return results ?? [];
 }
 
+async function assertDoneRequirementForTestResult(
+	db: Awaited<ReturnType<typeof getDb>>,
+	requirementId: string,
+	appNameId: string,
+) {
+	const requirement = await db
+		.prepare(
+			`SELECT id, app_name_id, status, title
+			 FROM app_requirements
+			 WHERE id = ?`,
+		)
+		.bind(requirementId)
+		.first<{
+			id: string;
+			app_name_id: string;
+			status: string;
+			title: string;
+		}>();
+	if (!requirement) {
+		throw new Error("要件が見つかりません");
+	}
+	if (requirement.app_name_id !== appNameId) {
+		throw new Error("要件はこの App の要件ではありません");
+	}
+	if (requirement.status !== "done") {
+		throw new Error("完了と判定された要件にだけテスト結果を記載できます");
+	}
+	return requirement;
+}
+
 export async function createAppTestResult(formData: FormData) {
 	const db = await getDb();
 	const appNameId = formText(formData, "app_name_id");
-	const title = formText(formData, "title");
+	let title = formText(formData, "title");
 	const body = String(formData.get("body") ?? "").trim();
 	const outcome = parseAppTestResultOutcome(formData.get("outcome") ?? "info");
 	const recordedRaw = String(formData.get("recorded_at") ?? "").trim();
+	const requirementId = formText(formData, "requirement_id");
 
 	if (!appNameId) {
 		throw new Error("App の選択は必須です");
 	}
+
+	await resolveAppNameId(db, appNameId);
+	const requirement = requirementId
+		? await assertDoneRequirementForTestResult(db, requirementId, appNameId)
+		: null;
+	if (!title) {
+		title = requirement?.title ?? "";
+	}
 	if (!title) {
 		throw new Error("タイトルは必須です");
 	}
-
-	await resolveAppNameId(db, appNameId);
 
 	const recordedAt = recordedRaw
 		? parseAppDateTime(recordedRaw).toISOString()
@@ -678,10 +731,11 @@ export async function createAppTestResult(formData: FormData) {
 	const id = newId("tres");
 	await db
 		.prepare(
-			`INSERT INTO app_test_results (id, app_name_id, title, body, outcome, recorded_at)
-			 VALUES (?, ?, ?, ?, ?, ?)`,
+			`INSERT INTO app_test_results
+				(id, app_name_id, requirement_id, title, body, outcome, recorded_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		)
-		.bind(id, appNameId, title, body, outcome, recordedAt)
+		.bind(id, appNameId, requirement?.id ?? null, title, body, outcome, recordedAt)
 		.run();
 
 	revalidateAppsPage();
@@ -695,6 +749,8 @@ export async function updateAppTestResult(formData: FormData) {
 	const body = String(formData.get("body") ?? "").trim();
 	const outcome = parseAppTestResultOutcome(formData.get("outcome"));
 	const recordedRaw = String(formData.get("recorded_at") ?? "").trim();
+	const requirementId = formText(formData, "requirement_id");
+	const requirementProvided = formData.has("requirement_id");
 
 	if (!id || !title) {
 		throw new Error("id とタイトルが必要です");
@@ -707,6 +763,20 @@ export async function updateAppTestResult(formData: FormData) {
 	}
 
 	await resolveAppNameId(db, appNameId);
+	const current = await db
+		.prepare(`SELECT requirement_id FROM app_test_results WHERE id = ?`)
+		.bind(id)
+		.first<{ requirement_id: string | null }>();
+	if (!current) {
+		throw new Error("テスト結果が見つかりません");
+	}
+	const nextRequirementId = requirementProvided
+		? requirementId
+		: current.requirement_id ?? "";
+	const requirement =
+		nextRequirementId && nextRequirementId !== (current.requirement_id ?? "")
+			? await assertDoneRequirementForTestResult(db, nextRequirementId, appNameId)
+			: null;
 
 	const recordedAt = parseAppDateTime(recordedRaw).toISOString();
 
@@ -714,6 +784,7 @@ export async function updateAppTestResult(formData: FormData) {
 		.prepare(
 			`UPDATE app_test_results
 			 SET app_name_id = ?,
+			     requirement_id = ?,
 			     title = ?,
 			     body = ?,
 			     outcome = ?,
@@ -721,7 +792,15 @@ export async function updateAppTestResult(formData: FormData) {
 			     updated_at = datetime('now')
 			 WHERE id = ?`,
 		)
-		.bind(appNameId, title, body, outcome, recordedAt, id)
+		.bind(
+			appNameId,
+			requirement ? requirement.id : nextRequirementId || null,
+			title,
+			body,
+			outcome,
+			recordedAt,
+			id,
+		)
 		.run();
 
 	revalidateAppsPage();

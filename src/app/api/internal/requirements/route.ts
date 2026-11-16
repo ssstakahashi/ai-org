@@ -5,7 +5,7 @@
  * runner: cursor
  * status: none
  * trigger: 手動 / スケジュール（Cursor Automations で設定）
- * summary: export API から承認済み要件を取得し、dev_folder のリポで実装する
+ * summary: export API から承認済み要件を取得し、dev_folder のリポで実装する。完了判定後の要件にはテスト結果を requirement_id 付きで残せる
  * location: src/app/api/internal/requirements/route.ts
  * href: /apps/requirements
  */
