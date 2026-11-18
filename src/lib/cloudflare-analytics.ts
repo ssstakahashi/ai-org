@@ -1,4 +1,9 @@
-import { addAppCalendarDays, startOfAppDay, toAppDateKey } from "@/lib/timezone";
+import {
+	addAppCalendarDays,
+	parseAppDateTime,
+	startOfAppDay,
+	toAppDateKey,
+} from "@/lib/timezone";
 
 const GRAPHQL_URL = "https://api.cloudflare.com/client/v4/graphql";
 const ZONES_URL = "https://api.cloudflare.com/client/v4/zones";
@@ -27,11 +32,72 @@ export type CfZoneTrafficDay = {
 	bytes: number;
 };
 
+export type CfZonePathTraffic = {
+	path: string;
+	requests: number;
+	visits: number;
+	bytes: number;
+};
+
 export type CfZoneTrafficReport = {
 	zone: CfZoneSummary;
 	days: CfZoneTrafficDay[];
+	topHtmlPaths: CfZonePathTraffic[];
 	range: { since: string; until: string; dayCount: number };
 };
+
+/** Cloudflare から多めに取り、HTML っぽいパスに絞ったあと残す件数 */
+export const WEB_ANALYTICS_TOP_HTML_PATHS_LIMIT = 20;
+
+const TOP_PATHS_GRAPHQL_FETCH_LIMIT = 200;
+
+const NON_HTML_PATH_EXTENSIONS = new Set([
+	"avif",
+	"css",
+	"eot",
+	"gif",
+	"ico",
+	"jpeg",
+	"jpg",
+	"js",
+	"json",
+	"map",
+	"mjs",
+	"mp3",
+	"mp4",
+	"pdf",
+	"png",
+	"svg",
+	"ttf",
+	"txt",
+	"wasm",
+	"webm",
+	"webp",
+	"woff",
+	"woff2",
+	"xml",
+	"zip",
+]);
+
+/** 静的配信・ビルド成果物など、ページ HTML ではないパスを除外する */
+export function isHtmlLikeClientRequestPath(path: string): boolean {
+	const withoutQuery = path.split("?")[0]?.split("#")[0] ?? path;
+	if (!withoutQuery || withoutQuery === "/") return true;
+
+	const lower = withoutQuery.toLowerCase();
+	if (lower.startsWith("/_next/") || lower.startsWith("/static/")) return false;
+
+	const segments = withoutQuery.split("/");
+	const last = segments[segments.length - 1] ?? "";
+	if (!last) return true;
+
+	const dotIndex = last.lastIndexOf(".");
+	if (dotIndex <= 0) return true;
+
+	const ext = last.slice(dotIndex + 1).toLowerCase();
+	if (ext === "html" || ext === "htm") return true;
+	return !NON_HTML_PATH_EXTENSIONS.has(ext);
+}
 
 export type CfWebAnalyticsSnapshot = {
 	fetchedAt: string;
@@ -73,6 +139,14 @@ function appDateRange(dayCount: number): { since: string; until: string } {
 	const today = startOfAppDay(new Date());
 	const sinceDate = addAppCalendarDays(today, -(dayCount - 1));
 	return { since: toAppDateKey(sinceDate), until: toAppDateKey(today) };
+}
+
+function appDateRangeAdaptiveTimes(dayCount: number): { datetimeGeq: string; datetimeLt: string } {
+	const range = appDateRange(dayCount);
+	const sinceStart = parseAppDateTime(`${range.since}T00:00:00`);
+	const untilStart = parseAppDateTime(`${range.until}T00:00:00`);
+	const untilExclusive = addAppCalendarDays(untilStart, 1);
+	return { datetimeGeq: sinceStart.toISOString(), datetimeLt: untilExclusive.toISOString() };
 }
 
 async function cfRestGet<T>(apiToken: string, url: string): Promise<T> {
@@ -164,19 +238,90 @@ type DailyTrafficQueryResult = {
 	};
 };
 
+const TOP_PATHS_QUERY = `
+query ZoneTopPaths($zoneTag: String!, $datetimeGeq: Time!, $datetimeLt: Time!) {
+  viewer {
+    zones(filter: { zoneTag: $zoneTag }) {
+      httpRequestsAdaptiveGroups(
+        limit: ${TOP_PATHS_GRAPHQL_FETCH_LIMIT}
+        orderBy: [count_DESC]
+        filter: {
+          datetime_geq: $datetimeGeq
+          datetime_lt: $datetimeLt
+          requestSource: "eyeball"
+        }
+      ) {
+        count
+        sum { visits edgeResponseBytes }
+        dimensions { clientRequestPath }
+      }
+    }
+  }
+}
+`;
+
+type TopPathsQueryResult = {
+	viewer: {
+		zones: {
+			httpRequestsAdaptiveGroups: {
+				count: number;
+				sum: { visits: number; edgeResponseBytes: number };
+				dimensions: { clientRequestPath: string };
+			}[];
+		}[];
+	};
+};
+
+export function pickTopHtmlPaths(
+	groups: TopPathsQueryResult["viewer"]["zones"][0]["httpRequestsAdaptiveGroups"],
+	limit = WEB_ANALYTICS_TOP_HTML_PATHS_LIMIT,
+): CfZonePathTraffic[] {
+	const rows: CfZonePathTraffic[] = [];
+	for (const group of groups) {
+		const path = group.dimensions.clientRequestPath;
+		if (!path || !isHtmlLikeClientRequestPath(path)) continue;
+		rows.push({
+			path,
+			requests: group.count ?? 0,
+			visits: group.sum.visits ?? 0,
+			bytes: group.sum.edgeResponseBytes ?? 0,
+		});
+		if (rows.length >= limit) break;
+	}
+	return rows;
+}
+
+async function fetchZoneTopHtmlPaths(
+	apiToken: string,
+	zoneId: string,
+	dayCount: number,
+): Promise<CfZonePathTraffic[]> {
+	const times = appDateRangeAdaptiveTimes(dayCount);
+	const data = await cfGraphql<TopPathsQueryResult>(apiToken, TOP_PATHS_QUERY, {
+		zoneTag: zoneId,
+		datetimeGeq: times.datetimeGeq,
+		datetimeLt: times.datetimeLt,
+	});
+	const groups = data.viewer.zones[0]?.httpRequestsAdaptiveGroups ?? [];
+	return pickTopHtmlPaths(groups);
+}
+
 export async function fetchZoneDailyTraffic(
 	apiToken: string,
 	zone: CfZoneSummary,
 	dayCount: number,
 ): Promise<CfZoneTrafficReport> {
 	const range = appDateRange(dayCount);
-	const data = await cfGraphql<DailyTrafficQueryResult>(apiToken, DAILY_TRAFFIC_QUERY, {
-		zoneTag: zone.id,
-		since: range.since,
-		until: range.until,
-	});
+	const [dailyData, topHtmlPaths] = await Promise.all([
+		cfGraphql<DailyTrafficQueryResult>(apiToken, DAILY_TRAFFIC_QUERY, {
+			zoneTag: zone.id,
+			since: range.since,
+			until: range.until,
+		}),
+		fetchZoneTopHtmlPaths(apiToken, zone.id, dayCount),
+	]);
 
-	const groups = data.viewer.zones[0]?.httpRequests1dGroups ?? [];
+	const groups = dailyData.viewer.zones[0]?.httpRequests1dGroups ?? [];
 	const days = groups.map((group) => ({
 		date: group.dimensions.date,
 		requests: group.sum.requests ?? 0,
@@ -187,6 +332,7 @@ export async function fetchZoneDailyTraffic(
 	return {
 		zone,
 		days,
+		topHtmlPaths,
 		range: { ...range, dayCount },
 	};
 }

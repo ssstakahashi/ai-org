@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.79 (2026-11-18)
+
+- Web分析にゾーンごとの HTML パス上位 20（`httpRequestsAdaptiveGroups`、静的ファイル除外）を追加
+
 ## 0.0.78 (2026-11-18)
 
 - Workers AI 用 `CF_WORKERS_AI_API_TOKEN` と Web分析用 `CF_ANALYTICS_API_TOKEN` を分離（`CF_API_TOKEN` は文字起こしのフォールバックのみ）

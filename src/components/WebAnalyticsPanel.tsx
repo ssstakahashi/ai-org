@@ -1,6 +1,7 @@
 import {
 	aggregateZoneTraffic,
 	formatTrafficBytes,
+	WEB_ANALYTICS_TOP_HTML_PATHS_LIMIT,
 	type CfWebAnalyticsSnapshot,
 } from "@/lib/cloudflare-analytics";
 import { formatInAppTz } from "@/lib/timezone";
@@ -27,8 +28,10 @@ export function WebAnalyticsPanel({ snapshot }: Props) {
 			<section className="panel">
 				<h2>取得状況</h2>
 				<p style={{ margin: 0, fontSize: "0.9rem" }}>
-					Cloudflare GraphQL Analytics（ゾーンの HTTP トラフィック）を参照しています。ページビューは{" "}
-					<code>pageViews</code>、リクエスト数は <code>requests</code>、転送量は <code>bytes</code> です。
+					Cloudflare GraphQL Analytics（ゾーンの HTTP トラフィック）を参照しています。日次は{" "}
+					<code>pageViews</code> / <code>requests</code> / <code>bytes</code>。パス別は{" "}
+					<code>httpRequestsAdaptiveGroups</code> の <code>clientRequestPath</code> で、実ユーザー（
+					<code>eyeball</code>）の HTML っぽいパス上位を表示します。
 				</p>
 				<p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--muted)" }}>
 					直近 {snapshot.rangeDays} 日（日本時間の暦日）・取得: {fetchedLabel}
@@ -84,6 +87,45 @@ export function WebAnalyticsPanel({ snapshot }: Props) {
 								<div style={{ fontSize: "1.35rem", fontWeight: 600 }}>
 									{formatTrafficBytes(totals.bytes)}
 								</div>
+							</div>
+						</div>
+
+						<div style={{ marginBottom: "1.25rem" }}>
+							<h3 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>
+								HTML パス上位 {WEB_ANALYTICS_TOP_HTML_PATHS_LIMIT}（直近 {snapshot.rangeDays} 日）
+							</h3>
+							<p style={{ margin: "0 0 0.75rem", fontSize: "0.85rem", color: "var(--muted)" }}>
+								画像・CSS・JS など静的ファイルと <code>/_next/</code> は除外しています。
+							</p>
+							<div className="apps-sheet-scroll">
+								<table className="apps-sheet-table x-schedule-table">
+									<thead>
+										<tr>
+											<th>パス</th>
+											<th>リクエスト</th>
+											<th>訪問（visits）</th>
+											<th>転送量</th>
+										</tr>
+									</thead>
+									<tbody>
+										{report.topHtmlPaths.length === 0 ? (
+											<tr>
+												<td colSpan={4}>この期間の HTML パスデータはありません。</td>
+											</tr>
+										) : (
+											report.topHtmlPaths.map((row) => (
+												<tr key={row.path}>
+													<td className="when" style={{ wordBreak: "break-all" }}>
+														{row.path}
+													</td>
+													<td>{formatCount(row.requests)}</td>
+													<td>{formatCount(row.visits)}</td>
+													<td>{formatTrafficBytes(row.bytes)}</td>
+												</tr>
+											))
+										)}
+									</tbody>
+								</table>
 							</div>
 						</div>
 

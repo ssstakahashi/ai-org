@@ -47,7 +47,7 @@ export default async function WebAnalyticsPage({
 		<main className="page page-wide">
 			<AppHeader
 				title="Web分析"
-				lede="Cloudflare ゾーンの HTTP トラフィック（リクエスト・ページビュー・転送量）を一覧します。ダッシュボードの Analytics と同系の集計です。"
+				lede="Cloudflare ゾーンの HTTP トラフィック（リクエスト・ページビュー・転送量）と、HTML パス別の上位アクセスを一覧します。"
 			/>
 
 			<section className="panel">
