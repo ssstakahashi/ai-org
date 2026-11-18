@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.80 (2026-11-18)
+
+- Web分析に HTTP ホスト名別上位を追加（サブドメイン・カスタムホスト名、`CF_ANALYTICS_HTTP_HOSTS`）
+
 ## 0.0.79 (2026-11-18)
 
 - Web分析にゾーンごとの HTML パス上位 20（`httpRequestsAdaptiveGroups`、静的ファイル除外）を追加

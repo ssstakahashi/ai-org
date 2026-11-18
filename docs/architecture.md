@@ -38,7 +38,7 @@ flowchart LR
 - **画像**: ai-org のファイルはローカルディスク（`MEDIA_ROOT`、既定 `data/media`）。キーは `x-posts/` `tasks/` `blog-posts/`。公開ブログの新規画像は別ホストのブログ画像 API。キーは共有しない
 - **Auth**: 画面はアプリ内パスワード + `jose` HS256 JWT Cookie（`ai-org-session`）。未ログインの `/`、`/about`、`/privacy`、`/privacy-policy`、`/terms`、`/robots.txt` はセッション対象外。`/api/v1` は `X-API-Key`。`API_KEYS` が空なら `AUTOMATION_INGEST_SECRET` を admin として受け付ける。推奨は担当ごとのキー（`名前|role|secret` をカンマ区切り）
 - **AI**: Workers AI の REST API（文字起こし。`CF_ACCOUNT_ID` と `CF_WORKERS_AI_API_TOKEN`。未設定時のみ `CF_API_TOKEN`）、Gemini（X 投稿画像解析）
-- **分析**: Cloudflare GraphQL Analytics（`/web-analytics`。日次は `httpRequests1dGroups` の `requests` / `pageViews` / `bytes`。パス別は `httpRequestsAdaptiveGroups`（`clientRequestPath`、`requestSource: eyeball`）を取得し、静的拡張子と `/_next/` 等を除いた HTML パス上位 20 を表示。`CF_ANALYTICS_API_TOKEN` に Zone Read + Analytics Read、かつ Zone Resources に対象ゾーン。文字起こし用トークンは見ない。任意で `CF_ANALYTICS_ZONE_NAMES`）
+- **分析**: Cloudflare GraphQL Analytics（`/web-analytics`。日次は `httpRequests1dGroups` の `requests` / `pageViews` / `bytes`（ゾーン内全ホスト合算）。ホスト別は `clientRequestHTTPHost` 上位 30（サブドメイン・カスタムホスト名含む）。パス別は `clientRequestPath` で HTML パス上位 20。任意で `CF_ANALYTICS_ZONE_NAMES`（ゾーン apex）、`CF_ANALYTICS_HTTP_HOSTS`（HTTP Host 絞り込み）。`CF_ANALYTICS_API_TOKEN` に Zone Read + Analytics Read、かつ Zone Resources に対象ゾーン。文字起こし用トークンは見ない）
 - **外部**: Google Sheets、Google Tasks、X API（Cron からは未使用）。OpenClaw Control UI は ai-org から HTTP リダイレクトのみ（`OPENCLAW_CONTROL_UI_URL`）。トンネル・認証は OpenClaw 側の Cloudflare 構成に依存し、ai-org はプロキシしない
 
 設定はリポジトリの `.env`。KV / Queues / Durable Objects / Vectorize は使っていない。D1 と R2 は過去の移行元で、実行時には使わない。

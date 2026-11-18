@@ -36,10 +36,12 @@ interface CloudflareEnv {
 	GOOGLE_TASKS_DEFAULT_EMPLOYEE_ID?: string;
 	BLOG_DRAFTS_SHEET_AUTO_SYNC?: string;
 	CF_ACCOUNT_ID?: string;
-	/** カンマ区切り。未設定なら active ゾーンをすべて表示 */
+	/** カンマ区切り（ゾーン apex）。未設定なら active ゾーンをすべて表示 */
 	CF_ANALYTICS_ZONE_NAMES?: string;
 	/** @deprecated CF_ANALYTICS_ZONE_NAMES と同義 */
 	CF_ANALYTICS_ZONES?: string;
+	/** カンマ区切り。HTTP ホスト名別表で表示する Host のみ（未設定なら上位をすべて） */
+	CF_ANALYTICS_HTTP_HOSTS?: string;
 	CF_WORKER_NAME?: string;
 	NEXTJS_ENV?: string;
 	DATABASE_URL?: string;

@@ -65,8 +65,9 @@ export default async function WebAnalyticsPage({
 					))}
 				</div>
 				<p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--muted)" }}>
-					対象ゾーンはアカウント内の active ゾーンです。絞り込みは環境変数{" "}
-					<code>CF_ANALYTICS_ZONE_NAMES</code>（カンマ区切りのホスト名）で指定できます。
+					対象ゾーンはアカウント内の active ゾーンです。ゾーン（apex）の絞り込みは{" "}
+					<code>CF_ANALYTICS_ZONE_NAMES</code>、HTTP ホスト名（サブドメイン・カスタムホスト名）の絞り込みは{" "}
+					<code>CF_ANALYTICS_HTTP_HOSTS</code>（いずれもカンマ区切り）です。
 				</p>
 			</section>
 

@@ -39,9 +39,17 @@ export type CfZonePathTraffic = {
 	bytes: number;
 };
 
+export type CfZoneHostTraffic = {
+	host: string;
+	requests: number;
+	visits: number;
+	bytes: number;
+};
+
 export type CfZoneTrafficReport = {
 	zone: CfZoneSummary;
 	days: CfZoneTrafficDay[];
+	topHosts: CfZoneHostTraffic[];
 	topHtmlPaths: CfZonePathTraffic[];
 	range: { since: string; until: string; dayCount: number };
 };
@@ -49,7 +57,11 @@ export type CfZoneTrafficReport = {
 /** Cloudflare から多めに取り、HTML っぽいパスに絞ったあと残す件数 */
 export const WEB_ANALYTICS_TOP_HTML_PATHS_LIMIT = 20;
 
+/** HTTP Host（サブドメイン・カスタムホスト名）の表示件数 */
+export const WEB_ANALYTICS_TOP_HOSTS_LIMIT = 30;
+
 const TOP_PATHS_GRAPHQL_FETCH_LIMIT = 200;
+const TOP_HOSTS_GRAPHQL_FETCH_LIMIT = 100;
 
 const NON_HTML_PATH_EXTENSIONS = new Set([
 	"avif",
@@ -126,13 +138,23 @@ function explainCloudflareError(message: string): string {
 	return message;
 }
 
-function parseZoneNameFilter(raw: string | undefined): Set<string> | null {
+function parseCommaNameFilter(raw: string | undefined): Set<string> | null {
 	if (!raw?.trim()) return null;
 	const names = raw
 		.split(",")
 		.map((part) => part.trim().toLowerCase())
 		.filter(Boolean);
 	return names.length > 0 ? new Set(names) : null;
+}
+
+/** Cloudflare ゾーン名（apex、例: example.com）で絞り込み */
+function parseZoneNameFilter(raw: string | undefined): Set<string> | null {
+	return parseCommaNameFilter(raw);
+}
+
+/** 任意。表示する HTTP Host（例: www.example.com,tenant.saas.example.com） */
+function parseHttpHostFilter(raw: string | undefined): Set<string> | null {
+	return parseCommaNameFilter(raw);
 }
 
 function appDateRange(dayCount: number): { since: string; until: string } {
@@ -291,6 +313,63 @@ export function pickTopHtmlPaths(
 	return rows;
 }
 
+const TOP_HOSTS_QUERY = `
+query ZoneTopHosts($zoneTag: String!, $datetimeGeq: Time!, $datetimeLt: Time!) {
+  viewer {
+    zones(filter: { zoneTag: $zoneTag }) {
+      httpRequestsAdaptiveGroups(
+        limit: ${TOP_HOSTS_GRAPHQL_FETCH_LIMIT}
+        orderBy: [count_DESC]
+        filter: {
+          datetime_geq: $datetimeGeq
+          datetime_lt: $datetimeLt
+          requestSource: "eyeball"
+        }
+      ) {
+        count
+        sum { visits edgeResponseBytes }
+        dimensions { clientRequestHTTPHost }
+      }
+    }
+  }
+}
+`;
+
+type TopHostsQueryResult = {
+	viewer: {
+		zones: {
+			httpRequestsAdaptiveGroups: {
+				count: number;
+				sum: { visits: number; edgeResponseBytes: number };
+				dimensions: { clientRequestHTTPHost: string };
+			}[];
+		}[];
+	};
+};
+
+export function pickTopHosts(
+	groups: TopHostsQueryResult["viewer"]["zones"][0]["httpRequestsAdaptiveGroups"],
+	options?: { limit?: number; hostFilter?: Set<string> | null },
+): CfZoneHostTraffic[] {
+	const limit = options?.limit ?? WEB_ANALYTICS_TOP_HOSTS_LIMIT;
+	const hostFilter = options?.hostFilter;
+	const rows: CfZoneHostTraffic[] = [];
+	for (const group of groups) {
+		const host = group.dimensions.clientRequestHTTPHost?.trim();
+		if (!host) continue;
+		const key = host.toLowerCase();
+		if (hostFilter && !hostFilter.has(key)) continue;
+		rows.push({
+			host,
+			requests: group.count ?? 0,
+			visits: group.sum.visits ?? 0,
+			bytes: group.sum.edgeResponseBytes ?? 0,
+		});
+		if (rows.length >= limit) break;
+	}
+	return rows;
+}
+
 async function fetchZoneTopHtmlPaths(
 	apiToken: string,
 	zoneId: string,
@@ -306,19 +385,37 @@ async function fetchZoneTopHtmlPaths(
 	return pickTopHtmlPaths(groups);
 }
 
+async function fetchZoneTopHosts(
+	apiToken: string,
+	zoneId: string,
+	dayCount: number,
+	hostFilter: Set<string> | null,
+): Promise<CfZoneHostTraffic[]> {
+	const times = appDateRangeAdaptiveTimes(dayCount);
+	const data = await cfGraphql<TopHostsQueryResult>(apiToken, TOP_HOSTS_QUERY, {
+		zoneTag: zoneId,
+		datetimeGeq: times.datetimeGeq,
+		datetimeLt: times.datetimeLt,
+	});
+	const groups = data.viewer.zones[0]?.httpRequestsAdaptiveGroups ?? [];
+	return pickTopHosts(groups, { hostFilter });
+}
+
 export async function fetchZoneDailyTraffic(
 	apiToken: string,
 	zone: CfZoneSummary,
 	dayCount: number,
+	hostFilter: Set<string> | null,
 ): Promise<CfZoneTrafficReport> {
 	const range = appDateRange(dayCount);
-	const [dailyData, topHtmlPaths] = await Promise.all([
+	const [dailyData, topHtmlPaths, topHosts] = await Promise.all([
 		cfGraphql<DailyTrafficQueryResult>(apiToken, DAILY_TRAFFIC_QUERY, {
 			zoneTag: zone.id,
 			since: range.since,
 			until: range.until,
 		}),
 		fetchZoneTopHtmlPaths(apiToken, zone.id, dayCount),
+		fetchZoneTopHosts(apiToken, zone.id, dayCount, hostFilter),
 	]);
 
 	const groups = dailyData.viewer.zones[0]?.httpRequests1dGroups ?? [];
@@ -332,6 +429,7 @@ export async function fetchZoneDailyTraffic(
 	return {
 		zone,
 		days,
+		topHosts,
 		topHtmlPaths,
 		range: { ...range, dayCount },
 	};
@@ -370,25 +468,26 @@ export async function fetchWebAnalyticsSnapshot(
 	}
 
 	const rangeDays = options?.rangeDays ?? 28;
-	const filter =
+	const zoneFilter =
 		parseZoneNameFilter(options?.zoneNameFilter ?? env.CF_ANALYTICS_ZONE_NAMES) ??
 		parseZoneNameFilter(env.CF_ANALYTICS_ZONES);
+	const httpHostFilter = parseHttpHostFilter(env.CF_ANALYTICS_HTTP_HOSTS);
 
 	let zones = await listCloudflareZones(apiToken);
-	if (filter) {
-		zones = zones.filter((zone) => filter.has(zone.name.toLowerCase()));
+	if (zoneFilter) {
+		zones = zones.filter((zone) => zoneFilter.has(zone.name.toLowerCase()));
 	}
 
 	if (zones.length === 0) {
 		throw new CloudflareAnalyticsApiError(
-			filter
-				? "条件に一致するアクティブなゾーンがありません。CF_ANALYTICS_ZONE_NAMES を確認してください。"
+			zoneFilter
+				? "条件に一致するアクティブなゾーンがありません。CF_ANALYTICS_ZONE_NAMES はゾーン名（apex、例: example.com）です。サブドメインは CF_ANALYTICS_HTTP_HOSTS で絞り込みます。"
 				: "API トークンからゾーンを取得できませんでした。CF_ANALYTICS_API_TOKEN に Zone → Read と Analytics → Read を付け、Zone Resources に対象ゾーン（または All zones）を含めてください。",
 		);
 	}
 
 	const reports = await Promise.all(
-		zones.map((zone) => fetchZoneDailyTraffic(apiToken, zone, rangeDays)),
+		zones.map((zone) => fetchZoneDailyTraffic(apiToken, zone, rangeDays, httpHostFilter)),
 	);
 
 	return {

@@ -1,6 +1,7 @@
 import {
 	aggregateZoneTraffic,
 	formatTrafficBytes,
+	WEB_ANALYTICS_TOP_HOSTS_LIMIT,
 	WEB_ANALYTICS_TOP_HTML_PATHS_LIMIT,
 	type CfWebAnalyticsSnapshot,
 } from "@/lib/cloudflare-analytics";
@@ -29,9 +30,9 @@ export function WebAnalyticsPanel({ snapshot }: Props) {
 				<h2>取得状況</h2>
 				<p style={{ margin: 0, fontSize: "0.9rem" }}>
 					Cloudflare GraphQL Analytics（ゾーンの HTTP トラフィック）を参照しています。日次は{" "}
-					<code>pageViews</code> / <code>requests</code> / <code>bytes</code>。パス別は{" "}
-					<code>httpRequestsAdaptiveGroups</code> の <code>clientRequestPath</code> で、実ユーザー（
-					<code>eyeball</code>）の HTML っぽいパス上位を表示します。
+					<code>pageViews</code> / <code>requests</code> / <code>bytes</code>（ゾーン内の全ホスト名を合算）。
+					ホスト別・パス別は <code>clientRequestHTTPHost</code> / <code>clientRequestPath</code> で、実ユーザー（
+					<code>eyeball</code>）の上位を表示します。カスタムホスト名で発行したサブドメインもホスト名として集計されます。
 				</p>
 				<p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--muted)" }}>
 					直近 {snapshot.rangeDays} 日（日本時間の暦日）・取得: {fetchedLabel}
@@ -87,6 +88,46 @@ export function WebAnalyticsPanel({ snapshot }: Props) {
 								<div style={{ fontSize: "1.35rem", fontWeight: 600 }}>
 									{formatTrafficBytes(totals.bytes)}
 								</div>
+							</div>
+						</div>
+
+						<div style={{ marginBottom: "1.25rem" }}>
+							<h3 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>
+								HTTP ホスト名上位 {WEB_ANALYTICS_TOP_HOSTS_LIMIT}（直近 {snapshot.rangeDays} 日）
+							</h3>
+							<p style={{ margin: "0 0 0.75rem", fontSize: "0.85rem", color: "var(--muted)" }}>
+								サブドメイン・カスタムホスト名（SSL for SaaS 等）ごとのリクエストです。絞り込みは{" "}
+								<code>CF_ANALYTICS_HTTP_HOSTS</code>。
+							</p>
+							<div className="apps-sheet-scroll">
+								<table className="apps-sheet-table x-schedule-table">
+									<thead>
+										<tr>
+											<th>ホスト名</th>
+											<th>リクエスト</th>
+											<th>訪問（visits）</th>
+											<th>転送量</th>
+										</tr>
+									</thead>
+									<tbody>
+										{report.topHosts.length === 0 ? (
+											<tr>
+												<td colSpan={4}>この期間のホスト別データはありません。</td>
+											</tr>
+										) : (
+											report.topHosts.map((row) => (
+												<tr key={row.host}>
+													<td className="when" style={{ wordBreak: "break-all" }}>
+														{row.host}
+													</td>
+													<td>{formatCount(row.requests)}</td>
+													<td>{formatCount(row.visits)}</td>
+													<td>{formatTrafficBytes(row.bytes)}</td>
+												</tr>
+											))
+										)}
+									</tbody>
+								</table>
 							</div>
 						</div>
 
