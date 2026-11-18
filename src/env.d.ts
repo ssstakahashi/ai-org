@@ -18,6 +18,11 @@ interface CloudflareEnv {
 	APP_PUBLIC_URL?: string;
 	/** OpenClaw Control UI（Cloudflare Tunnel 等で公開した URL） */
 	OPENCLAW_CONTROL_UI_URL?: string;
+	/** Workers AI（文字起こし）。未設定時は CF_API_TOKEN */
+	CF_WORKERS_AI_API_TOKEN?: string;
+	/** Web分析。文字起こし用トークンとは別 */
+	CF_ANALYTICS_API_TOKEN?: string;
+	/** 文字起こしの予備。Web分析では使わない */
 	CF_API_TOKEN?: string;
 	CLOUDFLARE_API_TOKEN?: string;
 	GEMINI_API_KEY?: string;

@@ -1,4 +1,3 @@
-import { getWorkersAiApiToken } from "@/lib/workers-ai-rest";
 import { addAppCalendarDays, startOfAppDay, toAppDateKey } from "@/lib/timezone";
 
 const GRAPHQL_URL = "https://api.cloudflare.com/client/v4/graphql";
@@ -24,7 +23,7 @@ export type CfZoneSummary = {
 export type CfZoneTrafficDay = {
 	date: string;
 	requests: number;
-	visits: number;
+	pageViews: number;
 	bytes: number;
 };
 
@@ -54,6 +53,13 @@ export class CloudflareAnalyticsApiError extends Error {
 	}
 }
 
+function explainCloudflareError(message: string): string {
+	if (message.includes("zone.analytics.read") || message.includes("analytics.read")) {
+		return "API トークンに Zone Analytics Read がありません。CF_ANALYTICS_API_TOKEN の権限に Analytics → Read を追加し、Zone Resources に対象ゾーン（または All zones）を含めてください。";
+	}
+	return message;
+}
+
 function parseZoneNameFilter(raw: string | undefined): Set<string> | null {
 	if (!raw?.trim()) return null;
 	const names = raw
@@ -78,7 +84,7 @@ async function cfRestGet<T>(apiToken: string, url: string): Promise<T> {
 		const message =
 			payload.errors?.map((error) => error.message).filter(Boolean).join("; ") ||
 			`Cloudflare API error (${response.status})`;
-		throw new CloudflareAnalyticsApiError(message);
+		throw new CloudflareAnalyticsApiError(explainCloudflareError(message));
 	}
 	return payload.result as T;
 }
@@ -102,9 +108,8 @@ async function cfGraphql<TData>(
 		throw new CloudflareAnalyticsApiError(`GraphQL HTTP error (${response.status})`);
 	}
 	if (payload.errors?.length) {
-		throw new CloudflareAnalyticsApiError(
-			payload.errors.map((error) => error.message).filter(Boolean).join("; "),
-		);
+		const message = payload.errors.map((error) => error.message).filter(Boolean).join("; ");
+		throw new CloudflareAnalyticsApiError(explainCloudflareError(message));
 	}
 	if (!payload.data) {
 		throw new CloudflareAnalyticsApiError("GraphQL response had no data");
@@ -141,7 +146,7 @@ query ZoneDailyTraffic($zoneTag: string, $since: Date, $until: Date) {
         orderBy: [date_ASC]
       ) {
         dimensions { date }
-        sum { requests visits bytes }
+        sum { requests pageViews bytes }
       }
     }
   }
@@ -153,7 +158,7 @@ type DailyTrafficQueryResult = {
 		zones: {
 			httpRequests1dGroups: {
 				dimensions: { date: string };
-				sum: { requests: number; visits: number; bytes: number };
+				sum: { requests: number; pageViews: number; bytes: number };
 			}[];
 		}[];
 	};
@@ -175,7 +180,7 @@ export async function fetchZoneDailyTraffic(
 	const days = groups.map((group) => ({
 		date: group.dimensions.date,
 		requests: group.sum.requests ?? 0,
-		visits: group.sum.visits ?? 0,
+		pageViews: group.sum.pageViews ?? 0,
 		bytes: group.sum.bytes ?? 0,
 	}));
 
@@ -190,10 +195,10 @@ function sumDays(days: CfZoneTrafficDay[]) {
 	return days.reduce(
 		(acc, day) => ({
 			requests: acc.requests + day.requests,
-			visits: acc.visits + day.visits,
+			pageViews: acc.pageViews + day.pageViews,
 			bytes: acc.bytes + day.bytes,
 		}),
-		{ requests: 0, visits: 0, bytes: 0 },
+		{ requests: 0, pageViews: 0, bytes: 0 },
 	);
 }
 
@@ -201,14 +206,20 @@ export function aggregateZoneTraffic(days: CfZoneTrafficDay[]) {
 	return sumDays(days);
 }
 
+function getAnalyticsApiToken(env: CloudflareEnv): string | undefined {
+	const raw = env.CF_ANALYTICS_API_TOKEN ?? process.env.CF_ANALYTICS_API_TOKEN;
+	const trimmed = raw?.trim();
+	return trimmed ? trimmed : undefined;
+}
+
 export async function fetchWebAnalyticsSnapshot(
 	env: CloudflareEnv,
 	options?: { rangeDays?: number; zoneNameFilter?: string },
 ): Promise<CfWebAnalyticsSnapshot> {
-	const apiToken = getWorkersAiApiToken(env);
+	const apiToken = getAnalyticsApiToken(env);
 	if (!apiToken) {
 		throw new CloudflareAnalyticsConfigError(
-			"CF_API_TOKEN（または CLOUDFLARE_API_TOKEN）が未設定です。Analytics Read と Zone Read 権限が必要です。",
+			"CF_ANALYTICS_API_TOKEN が未設定です。文字起こし用とは別のトークンで、Analytics Read と Zone Read が必要です。",
 		);
 	}
 
@@ -226,7 +237,7 @@ export async function fetchWebAnalyticsSnapshot(
 		throw new CloudflareAnalyticsApiError(
 			filter
 				? "条件に一致するアクティブなゾーンがありません。CF_ANALYTICS_ZONE_NAMES を確認してください。"
-				: "アクティブな Cloudflare ゾーンがありません。",
+				: "API トークンからゾーンを取得できませんでした。CF_ANALYTICS_API_TOKEN に Zone → Read と Analytics → Read を付け、Zone Resources に対象ゾーン（または All zones）を含めてください。",
 		);
 	}
 

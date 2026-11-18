@@ -2,6 +2,11 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.78 (2026-11-18)
+
+- Workers AI 用 `CF_WORKERS_AI_API_TOKEN` と Web分析用 `CF_ANALYTICS_API_TOKEN` を分離（`CF_API_TOKEN` は文字起こしのフォールバックのみ）
+- Web分析の GraphQL 集計を `pageViews` に合わせ、権限エラーの案内を更新
+
 ## 0.0.77 (2026-11-17)
 
 - UI を白・青基調に刷新（`globals.css`、見出しアクセントに JetBrains Mono）

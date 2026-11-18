@@ -28,7 +28,7 @@ export function WebAnalyticsPanel({ snapshot }: Props) {
 				<h2>取得状況</h2>
 				<p style={{ margin: 0, fontSize: "0.9rem" }}>
 					Cloudflare GraphQL Analytics（ゾーンの HTTP トラフィック）を参照しています。ページビューは{" "}
-					<code>visits</code>、リクエスト数は <code>requests</code>、転送量はエッジ応答バイトです。
+					<code>pageViews</code>、リクエスト数は <code>requests</code>、転送量は <code>bytes</code> です。
 				</p>
 				<p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--muted)" }}>
 					直近 {snapshot.rangeDays} 日（日本時間の暦日）・取得: {fetchedLabel}
@@ -66,7 +66,7 @@ export function WebAnalyticsPanel({ snapshot }: Props) {
 							<div className="panel" style={{ margin: 0, padding: "0.75rem 1rem" }}>
 								<div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>直近7日 ページビュー</div>
 								<div style={{ fontSize: "1.35rem", fontWeight: 600 }}>
-									{formatCount(recent7.visits)}
+									{formatCount(recent7.pageViews)}
 								</div>
 							</div>
 							<div className="panel" style={{ margin: 0, padding: "0.75rem 1rem" }}>
@@ -110,7 +110,7 @@ export function WebAnalyticsPanel({ snapshot }: Props) {
 												<tr key={day.date}>
 													<td className="when">{day.date}</td>
 													<td>{formatCount(day.requests)}</td>
-													<td>{formatCount(day.visits)}</td>
+													<td>{formatCount(day.pageViews)}</td>
 													<td>{formatTrafficBytes(day.bytes)}</td>
 													<td>
 														<div

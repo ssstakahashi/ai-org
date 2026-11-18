@@ -75,8 +75,9 @@ export default async function WebAnalyticsPage({
 					<h2>取得できませんでした</h2>
 					<p style={{ margin: 0, fontSize: "0.9rem" }}>{error}</p>
 					<p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--muted)" }}>
-						API トークンに <strong>Zone → Read</strong> と <strong>Analytics → Read</strong>{" "}
-						を付与してください。Workers AI 用の <code>CF_API_TOKEN</code> を流用できます。
+						<code>CF_ANALYTICS_API_TOKEN</code> に <strong>Zone → Read</strong> と{" "}
+						<strong>Analytics → Read</strong> を付与し、<strong>Zone Resources</strong>{" "}
+						に対象ゾーン（または All zones）を含めてください。文字起こし用のトークンとは別です。
 					</p>
 				</section>
 			) : snapshot ? (
