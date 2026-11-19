@@ -1219,6 +1219,69 @@ a.logout-button:hover {
 	margin-bottom: 0.85rem;
 }
 
+.tag-picker-selected {
+	margin-bottom: 0.65rem;
+}
+
+.tag-chip-removable {
+	gap: 0.3rem;
+}
+
+.tag-chip-remove {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.1rem;
+	height: 1.1rem;
+	padding: 0;
+	border: none;
+	border-radius: 999px;
+	background: transparent;
+	font-size: 1rem;
+	line-height: 1;
+	color: inherit;
+	cursor: pointer;
+	opacity: 0.8;
+}
+
+.tag-chip-remove:hover {
+	opacity: 1;
+	background: rgb(0 0 0 / 8%);
+}
+
+.tag-suggestions {
+	list-style: none;
+	margin: -0.35rem 0 0.85rem;
+	padding: 0.35rem;
+	border: 1px solid var(--line);
+	border-radius: 0.5rem;
+	background: var(--panel);
+	max-height: 12rem;
+	overflow-y: auto;
+}
+
+.tag-suggestions li {
+	margin: 0;
+}
+
+.tag-suggestion {
+	display: inline-flex;
+	align-items: center;
+	width: 100%;
+	padding: 0.45rem 0.65rem;
+	border: none;
+	border-radius: 0.35rem;
+	background: transparent;
+	font-size: 0.85rem;
+	text-align: left;
+	cursor: pointer;
+	color: var(--foreground);
+}
+
+.tag-suggestion:hover {
+	background: var(--accent-soft);
+}
+
 .tag-options {
 	display: flex;
 	flex-wrap: wrap;

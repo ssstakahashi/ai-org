@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.81 (2026-11-19)
+
+- 業務台帳のタスク追加・編集で、タグをキーワード候補から選び選択済みをチップ表示する UI に変更
+
 ## 0.0.80 (2026-11-18)
 
 - Web分析に HTTP ホスト名別上位を追加（サブドメイン・カスタムホスト名、`CF_ANALYTICS_HTTP_HOSTS`）

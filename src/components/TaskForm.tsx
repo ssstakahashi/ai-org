@@ -591,66 +591,97 @@ function TagPicker({
 	onCheckedChange: (next: Set<string>) => void;
 }) {
 	const normalizedQuery = normalizeTagText(query.trim());
-	const matches = (tag: Tag) =>
-		!normalizedQuery || normalizeTagText(tag.name).includes(normalizedQuery);
-	const matchingTags = tags.filter(matches);
-	const selectedOutsideQuery = normalizedQuery
-		? tags.filter((tag) => checkedTagIds.has(tag.id) && !matches(tag))
+	const selectedTags = tags.filter((tag) => checkedTagIds.has(tag.id));
+	const candidateTags = normalizedQuery
+		? tags.filter(
+				(tag) =>
+					!checkedTagIds.has(tag.id) &&
+					normalizeTagText(tag.name).includes(normalizedQuery),
+			)
 		: [];
 
-	function toggle(tagId: string, checked: boolean) {
+	function selectTag(tagId: string) {
 		const next = new Set(checkedTagIds);
-		if (checked) next.add(tagId);
-		else next.delete(tagId);
+		next.add(tagId);
+		onCheckedChange(next);
+		onQueryChange("");
+	}
+
+	function removeTag(tagId: string) {
+		const next = new Set(checkedTagIds);
+		next.delete(tagId);
 		onCheckedChange(next);
 	}
 
-	function renderTag(tag: Tag) {
-		return (
-			<label
-				key={tag.id}
-				className="tag-option"
-				style={masterTintStyle(tag.color, tag.text_color)}
-			>
-				<input
-					type="checkbox"
-					name="tag_ids"
-					value={tag.id}
-					checked={checkedTagIds.has(tag.id)}
-					onChange={(event) => toggle(tag.id, event.target.checked)}
-				/>
-				<span>{tag.name}</span>
-			</label>
-		);
-	}
-
 	return (
-		<>
+		<div className="tag-picker">
+			{selectedTags.length > 0 ? (
+				<ul className="tag-list tag-picker-selected" aria-label="選択中のタグ">
+					{selectedTags.map((tag) => (
+						<li
+							key={tag.id}
+							className="tag-chip tag-chip-removable"
+							style={masterTintStyle(tag.color, tag.text_color)}
+						>
+							<span>{tag.name}</span>
+							<button
+								type="button"
+								className="tag-chip-remove"
+								aria-label={`${tag.name} を外す`}
+								onClick={() => removeTag(tag.id)}
+							>
+								×
+							</button>
+						</li>
+					))}
+				</ul>
+			) : null}
+			{[...checkedTagIds].map((tagId) => (
+				<input key={tagId} type="hidden" name="tag_ids" value={tagId} />
+			))}
 			<label className="tag-search-field">
-				<span>タグを検索</span>
+				<span>タグを追加</span>
 				<input
 					type="search"
 					value={query}
 					onChange={(event) => onQueryChange(event.target.value)}
 					onKeyDown={(event) => {
-						if (event.key === "Enter") event.preventDefault();
+						if (event.key === "Enter") {
+							event.preventDefault();
+							const first = candidateTags[0];
+							if (first) selectTag(first.id);
+						}
 					}}
-					placeholder="タグ名で絞り込み"
+					placeholder="キーワードで候補を表示"
 					autoComplete="off"
+					role="combobox"
+					aria-expanded={candidateTags.length > 0}
+					aria-controls="task-tag-suggestions"
 				/>
 			</label>
-			{selectedOutsideQuery.length > 0 ? (
-				<>
-					<p className="field-hint">選択中（検索に一致しないタグ）</p>
-					<div className="tag-options">{selectedOutsideQuery.map(renderTag)}</div>
-				</>
-			) : null}
-			{matchingTags.length > 0 ? (
-				<div className="tag-options">{matchingTags.map(renderTag)}</div>
+			{normalizedQuery ? (
+				candidateTags.length > 0 ? (
+					<ul className="tag-suggestions" id="task-tag-suggestions" role="listbox">
+						{candidateTags.map((tag) => (
+							<li key={tag.id} role="option">
+								<button
+									type="button"
+									className="tag-suggestion"
+									style={masterTintStyle(tag.color, tag.text_color)}
+									onClick={() => selectTag(tag.id)}
+								>
+									{tag.name}
+								</button>
+							</li>
+						))}
+					</ul>
+				) : (
+					<p className="field-hint">一致するタグがありません。下の欄で新規追加できます。</p>
+				)
 			) : (
-				<p className="field-hint">一致するタグがありません。</p>
+				<p className="field-hint">キーワードを入力すると候補が表示されます。</p>
 			)}
-		</>
+		</div>
 	);
 }
 
