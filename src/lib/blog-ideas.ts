@@ -59,6 +59,7 @@ type IdeaRecord = {
 	summary: string;
 	badge: string;
 	details: string;
+	updated_at: string;
 };
 
 type UseRecord = {
@@ -138,7 +139,7 @@ function parseUse(record: UseRecord): BlogIdeaUse | null {
 	return { medium: record.medium, destination: record.destination };
 }
 
-function compareIdeas(a: BlogIdeaRow, b: BlogIdeaRow): number {
+export function compareBlogIdeas(a: BlogIdeaRow, b: BlogIdeaRow): number {
 	const an = Number(a.no);
 	const bn = Number(b.no);
 	if (a.no && b.no && Number.isFinite(an) && Number.isFinite(bn)) {
@@ -153,7 +154,7 @@ export async function listBlogIdeas(db: D1Database): Promise<BlogIdeasByTopic> {
 	const grouped = emptyBlogIdeas();
 	const { results: ideaRows } = await db
 		.prepare(
-			`SELECT id, topic, no, title, category, summary, badge, details
+			`SELECT id, topic, no, title, category, summary, badge, details, updated_at
 			 FROM blog_ideas`,
 		)
 		.all<IdeaRecord>();
@@ -205,11 +206,12 @@ export async function listBlogIdeas(db: D1Database): Promise<BlogIdeasByTopic> {
 			details: parseDetails(record.details),
 			uses: usesByIdea.get(record.id) ?? [],
 			tags: tagsByIdea.get(record.id) ?? [],
+			updated_at: record.updated_at,
 		});
 	}
 
 	for (const key of BLOG_IDEAS_SHEET_KEYS) {
-		grouped[key].sort(compareIdeas);
+		grouped[key].sort(compareBlogIdeas);
 	}
 	return grouped;
 }

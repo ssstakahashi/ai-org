@@ -33,7 +33,7 @@
 | X API 自動投稿 | Cron からの X API 投稿 | 停止中 | — |
 | X ブラウザ投稿 | Grok Bot がブラウザ経由で投稿 | 稼働中 | コンテンツ |
 | ブログ下書き | 確認・承認。投稿先 `studiofoods_hp` / `agri_lp`。Sheets 双方向同期はデフォルト無効（環境変数 `BLOG_DRAFTS_SHEET_AUTO_SYNC=1` で有効化）。一覧表に使用予定画像（TOP / 図表）を表示。確認ポップアップでは本文中のインライン SVG を画像として表示。未公開記事への AI コメント（複数AI・複数件、未対応／対応済）を確認。notes に「本番へは出さない」を含む行は同期時の削除から保護（hold 保護）。ナビは「投稿」 | 稼働中 | コンテンツ |
-| ネタ | タブ SideBusiness / Agri / 税務 / DX / 業務プロセス改革 / M＆A / 労務 / 3社比較。CSV を PostgreSQL へアップロードする。各ネタにブログ（HP / 農業日誌アプリLP）と X（@MIERUagri_漫画 / @MIERUagri / @MIERUkaikei / @MIERUkaikei_漫画 / @studio_foods）の転用先を記録する。一覧の「下書き」列で未転用 / ブログ下書き / X下書き / 両方を示す。各ネタにページ台帳と同じタグを付けられる。SideBusiness は一覧の上に、副業時の月収中央値（縦）と参入難易度（横）の4象限を出し、点を押すと詳細ダイアログを開く。ナビは「投稿」 | 稼働中 | コンテンツ |
+| ネタ | タブ SideBusiness / Agri / 税務 / DX / 業務プロセス改革 / M＆A / 労務 / 3社比較。CSV を PostgreSQL へアップロードする。一覧に更新日時を表示し、No. 順・更新時刻・（SideBusiness）参入障壁・副業時収入で並び替え可能（タブごとにブラウザ保存）。各ネタにブログ（HP / 農業日誌アプリLP）と X（@MIERUagri_漫画 / @MIERUagri / @MIERUkaikei / @MIERUkaikei_漫画 / @studio_foods）の転用先を記録する。一覧の「下書き」列で未転用 / ブログ下書き / X下書き / 両方を示す。各ネタにページ台帳と同じタグを付けられる。SideBusiness は一覧の上に、副業時の月収中央値（縦）と参入難易度（横）の4象限を出し、点を押すと詳細ダイアログを開く。ナビは「投稿」 | 稼働中 | コンテンツ |
 | 掲示板 | 投稿管理シートへのリンク、追加リンク、VERSION 履歴、未読の障害通知。ナビは「情報」 | 稼働中 | 全体 |
 | Web分析 | Cloudflare GraphQL Analytics でゾーンの HTTP トラフィックを表示（日次合算、HTTP ホスト名上位 30、HTML パス上位 20）。サブドメイン・カスタムホスト名はホスト名別に表示。`CF_ANALYTICS_API_TOKEN` に Zone Read・Analytics Read と Zone Resources が必要。任意で `CF_ANALYTICS_ZONE_NAMES`（ゾーン apex）、`CF_ANALYTICS_HTTP_HOSTS`。ナビは「情報」 | 稼働中 | 全体 |
 | OpenClaw | 情報メニューから別 PC の Control UI へ遷移（`OPENCLAW_CONTROL_UI_URL`。OpenClaw 側は Cloudflare Tunnel 等で HTTPS 公開を想定） | 稼働中 | 全体 |

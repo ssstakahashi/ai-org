@@ -139,6 +139,26 @@ function clampToSide(value: number, split: number, highSide: boolean): number {
 	return Math.min(clamped, split - 2);
 }
 
+export function getSideBusinessSortMetrics(row: ScoreInput): {
+	difficultyScore: number;
+	difficultyLabel: string;
+	monthlyUsd: number;
+	usedYen: boolean;
+} | null {
+	const revenueText = fieldFromDetails(row.details, "収益性目安");
+	const difficultyText = fieldFromDetails(row.details, "参入難易度");
+	const band = difficultyOf(difficultyText);
+	const sideSegment = segmentAfter(revenueText, /副業/, /本業/);
+	const side = rangeUsd(sideSegment) ?? rangeUsd(revenueText);
+	if (!band || !side) return null;
+	return {
+		difficultyScore: band.score,
+		difficultyLabel: band.label,
+		monthlyUsd: side.usd,
+		usedYen: side.usedYen,
+	};
+}
+
 export function scoreSideBusinessIdeas(rows: ScoreInput[]): SideBusinessPlacement {
 	const emptyCounts: Record<SideBusinessQuadrantId, number> = {
 		priority: 0,
@@ -158,22 +178,19 @@ export function scoreSideBusinessIdeas(rows: ScoreInput[]): SideBusinessPlacemen
 	}[] = [];
 
 	for (const row of rows) {
+		const metrics = getSideBusinessSortMetrics(row);
+		if (!metrics) continue;
 		const revenueText = fieldFromDetails(row.details, "収益性目安");
-		const difficultyText = fieldFromDetails(row.details, "参入難易度");
-		const band = difficultyOf(difficultyText);
-		const sideSegment = segmentAfter(revenueText, /副業/, /本業/);
-		const side = rangeUsd(sideSegment) ?? rangeUsd(revenueText);
 		const main = rangeUsd(segmentAfter(revenueText, /本業/, /$/));
-		if (!band || !side) continue;
 		drafts.push({
 			id: row.id,
 			no: row.no,
 			title: row.title,
-			difficultyLabel: band.label,
-			difficultyScore: band.score,
-			monthlyUsd: side.usd,
+			difficultyLabel: metrics.difficultyLabel,
+			difficultyScore: metrics.difficultyScore,
+			monthlyUsd: metrics.monthlyUsd,
 			mainMonthlyUsd: main?.usd ?? null,
-			usedYen: side.usedYen || Boolean(main?.usedYen),
+			usedYen: metrics.usedYen || Boolean(main?.usedYen),
 		});
 	}
 

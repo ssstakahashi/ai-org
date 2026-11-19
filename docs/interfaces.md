@@ -47,7 +47,7 @@ flowchart TD
 | `/today` | 今日のタスク。業務台帳から、期間が今日（日本時間）を含むタスクと、期間の終わりが昨日以前で未完了のタスクを出す。下書きは含めない。未完了行の「完了」で `tasks.status` を `done` にする（Google Tasks 同期も既存の完了処理に乗る） | トップ |
 | `/x-schedule` | X投稿スケジュール（タブ: @MIERUagri_漫画 / @MIERUagri / @MIERUkaikei / @MIERUkaikei_漫画 / @studio_foods）。新規・編集で分野（サブカテゴリー）を選択。一覧の投稿内容に分野をチップ表示。一覧のステータスは全候補をボタン表示し、ワンクリックで更新。投稿済以外の記事の AI コメント確認（未対応／対応済） | トップ（投稿） |
 | `/blog-drafts` | ブログ下書きの確認・承認。一覧表に使用予定画像（TOP / 図表）を表示。確認ポップアップは本文中のインライン SVG を画像として表示。未公開記事の AI コメント確認（未対応／対応済）。Sheets 双方向同期はデフォルト無効（環境変数 `BLOG_DRAFTS_SHEET_AUTO_SYNC=1` で有効化）。notes に「本番へは出さない」を含む行は同期時の削除から保護 | トップ（投稿） |
-| `/blog-ideas` | ネタの CSV アップロードと参照（タブ: SideBusiness / Agri / 税務 / DX / 業務プロセス改革 / M＆A / 労務 / 3社比較）。一覧の「下書き」列に、未転用 / ブログ下書き / X下書き / 両方を出す。各ネタの転用先（ブログ / X の媒体）とタグ（ページ台帳と同じマスタ）を記録。SideBusiness タブは一覧の上に4象限（縦: 副業時の月収レンジ中央値、横: 参入難易度）を出し、点のクリックで詳細ダイアログを開く | トップ（投稿） |
+| `/blog-ideas` | ネタの CSV アップロードと参照（タブ: SideBusiness / Agri / 税務 / DX / 業務プロセス改革 / M＆A / 労務 / 3社比較）。一覧に更新日時列を表示し、並び替え（No. 順・更新の新旧・SideBusiness のみ参入障壁・副業時収入の多寡。タブごとに localStorage 保存）が選べる。一覧の「下書き」列に、未転用 / ブログ下書き / X下書き / 両方を出す。各ネタの転用先（ブログ / X の媒体）とタグ（ページ台帳と同じマスタ）を記録。SideBusiness タブは一覧の上に4象限（縦: 副業時の月収レンジ中央値、横: 参入難易度）を出し、点のクリックで詳細ダイアログを開く | トップ（投稿） |
 | `/board` | 掲示板（投稿管理シートのリンク、VERSION 履歴） | トップ（情報） |
 | `/web-analytics` | Cloudflare ゾーンの HTTP トラフィック（日次合算、HTTP ホスト名別・HTML パス別上位、直近 7 / 14 / 28 日）。トークンは `CF_ANALYTICS_API_TOKEN`。任意で `CF_ANALYTICS_ZONE_NAMES` / `CF_ANALYTICS_HTTP_HOSTS` | トップ（情報） |
 | `/openclaw` | OpenClaw Control UI へリダイレクト。`OPENCLAW_CONTROL_UI_URL` 未設定時は設定手順を表示 | トップ（情報） |
