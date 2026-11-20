@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.84 (2026-11-21)
+
+- テスト結果: App 並び・絞り込みをブラウザ保存し、行クリックで詳細→編集、編集ダイアログの背景と内容欄を改善
+
 ## 0.0.83 (2026-11-20)
 
 - App 要件にコメントを追加（`app_requirement_comments`、画面の一覧と投稿、API v1 の取得・投稿・対応状況）

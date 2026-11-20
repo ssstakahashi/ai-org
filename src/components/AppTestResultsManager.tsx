@@ -1,10 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type DragEvent,
+} from "react";
+import { flushSync } from "react-dom";
 import {
 	createAppTestResult,
 	deleteAppTestResult,
+	reorderAppNames,
 	saveAppTestPlan,
 	updateAppTestResult,
 } from "@/app/actions";
@@ -14,6 +23,11 @@ import {
 	AppTestResultOutcomeField,
 } from "@/components/AppTestResultOutcomeField";
 import { StatusIcon } from "@/components/StatusIcon";
+import type { AppListSort } from "@/lib/app-requirements-prefs";
+import {
+	getAppTestResultsPrefs,
+	saveAppTestResultsPrefs,
+} from "@/lib/app-test-results-prefs";
 import { masterTintStyle } from "@/lib/colors";
 import { formatInAppTz, toAppDateTimeLocal } from "@/lib/timezone";
 import {
@@ -21,7 +35,6 @@ import {
 	formatMasterLabel,
 	type AppName,
 	type AppTestPlanWithApp,
-	type AppTestResultOutcome,
 	type AppTestResultWithApp,
 } from "@/lib/types";
 
@@ -48,14 +61,26 @@ export function AppTestResultsManager({
 }: Props) {
 	const router = useRouter();
 	const createDialogRef = useRef<HTMLDialogElement>(null);
+	const detailDialogRef = useRef<HTMLDialogElement>(null);
 	const editDialogRef = useRef<HTMLDialogElement>(null);
 	const [createFormKey, setCreateFormKey] = useState(0);
 	const [editFormKey, setEditFormKey] = useState(0);
+	const [detailing, setDetailing] = useState<AppTestResultWithApp | null>(null);
 	const [editing, setEditing] = useState<AppTestResultWithApp | null>(null);
+	const [orderedApps, setOrderedApps] = useState(appNames);
 	const [selectedAppId, setSelectedAppId] = useState(appNames[0]?.id ?? "");
 	const [planBody, setPlanBody] = useState("");
 	const [planDirty, setPlanDirty] = useState(false);
 	const [savingPlan, setSavingPlan] = useState(false);
+	const [draggingAppId, setDraggingAppId] = useState<string | null>(null);
+	const [dropTargetAppId, setDropTargetAppId] = useState<string | null>(null);
+	const [reorderingApps, setReorderingApps] = useState(false);
+	const [appListSort, setAppListSort] = useState<AppListSort>("manual");
+	const [hiddenAppIds, setHiddenAppIds] = useState<Set<string>>(
+		() => new Set(),
+	);
+	const [prefsReady, setPrefsReady] = useState(false);
+	const [filterOpen, setFilterOpen] = useState(false);
 
 	const planByAppId = useMemo(() => {
 		const map = new Map<string, AppTestPlanWithApp>();
@@ -73,27 +98,89 @@ export function AppTestResultsManager({
 		return counts;
 	}, [testResults]);
 
+	const canReorderApps = appListSort === "manual" && !reorderingApps;
+
+	const sortedApps = useMemo(() => {
+		if (appListSort === "manual") return orderedApps;
+		const indexById = new Map(
+			orderedApps.map((app, index) => [app.id, index] as const),
+		);
+		const direction = appListSort === "count-desc" ? -1 : 1;
+		return [...orderedApps].sort((a, b) => {
+			const countDiff =
+				(resultCounts.get(a.id) ?? 0) - (resultCounts.get(b.id) ?? 0);
+			if (countDiff !== 0) return countDiff * direction;
+			return (indexById.get(a.id) ?? 0) - (indexById.get(b.id) ?? 0);
+		});
+	}, [appListSort, orderedApps, resultCounts]);
+
+	const displayedApps = useMemo(
+		() => sortedApps.filter((app) => !hiddenAppIds.has(app.id)),
+		[hiddenAppIds, sortedApps],
+	);
+
+	const hiddenCount = orderedApps.length - displayedApps.length;
+
+	const filterGroups = useMemo(() => {
+		const groups: { key: string; label: string; apps: AppName[] }[] = [];
+		const index = new Map<string, { key: string; label: string; apps: AppName[] }>();
+		for (const app of orderedApps) {
+			const key = app.app_group_id ?? "__none__";
+			let group = index.get(key);
+			if (!group) {
+				group = {
+					key,
+					label: app.app_group.trim() || "未分類",
+					apps: [],
+				};
+				index.set(key, group);
+				groups.push(group);
+			}
+			group.apps.push(app);
+		}
+		return groups;
+	}, [orderedApps]);
+
 	const filteredResults = useMemo(
 		() =>
-			selectedAppId
+			selectedAppId &&
+			displayedApps.some((app) => app.id === selectedAppId)
 				? testResults.filter((item) => item.app_name_id === selectedAppId)
 				: [],
-		[testResults, selectedAppId],
+		[displayedApps, testResults, selectedAppId],
 	);
 
 	useEffect(() => {
-		if (!selectedAppId && appNames[0]) {
-			setSelectedAppId(appNames[0].id);
-			return;
-		}
+		const prefs = getAppTestResultsPrefs();
+		setAppListSort(prefs.sort);
+		setHiddenAppIds(new Set(prefs.hiddenAppIds));
+		setPrefsReady(true);
+	}, []);
+
+	useEffect(() => {
+		if (!prefsReady) return;
+		saveAppTestResultsPrefs(
+			{
+				sort: appListSort,
+				hiddenAppIds: [...hiddenAppIds],
+			},
+			orderedApps.map((app) => app.id),
+		);
+	}, [appListSort, hiddenAppIds, orderedApps, prefsReady]);
+
+	useEffect(() => {
+		setOrderedApps(appNames);
+	}, [appNames]);
+
+	useEffect(() => {
+		if (displayedApps.length === 0) return;
 		if (
-			selectedAppId &&
-			appNames.length > 0 &&
-			!appNames.some((app) => app.id === selectedAppId)
+			!selectedAppId ||
+			!displayedApps.some((app) => app.id === selectedAppId)
 		) {
-			setSelectedAppId(appNames[0].id);
+			setSelectedAppId(displayedApps[0].id);
 		}
-	}, [appNames, selectedAppId]);
+	}, [displayedApps, selectedAppId]);
 
 	useEffect(() => {
 		if (!selectedAppId) {
@@ -106,7 +193,7 @@ export function AppTestResultsManager({
 		setPlanDirty(false);
 	}, [selectedAppId, planByAppId]);
 
-	const selectedApp = appNames.find((item) => item.id === selectedAppId);
+	const selectedApp = displayedApps.find((item) => item.id === selectedAppId);
 	const selectedCount = selectedAppId
 		? resultCounts.get(selectedAppId) ?? 0
 		: 0;
@@ -120,16 +207,37 @@ export function AppTestResultsManager({
 		createDialogRef.current?.close();
 	}
 
-	function openEditDialog(item: AppTestResultWithApp) {
-		setEditing(item);
-		setEditFormKey((value) => value + 1);
-		editDialogRef.current?.showModal();
-	}
+	const closeDetailDialog = useCallback(() => {
+		detailDialogRef.current?.close();
+		setDetailing(null);
+	}, []);
 
 	const closeEditDialog = useCallback(() => {
 		editDialogRef.current?.close();
 		setEditing(null);
 	}, []);
+
+	function openDetailDialog(item: AppTestResultWithApp) {
+		flushSync(() => {
+			setDetailing(item);
+		});
+		detailDialogRef.current?.showModal();
+	}
+
+	function openEditDialog(item: AppTestResultWithApp) {
+		flushSync(() => {
+			setEditing(item);
+			setEditFormKey((value) => value + 1);
+		});
+		editDialogRef.current?.showModal();
+	}
+
+	function openEditFromDetail() {
+		if (!detailing) return;
+		const item = detailing;
+		closeDetailDialog();
+		openEditDialog(item);
+	}
 
 	const handleCreate = useCallback(
 		async (formData: FormData) => {
@@ -173,6 +281,89 @@ export function AppTestResultsManager({
 		}
 	}
 
+	async function moveApp(sourceId: string, targetId: string) {
+		if (sourceId === targetId || reorderingApps || appListSort !== "manual") {
+			return;
+		}
+
+		const fromIndex = orderedApps.findIndex((item) => item.id === sourceId);
+		const toIndex = orderedApps.findIndex((item) => item.id === targetId);
+		if (fromIndex < 0 || toIndex < 0) return;
+
+		const next = [...orderedApps];
+		const [moved] = next.splice(fromIndex, 1);
+		next.splice(toIndex, 0, moved);
+		setOrderedApps(next);
+		setReorderingApps(true);
+		try {
+			await reorderAppNames(next.map((item) => item.id));
+		} catch (error) {
+			setOrderedApps(appNames);
+			throw error;
+		} finally {
+			setReorderingApps(false);
+		}
+	}
+
+	function onAppDragStart(event: DragEvent<HTMLButtonElement>, id: string) {
+		if (appListSort !== "manual") {
+			event.preventDefault();
+			return;
+		}
+		event.dataTransfer.effectAllowed = "move";
+		event.dataTransfer.setData("text/plain", id);
+		setDraggingAppId(id);
+	}
+
+	function onAppDragOver(event: DragEvent<HTMLLIElement>, id: string) {
+		if (appListSort !== "manual") return;
+		event.preventDefault();
+		event.dataTransfer.dropEffect = "move";
+		if (dropTargetAppId !== id) setDropTargetAppId(id);
+	}
+
+	async function onAppDrop(event: DragEvent<HTMLLIElement>, targetId: string) {
+		event.preventDefault();
+		const sourceId = event.dataTransfer.getData("text/plain") || draggingAppId;
+		setDraggingAppId(null);
+		setDropTargetAppId(null);
+		if (!sourceId) return;
+		await moveApp(sourceId, targetId);
+	}
+
+	function onAppDragEnd() {
+		setDraggingAppId(null);
+		setDropTargetAppId(null);
+	}
+
+	function setAppVisible(appId: string, visible: boolean) {
+		setHiddenAppIds((current) => {
+			const next = new Set(current);
+			if (visible) next.delete(appId);
+			else next.add(appId);
+			return next;
+		});
+	}
+
+	function setGroupVisible(apps: AppName[], visible: boolean) {
+		setHiddenAppIds((current) => {
+			const next = new Set(current);
+			for (const app of apps) {
+				if (visible) next.delete(app.id);
+				else next.add(app.id);
+			}
+			return next;
+		});
+	}
+
+	function showAllApps() {
+		setHiddenAppIds(new Set());
+	}
+
+	function hideAllApps() {
+		setHiddenAppIds(new Set(orderedApps.map((app) => app.id)));
+	}
+
 	const defaultRecordedAt = toAppDateTimeLocal(new Date());
 
 	return (
@@ -202,35 +393,191 @@ export function AppTestResultsManager({
 				</div>
 				<p className="panel-lede">
 					左の App を選び、テスト計画を Markdown 風に保存し、テスト結果を時系列で追記します。
-					行をクリックすると結果の編集ダイアログが開きます。
+					行をクリックすると結果の詳細が開き、フッターの編集から内容を変更できます。左の App
+					一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する App
+					を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左のハンドルで
+					App の表示順を変更できます。
 				</p>
 
-				{appNames.length === 0 ? (
+				{orderedApps.length === 0 ? (
 					<p className="empty">
 						App マスタがありません。先に App タブで App を登録してください。
 					</p>
 				) : (
 					<div className="requirement-layout">
 						<aside className="requirement-app-sidebar">
-							<p className="requirement-sidebar-label">App</p>
+							<div className="requirement-sidebar-head">
+								<p className="requirement-sidebar-label">App</p>
+								<label className="requirement-app-sort-field">
+									<span className="sr-only">並び替え</span>
+									<select
+										className="requirement-app-sort"
+										value={appListSort}
+										aria-label="Appの並び替え"
+										onChange={(event) =>
+											setAppListSort(event.target.value as AppListSort)
+										}
+									>
+										<option value="manual">表示順</option>
+										<option value="count-desc">件数が多い順</option>
+										<option value="count-asc">件数が少ない順</option>
+									</select>
+								</label>
+							</div>
+							<div className="requirement-app-filter">
+								<button
+									type="button"
+									className={
+										filterOpen || hiddenCount > 0
+											? "requirement-app-filter-toggle is-active"
+											: "requirement-app-filter-toggle"
+									}
+									aria-expanded={filterOpen}
+									aria-controls="test-results-app-filter-panel"
+									onClick={() => setFilterOpen((open) => !open)}
+								>
+									<span>絞り込み</span>
+									<span className="requirement-app-filter-summary">
+										{displayedApps.length}/{orderedApps.length}
+									</span>
+								</button>
+								{filterOpen ? (
+									<div
+										id="test-results-app-filter-panel"
+										className="requirement-app-filter-panel"
+									>
+										<div className="requirement-app-filter-actions">
+											<button type="button" onClick={showAllApps}>
+												全選択
+											</button>
+											<button type="button" onClick={hideAllApps}>
+												全解除
+											</button>
+											<button type="button" onClick={showAllApps}>
+												リセット
+											</button>
+										</div>
+										<ul className="requirement-app-filter-groups">
+											{filterGroups.map((group) => {
+												const visibleInGroup = group.apps.filter(
+													(app) => !hiddenAppIds.has(app.id),
+												).length;
+												const groupChecked =
+													visibleInGroup === group.apps.length;
+												const groupIndeterminate =
+													visibleInGroup > 0 &&
+													visibleInGroup < group.apps.length;
+												return (
+													<li
+														key={group.key}
+														className="requirement-app-filter-group"
+													>
+														<label className="requirement-app-filter-group-label">
+															<IndeterminateCheckbox
+																checked={groupChecked}
+																indeterminate={groupIndeterminate}
+																ariaLabel={`${group.label} をまとめて表示`}
+																onChange={(visible) =>
+																	setGroupVisible(group.apps, visible)
+																}
+															/>
+															<span>{group.label}</span>
+															<span className="requirement-app-filter-group-count">
+																{visibleInGroup}/{group.apps.length}
+															</span>
+														</label>
+														<ul className="requirement-app-filter-apps">
+															{group.apps.map((app) => {
+																const visible = !hiddenAppIds.has(app.id);
+																return (
+																	<li key={app.id}>
+																		<label className="requirement-app-filter-app">
+																			<input
+																				type="checkbox"
+																				checked={visible}
+																				onChange={(event) =>
+																					setAppVisible(
+																						app.id,
+																						event.target.checked,
+																					)
+																				}
+																			/>
+																			<span
+																				className="apps-master-readonly"
+																				style={masterTintStyle(
+																					app.color,
+																					app.text_color,
+																				)}
+																			>
+																				{formatMasterLabel(
+																					app.name,
+																					app.icon,
+																				)}
+																			</span>
+																		</label>
+																	</li>
+																);
+															})}
+														</ul>
+													</li>
+												);
+											})}
+										</ul>
+									</div>
+								) : null}
+							</div>
+							{displayedApps.length === 0 ? (
+								<p className="requirement-app-filter-empty">
+									表示する App がありません。絞り込みを変更してください。
+								</p>
+							) : null}
 							<ul
 								className="requirement-app-list"
 								role="tablist"
 								aria-label="App の選択"
 							>
-								{appNames.map((app) => {
+								{displayedApps.map((app) => {
 									const active = app.id === selectedAppId;
 									const count = resultCounts.get(app.id) ?? 0;
+									const isDragging = draggingAppId === app.id;
+									const isDropTarget =
+										dropTargetAppId === app.id && draggingAppId !== app.id;
 									return (
 										<li
 											key={app.id}
 											className={[
 												"requirement-app-item",
 												active ? "active" : "",
+												isDragging ? "is-dragging" : "",
+												isDropTarget ? "is-drop-target" : "",
+												canReorderApps ? "" : "is-sort-locked",
 											]
 												.filter(Boolean)
 												.join(" ")}
+											onDragOver={(event) => onAppDragOver(event, app.id)}
+											onDrop={(event) => void onAppDrop(event, app.id)}
+											onDragLeave={() => {
+												if (dropTargetAppId === app.id) {
+													setDropTargetAppId(null);
+												}
+											}}
 										>
+											<button
+												type="button"
+												className="apps-sheet-drag-handle requirement-app-drag-handle"
+												draggable={canReorderApps}
+												disabled={!canReorderApps}
+												aria-label={`${app.name} の表示順を変更`}
+												title={
+													canReorderApps
+														? "ドラッグして App の表示順を変更"
+														: "件数順のときは表示順に戻すとドラッグできます"
+												}
+												onDragStart={(event) => onAppDragStart(event, app.id)}
+												onDragEnd={onAppDragEnd}
+											>
+												<span aria-hidden="true">⋮⋮</span>
+											</button>
 											<div className="requirement-app-content">
 												<button
 													type="button"
@@ -318,15 +665,15 @@ export function AppTestResultsManager({
 												<tr
 													key={item.id}
 													className="requirement-row"
-													onClick={() => openEditDialog(item)}
+													onClick={() => openDetailDialog(item)}
 													onKeyDown={(event) => {
 														if (event.key === "Enter" || event.key === " ") {
 															event.preventDefault();
-															openEditDialog(item);
+															openDetailDialog(item);
 														}
 													}}
 													tabIndex={0}
-													aria-label={`${item.title} を編集`}
+													aria-label={`${item.title} の詳細を開く`}
 												>
 													<td>
 														<div className="apps-sheet-cell">
@@ -379,8 +726,11 @@ export function AppTestResultsManager({
 				ref={createDialogRef}
 				className="task-dialog"
 				onClose={closeCreateDialog}
+				onClick={(event) => {
+					if (event.target === createDialogRef.current) closeCreateDialog();
+				}}
 			>
-				<div className="task-dialog-inner">
+				<div className="task-dialog-panel">
 					<h3>テスト結果を追加</h3>
 					<form
 						key={createFormKey}
@@ -425,11 +775,81 @@ export function AppTestResultsManager({
 			</dialog>
 
 			<dialog
+				ref={detailDialogRef}
+				className="task-dialog task-dialog-docked"
+				onClose={closeDetailDialog}
+				onClick={(event) => {
+					if (event.target === detailDialogRef.current) closeDetailDialog();
+				}}
+			>
+				<div className="task-dialog-panel task-dialog-panel-docked">
+					<div className="task-dialog-head">
+						<h2>テスト結果の詳細</h2>
+						<button type="button" className="ghost" onClick={closeDetailDialog}>
+							閉じる
+						</button>
+					</div>
+					{detailing ? (
+						<>
+							<div className="task-detail task-dialog-scroll">
+								<div className="task-meta">
+									<span
+										className={[
+											"requirement-status-badge",
+											"status-option",
+											APP_TEST_OUTCOME_STYLE_CLASS[detailing.outcome],
+										].join(" ")}
+									>
+										<StatusIcon
+											status={APP_TEST_OUTCOME_ICON[detailing.outcome]}
+										/>
+										<span>
+											{APP_TEST_RESULT_OUTCOME_LABEL[detailing.outcome]}
+										</span>
+									</span>
+									<span className="when">
+										{formatRecordedAt(detailing.recorded_at)}
+									</span>
+									{detailing.requirement_title ? (
+										<span>要件: {detailing.requirement_title}</span>
+									) : null}
+								</div>
+								<h3 className="task-detail-title">{detailing.title}</h3>
+								{detailing.body ? (
+									<p className="body">{detailing.body}</p>
+								) : (
+									<p className="notes">内容はありません</p>
+								)}
+							</div>
+							<div className="task-actions task-dialog-footer task-detail-actions">
+								<div className="task-detail-actions-end">
+									<button
+										type="button"
+										className="task-detail-btn task-detail-btn-edit"
+										onClick={openEditFromDetail}
+									>
+										<StatusIcon
+											status="draft"
+											className="task-detail-btn-icon"
+										/>
+										<span>編集</span>
+									</button>
+								</div>
+							</div>
+						</>
+					) : null}
+				</div>
+			</dialog>
+
+			<dialog
 				ref={editDialogRef}
 				className="task-dialog"
-				onClose={() => setEditing(null)}
+				onClose={closeEditDialog}
+				onClick={(event) => {
+					if (event.target === editDialogRef.current) closeEditDialog();
+				}}
 			>
-				<div className="task-dialog-inner">
+				<div className="task-dialog-panel">
 					<h3>テスト結果を編集</h3>
 					{editing ? (
 						<>
@@ -462,13 +882,16 @@ export function AppTestResultsManager({
 									<textarea
 										name="body"
 										className="requirement-body-textarea"
-										rows={8}
+										rows={16}
 										defaultValue={editing.body}
 									/>
 								</label>
 								<AppTestResultOutcomeField selectedOutcome={editing.outcome} />
 							</form>
 							<div className="task-actions task-dialog-footer requirement-edit-dialog-footer">
+								<button type="button" onClick={closeEditDialog}>
+									閉じる
+								</button>
 								<form
 									className="requirement-edit-delete-form"
 									onSubmit={(event) => {
@@ -497,5 +920,35 @@ export function AppTestResultsManager({
 				</div>
 			</dialog>
 		</>
+	);
+}
+
+function IndeterminateCheckbox({
+	checked,
+	indeterminate,
+	onChange,
+	ariaLabel,
+}: {
+	checked: boolean;
+	indeterminate: boolean;
+	onChange: (checked: boolean) => void;
+	ariaLabel: string;
+}) {
+	const ref = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		if (ref.current) {
+			ref.current.indeterminate = indeterminate;
+		}
+	}, [indeterminate]);
+
+	return (
+		<input
+			ref={ref}
+			type="checkbox"
+			checked={checked}
+			aria-label={ariaLabel}
+			onChange={(event) => onChange(event.target.checked)}
+		/>
 	);
 }
