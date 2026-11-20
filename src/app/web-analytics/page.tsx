@@ -47,7 +47,7 @@ export default async function WebAnalyticsPage({
 		<main className="page page-wide">
 			<AppHeader
 				title="Web分析"
-				lede="Cloudflare ゾーンの HTTP トラフィック（リクエスト・ページビュー・転送量）を一覧します。ダッシュボードの Analytics と同系の集計です。"
+				lede="Cloudflare ゾーンの HTTP トラフィック（リクエスト・ページビュー・転送量）と、HTML パス別の上位アクセスを一覧します。"
 			/>
 
 			<section className="panel">
@@ -65,8 +65,9 @@ export default async function WebAnalyticsPage({
 					))}
 				</div>
 				<p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--muted)" }}>
-					対象ゾーンはアカウント内の active ゾーンです。絞り込みは環境変数{" "}
-					<code>CF_ANALYTICS_ZONE_NAMES</code>（カンマ区切りのホスト名）で指定できます。
+					対象ゾーンはアカウント内の active ゾーンです。ゾーン（apex）の絞り込みは{" "}
+					<code>CF_ANALYTICS_ZONE_NAMES</code>、HTTP ホスト名（サブドメイン・カスタムホスト名）の絞り込みは{" "}
+					<code>CF_ANALYTICS_HTTP_HOSTS</code>（いずれもカンマ区切り）です。
 				</p>
 			</section>
 
@@ -75,8 +76,9 @@ export default async function WebAnalyticsPage({
 					<h2>取得できませんでした</h2>
 					<p style={{ margin: 0, fontSize: "0.9rem" }}>{error}</p>
 					<p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--muted)" }}>
-						API トークンに <strong>Zone → Read</strong> と <strong>Analytics → Read</strong>{" "}
-						を付与してください。Workers AI 用の <code>CF_API_TOKEN</code> を流用できます。
+						<code>CF_ANALYTICS_API_TOKEN</code> に <strong>Zone → Read</strong> と{" "}
+						<strong>Analytics → Read</strong> を付与し、<strong>Zone Resources</strong>{" "}
+						に対象ゾーン（または All zones）を含めてください。文字起こし用のトークンとは別です。
 					</p>
 				</section>
 			) : snapshot ? (

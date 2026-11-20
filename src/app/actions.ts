@@ -632,6 +632,33 @@ export async function updateAppRequirement(formData: FormData) {
 	revalidatePath("/tags");
 }
 
+export async function updateAppRequirementStatus(formData: FormData) {
+	const db = await getDb();
+	const id = formText(formData, "id");
+	const status = parseAppRequirementStatus(formData.get("status"));
+
+	if (!id) {
+		throw new Error("id が必要です");
+	}
+
+	await db
+		.prepare(
+			`UPDATE app_requirements
+			 SET status = ?,
+			     completed_at = CASE
+			       WHEN ? <> 'done' THEN NULL
+			       WHEN status = 'done' THEN completed_at
+			       ELSE datetime('now')
+			     END,
+			     updated_at = datetime('now')
+			 WHERE id = ?`,
+		)
+		.bind(status, status, id)
+		.run();
+
+	revalidateAppsPage();
+}
+
 export async function deleteAppRequirement(formData: FormData) {
 	const db = await getDb();
 	const id = formText(formData, "id");

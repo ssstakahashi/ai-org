@@ -30,6 +30,7 @@ import {
 	countX,
 	deleteX,
 	exportAll,
+	getIdea,
 	getTask,
 	getX,
 	listAppNames,
@@ -177,6 +178,10 @@ export async function handleApiV1(request: NextRequest, path: string[]): Promise
 		if (key === "GET blog-ideas/count") {
 			denied(ROLE_READ);
 			return apiJson(await countIdeas(db), 200, requestId);
+		}
+		if (method === "GET" && path[0] === "blog-ideas" && path.length === 2 && path[1] !== "count") {
+			denied(ROLE_READ);
+			return apiJson(await getIdea(db, decodeURIComponent(path[1] ?? "")), 200, requestId);
 		}
 		if (key === "POST blog-ideas") {
 			denied(ROLE_WRITE);

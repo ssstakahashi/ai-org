@@ -164,6 +164,18 @@ curl "https://ai-org.studiofoods.net/api/v1/blog-ideas?since=2024-01-01T00:00:00
 
 ---
 
+### GET /api/v1/blog-ideas/{id}
+
+ブログアイデアを1件取得します（tags を含む）。PATCH で tags を全量置き換えする前の読み取りに使います。
+
+**権限**: `reader` 以上
+
+**レスポンス** (200 OK): `{ "idea": { "id": "...", "topic": "...", "title": "...", ..., "tags": ["..."] } }`
+
+**エラー**: `404` `not_found`（アイデアが見つかりません）
+
+---
+
 ### PATCH /api/v1/blog-ideas/{id}
 
 既存のブログアイデアを部分更新します。
@@ -185,9 +197,13 @@ curl "https://ai-org.studiofoods.net/api/v1/blog-ideas?since=2024-01-01T00:00:00
   "details": "[{\"label\":\"本文\",\"value\":\"更新された本文\"}]",
   "source": "gemini",
   "source_url": "obsidian://...",
-  "tags": ["新しいタグ1", "新しいタグ2"]
+  "tags": ["新しいタグ1", "新しいタグ2"],
+  "add_tags": ["追加タグ"]
 }
 ```
+
+- `tags` は全量置き換え（指定しないタグは外れる）。
+- `add_tags` は既存タグを残したまま追加する（重複は無視）。
 
 **レスポンス** (200 OK):
 

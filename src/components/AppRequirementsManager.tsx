@@ -20,6 +20,7 @@ import {
 } from "@/app/actions";
 import { masterTintStyle } from "@/lib/colors";
 import { formatInAppTz } from "@/lib/timezone";
+import { AppRequirementStatusButtons } from "@/components/AppRequirementStatusButtons";
 import { AppRequirementStatusField } from "@/components/AppRequirementStatusField";
 import {
 	APP_TEST_OUTCOME_ICON,
@@ -37,7 +38,6 @@ import {
 import {
 	formatMasterLabel,
 	getDevPolicyMeta,
-	APP_REQUIREMENT_STATUS_LABEL,
 	APP_TEST_RESULT_OUTCOME_LABEL,
 	type AppEntry,
 	type AppName,
@@ -46,7 +46,6 @@ import {
 	type AppRequirementWithApp,
 	type AppTestResultWithApp,
 	type Tag,
-	type TaskStatus,
 } from "@/lib/types";
 
 const REQUIREMENT_STATUS_CLASS: Record<AppRequirementStatus, string> = {
@@ -55,14 +54,6 @@ const REQUIREMENT_STATUS_CLASS: Record<AppRequirementStatus, string> = {
 	in_progress: "status-scheduled",
 	done: "status-done",
 	cancelled: "status-failed",
-};
-
-const REQUIREMENT_STATUS_ICON: Record<AppRequirementStatus, TaskStatus> = {
-	draft: "draft",
-	approved: "approved",
-	in_progress: "scheduled",
-	done: "done",
-	cancelled: "failed",
 };
 
 /** ステータス順: 未完了を上、完了・取消を下。同順位内は sort_order */
@@ -551,6 +542,15 @@ export function AppRequirementsManager({
 		setHiddenAppIds(new Set(orderedApps.map((app) => app.id)));
 	}
 
+	function applyRequirementStatusUpdate(
+		id: string,
+		status: AppRequirementStatus,
+	) {
+		setOrderedItems((items) =>
+			items.map((item) => (item.id === id ? { ...item, status } : item)),
+		);
+	}
+
 	return (
 		<>
 			<section className="panel">
@@ -577,7 +577,7 @@ export function AppRequirementsManager({
 					) : null}
 				</div>
 				<p className="panel-lede">
-					左の App 一覧から選択して要件を編集します。タイトルをクリックすると編集ダイアログが開きます。各要件はステータスをタイトル上のチップで示し、記録日時を出します。完了したものは完了日時も出します。完了と判定された要件には、その場でテスト結果を記載できます。本文はタイトルの下で開閉できます。
+					左の App 一覧から選択して要件を編集します。タイトルをクリックすると編集ダイアログが開きます。一覧ではステータスをボタンで直接変更できます。記録日時を出し、完了したものは完了日時も出します。完了と判定された要件には、その場でテスト結果を記載できます。本文はタイトルの下で開閉できます。
 					ステータスが「承認済」の要件は Cursor Automation から export できます。要件一覧はデフォルトでステータス順（完了は下）に並びます。左の
 					App 一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する App
 					を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左のハンドルで
@@ -915,20 +915,10 @@ export function AppRequirementsManager({
 													<span aria-hidden="true">⋮⋮</span>
 												</button>
 												<div className="requirement-item-main">
-													<span
-														className={[
-															"status-badge",
-															"requirement-status-badge",
-															REQUIREMENT_STATUS_CLASS[item.status],
-														].join(" ")}
-													>
-														<StatusIcon
-															status={REQUIREMENT_STATUS_ICON[item.status]}
-														/>
-														<span>
-															{APP_REQUIREMENT_STATUS_LABEL[item.status]}
-														</span>
-													</span>
+													<AppRequirementStatusButtons
+														requirement={item}
+														onUpdated={applyRequirementStatusUpdate}
+													/>
 													<div className="requirement-item-title-row">
 														<button
 															type="button"

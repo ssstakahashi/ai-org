@@ -47,12 +47,12 @@ http://localhost:3000
 
 ```bash
 # Cloudflare ダッシュボード > Workers AI > Use REST API で作成
-CF_API_TOKEN=...
+CF_WORKERS_AI_API_TOKEN=...
 ```
 
-本番でも文字起こしは同じ REST API です（`CF_API_TOKEN` が必要）。
+本番でも文字起こしは同じ REST API です（`CF_WORKERS_AI_API_TOKEN` が必要）。未設定のときだけ `CF_API_TOKEN` を見ます。
 
-**情報 → Web分析**（`/web-analytics`）は Cloudflare GraphQL Analytics でゾーンの HTTP トラフィックを表示します。同じ `CF_API_TOKEN` に **Zone → Read** と **Analytics → Read** を付与してください。表示ゾーンを絞る場合は `CF_ANALYTICS_ZONE_NAMES=example.com,www.example.com`（カンマ区切り）。
+**情報 → Web分析**（`/web-analytics`）は Cloudflare GraphQL Analytics でゾーンの HTTP トラフィック（日次）と HTML パス別上位を表示します。文字起こしとは別の `CF_ANALYTICS_API_TOKEN` に **Zone → Read** と **Analytics → Read** を付与し、**Zone Resources** に対象ゾーン（または All zones）を含めてください。権限が無いとゾーン一覧が空になり、集計できません。表示ゾーン（apex）を絞る場合は `CF_ANALYTICS_ZONE_NAMES=example.com`（カンマ区切り）。HTTP ホスト名（サブドメイン・カスタムホスト名）だけ見る場合は `CF_ANALYTICS_HTTP_HOSTS=www.example.com,tenant.example.com`。
 
 本番 D1 をローカル SQLite へ上書きコピー（Cloudflare ログイン必須。PostgreSQL へ入れる前段）:
 

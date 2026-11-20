@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { M_PLUS_Rounded_1c } from "next/font/google";
+import { JetBrains_Mono, M_PLUS_Rounded_1c } from "next/font/google";
 import { AppTopNav } from "@/components/AppTopNav";
 import { requestHasAppSession } from "@/lib/request-session";
 import "./globals.css";
@@ -8,6 +8,13 @@ import "./globals.css";
 const mPlusRounded = M_PLUS_Rounded_1c({
 	variable: "--font-body",
 	weight: ["400", "500", "700"],
+	subsets: ["latin"],
+	display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+	variable: "--font-mono",
+	weight: ["500", "600"],
 	subsets: ["latin"],
 	display: "swap",
 });
@@ -44,7 +51,7 @@ export default async function RootLayout({
 				<link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
 			</head>
 			<body
-				className={`${mPlusRounded.variable} antialiased`}
+				className={`${mPlusRounded.variable} ${jetbrainsMono.variable} antialiased`}
 				suppressHydrationWarning
 			>
 				{showNav ? <AppTopNav logoutHref="/api/auth/logout" /> : null}

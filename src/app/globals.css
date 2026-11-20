@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
 :root {
-	--background: #eef2ef;
-	--foreground: #18201c;
-	--panel: #fbfcfb;
-	--line: #cfd8d2;
-	--accent: #1f6b4a;
-	--accent-soft: #d7ebe1;
-	--calendar-sunday-bg: #fff0f3;
-	--calendar-saturday-bg: #eef6ff;
-	--calendar-today-bg: #fff9c4;
-	--danger: #8b3a2f;
-	--muted: #5b6a62;
-	--status-draft: #8a9a90;
-	--status-approved: #3d7ea6;
-	--status-scheduled: #1f6b4a;
-	--status-done: #4a6356;
-	--status-failed: #8b3a2f;
+	--background: #f9f9f8;
+	--foreground: #152238;
+	--panel: #ffffff;
+	--line: #d8e0ea;
+	--accent: #1a4d8c;
+	--accent-soft: #e6eef8;
+	--calendar-sunday-bg: #fff5f5;
+	--calendar-saturday-bg: #eff6ff;
+	--calendar-today-bg: #fef9e8;
+	--danger: #9b3d32;
+	--muted: #5a6578;
+	--status-draft: #6b7280;
+	--status-approved: #1a4d8c;
+	--status-scheduled: #b45309;
+	--status-done: #1e5a4a;
+	--status-failed: #9b3d32;
 	--page-padding-inline: 1rem;
 	--page-content-width: calc(100vw - 2 * var(--page-padding-inline));
 	--app-topnav-height: 3.5rem;
@@ -45,14 +45,12 @@ html {
 }
 
 body {
-	--font-display: var(--font-body);
+	--font-display: var(--font-mono), ui-monospace, monospace;
 	margin: 0;
 	min-height: 100vh;
 	max-width: 100vw;
 	overflow-x: clip;
-	background:
-		radial-gradient(circle at top left, #d9ebe2 0%, transparent 42%),
-		linear-gradient(180deg, #f5f8f6 0%, var(--background) 55%, #e4ebe6 100%);
+	background: var(--background);
 	color: var(--foreground);
 	font-family:
 		var(--font-body),
@@ -152,8 +150,8 @@ body {
 	position: sticky;
 	top: 0;
 	z-index: 120;
-	background: color-mix(in srgb, #f5f8f6 92%, white);
-	border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+	background: color-mix(in srgb, var(--panel) 94%, var(--background));
+	border-bottom: 1px solid var(--line);
 }
 
 .app-topnav-inner {
@@ -233,9 +231,9 @@ body {
 	gap: 0.75rem;
 	padding: 0.85rem 0.9rem 1.1rem;
 	box-sizing: border-box;
-	background: color-mix(in srgb, #f5f8f6 92%, white);
-	border-right: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
-	box-shadow: 0 24px 60px rgba(24, 32, 28, 0.18);
+	background: color-mix(in srgb, var(--panel) 96%, var(--background));
+	border-right: 1px solid var(--line);
+	box-shadow: none;
 	transform: translateX(-100%);
 	visibility: hidden;
 	pointer-events: none;
@@ -322,7 +320,7 @@ a.brand-logo {
 }
 
 .brand-version {
-	font-family: var(--font-body), sans-serif;
+	font-family: var(--font-mono), ui-monospace, monospace;
 	font-size: 0.72rem;
 	font-weight: 500;
 	letter-spacing: 0.02em;
@@ -386,8 +384,8 @@ button.app-nav-link.active {
 	padding: 0.35rem;
 	background: #fff;
 	border: 1px solid var(--line);
-	border-radius: 12px;
-	box-shadow: 0 10px 30px rgba(40, 50, 40, 0.04);
+	border-radius: 8px;
+	box-shadow: none;
 }
 
 .app-nav .app-nav-submenu a.app-nav-link {
@@ -562,11 +560,11 @@ a.logout-button:hover {
 
 .panel {
 	min-width: 0;
-	background: color-mix(in srgb, var(--panel) 92%, white);
+	background: var(--panel);
 	border: 1px solid var(--line);
-	border-radius: 18px;
+	border-radius: 10px;
 	padding: 1.25rem 1.35rem 1.4rem;
-	box-shadow: 0 10px 30px rgba(40, 50, 40, 0.04);
+	box-shadow: none;
 }
 
 .panel h2 {
@@ -1221,6 +1219,69 @@ a.logout-button:hover {
 	margin-bottom: 0.85rem;
 }
 
+.tag-picker-selected {
+	margin-bottom: 0.65rem;
+}
+
+.tag-chip-removable {
+	gap: 0.3rem;
+}
+
+.tag-chip-remove {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.1rem;
+	height: 1.1rem;
+	padding: 0;
+	border: none;
+	border-radius: 999px;
+	background: transparent;
+	font-size: 1rem;
+	line-height: 1;
+	color: inherit;
+	cursor: pointer;
+	opacity: 0.8;
+}
+
+.tag-chip-remove:hover {
+	opacity: 1;
+	background: rgb(0 0 0 / 8%);
+}
+
+.tag-suggestions {
+	list-style: none;
+	margin: -0.35rem 0 0.85rem;
+	padding: 0.35rem;
+	border: 1px solid var(--line);
+	border-radius: 0.5rem;
+	background: var(--panel);
+	max-height: 12rem;
+	overflow-y: auto;
+}
+
+.tag-suggestions li {
+	margin: 0;
+}
+
+.tag-suggestion {
+	display: inline-flex;
+	align-items: center;
+	width: 100%;
+	padding: 0.45rem 0.65rem;
+	border: none;
+	border-radius: 0.35rem;
+	background: transparent;
+	font-size: 0.85rem;
+	text-align: left;
+	cursor: pointer;
+	color: var(--foreground);
+}
+
+.tag-suggestion:hover {
+	background: var(--accent-soft);
+}
+
 .tag-options {
 	display: flex;
 	flex-wrap: wrap;
@@ -1544,6 +1605,60 @@ a.logout-button:hover {
 	font-size: 0.8rem;
 	font-weight: 600;
 	pointer-events: none;
+}
+
+.requirement-item-status .status-options {
+	flex-wrap: wrap;
+	max-width: 100%;
+	gap: 0.3rem;
+}
+
+.requirement-item-status .status-option {
+	padding: 0.28rem 0.55rem;
+	gap: 0.3rem;
+	font-family: inherit;
+	font-size: 0.8rem;
+	line-height: 1.2;
+}
+
+.requirement-item-status-options.is-pending {
+	opacity: 0.65;
+	pointer-events: none;
+}
+
+.requirement-item-status .status-option.status-draft.is-current {
+	color: #fff;
+	background: var(--status-draft);
+	border-color: var(--status-draft);
+	font-weight: 600;
+}
+
+.requirement-item-status .status-option.status-approved.is-current {
+	color: #fff;
+	background: var(--status-approved);
+	border-color: var(--status-approved);
+	font-weight: 600;
+}
+
+.requirement-item-status .status-option.status-scheduled.is-current {
+	color: #fff;
+	background: var(--status-scheduled);
+	border-color: var(--status-scheduled);
+	font-weight: 600;
+}
+
+.requirement-item-status .status-option.status-done.is-current {
+	color: #fff;
+	background: var(--status-done);
+	border-color: var(--status-done);
+	font-weight: 600;
+}
+
+.requirement-item-status .status-option.status-failed.is-current {
+	color: #fff;
+	background: var(--status-failed);
+	border-color: var(--status-failed);
+	font-weight: 600;
 }
 
 .requirement-status-badge input {
@@ -3460,6 +3575,7 @@ button.ghost {
 
 .view-month {
 	margin: 0;
+	font-family: var(--font-mono), ui-monospace, monospace;
 	font-weight: 600;
 	min-width: 8rem;
 	text-align: center;
@@ -3571,9 +3687,9 @@ button.ghost {
 	margin: auto;
 	padding: 0;
 	border: 1px solid var(--line);
-	border-radius: 18px;
+	border-radius: 10px;
 	background: transparent;
-	box-shadow: 0 24px 60px rgba(24, 32, 28, 0.18);
+	box-shadow: none;
 }
 
 .task-dialog::backdrop {

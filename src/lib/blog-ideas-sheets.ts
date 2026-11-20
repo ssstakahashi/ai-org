@@ -26,6 +26,7 @@ export type BlogIdeaRow = {
 	details: BlogIdeaDetail[];
 	uses: BlogIdeaUse[];
 	tags: Tag[];
+	updated_at: string;
 };
 
 export type BlogIdeasBySheet = Record<BlogIdeasSheetKey, BlogIdeaRow[]>;
@@ -197,6 +198,7 @@ export function parseSideBusinessRows(rows: string[][]): BlogIdeaRow[] {
 			details: detailsFromRow(row, columns, ["title", "no"]),
 			uses: [],
 			tags: [],
+			updated_at: "",
 		});
 	}
 	return ideas;
@@ -235,6 +237,7 @@ export function parseAgriRows(rows: string[][]): BlogIdeaRow[] {
 			details: detailsFromRow(row, columns, ["title", "no"]),
 			uses: [],
 			tags: [],
+			updated_at: "",
 		});
 	}
 	return ideas;
@@ -315,6 +318,7 @@ export function parseTopicRows(rows: string[][], sheet: BlogIdeasSheetKey): Blog
 			details,
 			uses: [],
 			tags: [],
+			updated_at: "",
 		});
 	}
 	return ideas;

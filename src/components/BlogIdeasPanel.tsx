@@ -33,11 +33,14 @@ import {
 	type BlogIdeaMedium,
 } from "@/lib/blog-ideas";
 import type { BlogIdeaRow, BlogIdeaUse } from "@/lib/blog-ideas-sheets";
+import { compareBlogIdeas } from "@/lib/blog-ideas";
 import {
+	getSideBusinessSortMetrics,
 	SIDE_BUSINESS_QUADRANTS,
 	formatAxisUsd,
 	scoreSideBusinessIdeas,
 } from "@/lib/sidebusiness-quadrant";
+import { formatInAppTz } from "@/lib/timezone";
 import type { Tag } from "@/lib/types";
 
 type Props = {
@@ -53,6 +56,90 @@ const uploadInitial: UploadBlogIdeasState = {
 	inserted: 0,
 	updated: 0,
 };
+
+type BlogIdeaListSort =
+	| "no"
+	| "updated_desc"
+	| "updated_asc"
+	| "difficulty_desc"
+	| "difficulty_asc"
+	| "income_desc"
+	| "income_asc";
+
+const BLOG_IDEA_LIST_SORT_OPTIONS: { value: BlogIdeaListSort; label: string; sideBusinessOnly?: boolean }[] =
+	[
+		{ value: "no", label: "No. 順" },
+		{ value: "updated_desc", label: "更新が新しい順" },
+		{ value: "updated_asc", label: "更新が古い順" },
+		{ value: "difficulty_desc", label: "参入障壁が高い順", sideBusinessOnly: true },
+		{ value: "difficulty_asc", label: "参入障壁が低い順", sideBusinessOnly: true },
+		{ value: "income_desc", label: "収入が多い順", sideBusinessOnly: true },
+		{ value: "income_asc", label: "収入が少ない順", sideBusinessOnly: true },
+	];
+
+const SORT_STORAGE_PREFIX = "ai-org:blog-ideas-sort:";
+
+function isBlogIdeaListSort(value: string): value is BlogIdeaListSort {
+	return BLOG_IDEA_LIST_SORT_OPTIONS.some((option) => option.value === value);
+}
+
+function isSideBusinessMetricSort(sort: BlogIdeaListSort): boolean {
+	return sort.startsWith("difficulty_") || sort.startsWith("income_");
+}
+
+function formatWhen(value: string) {
+	const formatted = formatInAppTz(value, {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+	return formatted || value || "—";
+}
+
+function sortBlogIdeaRows(
+	rows: BlogIdeaRow[],
+	sort: BlogIdeaListSort,
+	metricsById: Map<string, ReturnType<typeof getSideBusinessSortMetrics>>,
+): BlogIdeaRow[] {
+	const list = [...rows];
+	const tieBreak = (a: BlogIdeaRow, b: BlogIdeaRow) => compareBlogIdeas(a, b);
+
+	if (sort === "no") {
+		list.sort(tieBreak);
+		return list;
+	}
+
+	if (sort === "updated_desc" || sort === "updated_asc") {
+		const sign = sort === "updated_desc" ? -1 : 1;
+		list.sort((a, b) => {
+			const au = a.updated_at.trim();
+			const bu = b.updated_at.trim();
+			if (au && bu && au !== bu) return au.localeCompare(bu) * sign;
+			if (au && !bu) return -1 * sign;
+			if (!au && bu) return 1 * sign;
+			return tieBreak(a, b);
+		});
+		return list;
+	}
+
+	const metricKey = sort.startsWith("difficulty_") ? "difficultyScore" : "monthlyUsd";
+	const desc = sort.endsWith("_desc");
+
+	list.sort((a, b) => {
+		const am = metricsById.get(a.id);
+		const bm = metricsById.get(b.id);
+		if (am && bm) {
+			const av = am[metricKey];
+			const bv = bm[metricKey];
+			if (av !== bv) return desc ? bv - av : av - bv;
+		} else if (am && !bm) return -1;
+		else if (!am && bm) return 1;
+		return tieBreak(a, b);
+	});
+	return list;
+}
 
 function truncate(text: string, max = 80) {
 	const trimmed = text.trim();
@@ -163,10 +250,58 @@ export function BlogIdeasPanel({ sheet, rows, tags }: Props) {
 	const [tagError, setTagError] = useState<string | null>(null);
 	const [usePending, startUseTransition] = useTransition();
 	const [tagPending, startTagTransition] = useTransition();
+	const [listSort, setListSort] = useState<BlogIdeaListSort>("no");
 	const sidePlacement = useMemo(
 		() => (sheet === "sidebusiness" ? scoreSideBusinessIdeas(rows) : null),
 		[sheet, rows],
 	);
+	const sideBusinessMetrics = useMemo(() => {
+		if (sheet !== "sidebusiness") return new Map<string, ReturnType<typeof getSideBusinessSortMetrics>>();
+		const map = new Map<string, ReturnType<typeof getSideBusinessSortMetrics>>();
+		for (const row of rows) {
+			const metrics = getSideBusinessSortMetrics(row);
+			if (metrics) map.set(row.id, metrics);
+		}
+		return map;
+	}, [sheet, rows]);
+	const sortedRows = useMemo(
+		() => sortBlogIdeaRows(rows, listSort, sideBusinessMetrics),
+		[rows, listSort, sideBusinessMetrics],
+	);
+	const sortOptions = useMemo(
+		() =>
+			BLOG_IDEA_LIST_SORT_OPTIONS.filter(
+				(option) => sheet === "sidebusiness" || !option.sideBusinessOnly,
+			),
+		[sheet],
+	);
+
+	useEffect(() => {
+		try {
+			const stored = localStorage.getItem(`${SORT_STORAGE_PREFIX}${sheet}`);
+			if (stored && isBlogIdeaListSort(stored)) {
+				setListSort(stored);
+				return;
+			}
+		} catch {
+			// ignore
+		}
+		setListSort("no");
+	}, [sheet]);
+
+	useEffect(() => {
+		if (sheet !== "sidebusiness" && isSideBusinessMetricSort(listSort)) {
+			setListSort("no");
+		}
+	}, [sheet, listSort]);
+
+	useEffect(() => {
+		try {
+			localStorage.setItem(`${SORT_STORAGE_PREFIX}${sheet}`, listSort);
+		} catch {
+			// ignore
+		}
+	}, [sheet, listSort]);
 	const detailPlacement =
 		detailing && sidePlacement
 			? (sidePlacement.points.find((point) => point.id === detailing.id) ?? null)
@@ -288,6 +423,26 @@ export function BlogIdeasPanel({ sheet, rows, tags }: Props) {
 					{BLOG_IDEAS_SHEET_LABEL[sheet]}（{rows.length}）
 				</h2>
 				<div className="task-actions">
+					{rows.length > 0 ? (
+						<label className="requirement-app-sort-field">
+							<span className="sr-only">並び替え</span>
+							<select
+								className="requirement-app-sort"
+								value={listSort}
+								aria-label="ネタ一覧の並び替え"
+								onChange={(event) => {
+									const value = event.target.value;
+									if (isBlogIdeaListSort(value)) setListSort(value);
+								}}
+							>
+								{sortOptions.map((option) => (
+									<option key={option.value} value={option.value}>
+										{option.label}
+									</option>
+								))}
+							</select>
+						</label>
+					) : null}
 					<button type="button" onClick={() => router.refresh()}>
 						再読み込み
 					</button>
@@ -310,17 +465,21 @@ export function BlogIdeasPanel({ sheet, rows, tags }: Props) {
 							<thead>
 								<tr>
 									<th>No.</th>
+									<th>更新</th>
 									<th>ネタ</th>
 									<th>下書き</th>
 									<th className="actions-col">操作</th>
 								</tr>
 							</thead>
 							<tbody>
-								{rows.map((row) => (
+								{sortedRows.map((row) => (
 									<tr key={row.id}>
 										<td className="meta-cell">
 											<p className="x-schedule-when">{row.no ? `No. ${row.no}` : "—"}</p>
 											{row.badge ? <p className="field-hint">{row.badge}</p> : null}
+										</td>
+										<td className="meta-cell">
+											<p className="x-schedule-when">{formatWhen(row.updated_at)}</p>
 										</td>
 										<td className="content-cell">
 											<button
@@ -391,6 +550,7 @@ export function BlogIdeasPanel({ sheet, rows, tags }: Props) {
 									<span>{BLOG_IDEAS_SHEET_LABEL[detailing.sheet]}</span>
 									{detailing.category ? <span>{detailing.category}</span> : null}
 									{detailing.badge ? <span>{detailing.badge}</span> : null}
+									<span>更新 {formatWhen(detailing.updated_at)}</span>
 								</div>
 								<IdeaTagChips tags={detailing.tags} />
 								<h3 className="task-detail-title">{detailing.title}</h3>

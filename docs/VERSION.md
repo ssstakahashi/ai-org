@@ -2,9 +2,37 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
-## 0.0.77 (2026-11-16)
+## 0.0.83 (2026-11-20)
 
 - App 要件にコメントを追加（`app_requirement_comments`、画面の一覧と投稿、API v1 の取得・投稿・対応状況）
+
+## 0.0.82 (2026-11-19)
+
+- ネタ一覧に更新日時列を追加し、No. 順・更新時刻・SideBusiness の参入障壁・副業時収入で並び替え可能にした
+
+## 0.0.81 (2026-11-19)
+
+- 業務台帳のタスク追加・編集で、タグをキーワード候補から選び選択済みをチップ表示する UI に変更
+
+## 0.0.80 (2026-11-18)
+
+- Web分析に HTTP ホスト名別上位を追加（サブドメイン・カスタムホスト名、`CF_ANALYTICS_HTTP_HOSTS`）
+
+## 0.0.79 (2026-11-18)
+
+- Web分析にゾーンごとの HTML パス上位 20（`httpRequestsAdaptiveGroups`、静的ファイル除外）を追加
+
+## 0.0.78 (2026-11-18)
+
+- Workers AI 用 `CF_WORKERS_AI_API_TOKEN` と Web分析用 `CF_ANALYTICS_API_TOKEN` を分離（`CF_API_TOKEN` は文字起こしのフォールバックのみ）
+- Web分析の GraphQL 集計を `pageViews` に合わせ、権限エラーの案内を更新
+
+## 0.0.77 (2026-11-17)
+
+- UI を白・青基調に刷新（`globals.css`、見出しアクセントに JetBrains Mono）
+- `human-web-design` スキルを追加（脱・AIテンプレートのデザイン・コピー指針）
+- App 要件一覧でステータスをボタンから直接変更（`updateAppRequirementStatus`）
+
 
 ## 0.0.76 (2026-11-16)
 

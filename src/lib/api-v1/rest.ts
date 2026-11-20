@@ -164,6 +164,35 @@ async function tagsByIdea(db: D1Database, ids: string[]): Promise<Record<string,
 	return grouped;
 }
 
+export async function getIdea(db: D1Database, id: string) {
+	const saved = await db
+		.prepare(
+			`SELECT id, topic, no, title, category, summary, badge, details, external_id, source, source_url, created_at, updated_at
+			 FROM blog_ideas WHERE id = ?`,
+		)
+		.bind(id)
+		.first<Record<string, unknown>>();
+	if (!saved) {
+		throw new BlogRuleError(404, "not_found", "アイデアが見つかりません");
+	}
+	const tags = await tagsByIdea(db, [id]);
+	return { idea: { ...saved, tags: tags[id] ?? [] } };
+}
+
+async function ensureIdeaTagId(db: D1Database, name: string): Promise<string> {
+	const tag = await db
+		.prepare(`SELECT id FROM tags WHERE lower(name) = lower(?)`)
+		.bind(name)
+		.first<{ id: string }>();
+	if (tag) return tag.id;
+	const tagId = newId("tag");
+	await db
+		.prepare(`INSERT INTO tags (id, name, color, text_color) VALUES (?, ?, '', '')`)
+		.bind(tagId, name)
+		.run();
+	return tagId;
+}
+
 export async function countIdeas(db: D1Database) {
 	const { results } = await db
 		.prepare(`SELECT topic, COUNT(*) AS count FROM blog_ideas GROUP BY topic ORDER BY topic`)
@@ -414,22 +443,23 @@ export async function patchIdea(db: D1Database, id: string, raw: unknown) {
 	if (Array.isArray(body.tags)) {
 		await db.prepare(`DELETE FROM blog_idea_tags WHERE idea_id = ?`).bind(id).run();
 		for (const name of [...new Set(body.tags.map((item) => String(item).trim()).filter(Boolean))]) {
-			let tag = await db
-				.prepare(`SELECT id FROM tags WHERE lower(name) = lower(?)`)
-				.bind(name)
-				.first<{ id: string }>();
-			if (!tag) {
-				const tagId = newId("tag");
-				await db
-					.prepare(`INSERT INTO tags (id, name, color, text_color) VALUES (?, ?, '', '')`)
-					.bind(tagId, name)
-					.run();
-				tag = { id: tagId };
-			}
+			const tagId = await ensureIdeaTagId(db, name);
 			await db
 				.prepare(`INSERT INTO blog_idea_tags (idea_id, tag_id) VALUES (?, ?)`)
-				.bind(id, tag.id)
+				.bind(id, tagId)
 				.run();
+		}
+	}
+	if (Array.isArray(body.add_tags)) {
+		const current = new Set((await tagsByIdea(db, [id]))[id]?.map((name) => name.toLowerCase()) ?? []);
+		for (const name of [...new Set(body.add_tags.map((item) => String(item).trim()).filter(Boolean))]) {
+			if (current.has(name.toLowerCase())) continue;
+			const tagId = await ensureIdeaTagId(db, name);
+			await db
+				.prepare(`INSERT INTO blog_idea_tags (idea_id, tag_id) VALUES (?, ?)`)
+				.bind(id, tagId)
+				.run();
+			current.add(name.toLowerCase());
 		}
 	}
 	revalidatePath("/blog-ideas");

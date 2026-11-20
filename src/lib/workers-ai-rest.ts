@@ -7,12 +7,19 @@ export function getWorkersAiAccountId(env: CloudflareEnv): string | undefined {
 	return env.CF_ACCOUNT_ID ?? process.env.CF_ACCOUNT_ID;
 }
 
+function nonEmptyToken(value: string | undefined): string | undefined {
+	const trimmed = value?.trim();
+	return trimmed ? trimmed : undefined;
+}
+
 export function getWorkersAiApiToken(env: CloudflareEnv): string | undefined {
 	return (
-		env.CF_API_TOKEN ??
-		env.CLOUDFLARE_API_TOKEN ??
-		process.env.CF_API_TOKEN ??
-		process.env.CLOUDFLARE_API_TOKEN
+		nonEmptyToken(env.CF_WORKERS_AI_API_TOKEN) ??
+		nonEmptyToken(process.env.CF_WORKERS_AI_API_TOKEN) ??
+		nonEmptyToken(env.CF_API_TOKEN) ??
+		nonEmptyToken(process.env.CF_API_TOKEN) ??
+		nonEmptyToken(env.CLOUDFLARE_API_TOKEN) ??
+		nonEmptyToken(process.env.CLOUDFLARE_API_TOKEN)
 	);
 }
 

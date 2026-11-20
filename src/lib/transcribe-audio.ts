@@ -28,7 +28,7 @@ export async function transcribeAudioBuffer(
 	const apiToken = getWorkersAiApiToken(env);
 	if (!accountId || !apiToken) {
 		throw new Error(
-			"CF_ACCOUNT_ID と CF_API_TOKEN が必要です。.env または /etc/ai-org.env に設定してください。",
+			"CF_ACCOUNT_ID と CF_WORKERS_AI_API_TOKEN が必要です。.env に設定してください。",
 		);
 	}
 
