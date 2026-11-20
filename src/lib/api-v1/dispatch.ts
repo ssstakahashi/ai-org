@@ -39,6 +39,9 @@ import {
 	listIdeas,
 	listRequirementTags,
 	listRequirements,
+	listRequirementComments,
+	createRequirementComment,
+	patchRequirementComment,
 	listTasks,
 	listTestPlans,
 	listTestResults,
@@ -260,6 +263,58 @@ export async function handleApiV1(request: NextRequest, path: string[]): Promise
 		if (key === "PUT apps/requirements") {
 			denied(ROLE_WRITE);
 			return apiJson(await putRequirements(db, await readJson(request)), 200, requestId);
+		}
+		if (
+			method === "GET" &&
+			path[0] === "apps" &&
+			path[1] === "requirements" &&
+			path[3] === "comments" &&
+			path.length === 4
+		) {
+			denied(ROLE_READ);
+			return apiJson(
+				await listRequirementComments(db, decodeURIComponent(path[2] ?? ""), url),
+				200,
+				requestId,
+			);
+		}
+		if (
+			method === "POST" &&
+			path[0] === "apps" &&
+			path[1] === "requirements" &&
+			path[3] === "comments" &&
+			path.length === 4
+		) {
+			denied(ROLE_WRITE);
+			return apiJson(
+				await createRequirementComment(
+					db,
+					decodeURIComponent(path[2] ?? ""),
+					await readJson(request),
+					actor,
+				),
+				201,
+				requestId,
+			);
+		}
+		if (
+			method === "PATCH" &&
+			path[0] === "apps" &&
+			path[1] === "requirements" &&
+			path[3] === "comments" &&
+			path.length === 5
+		) {
+			denied(ROLE_WRITE);
+			return apiJson(
+				await patchRequirementComment(
+					db,
+					decodeURIComponent(path[2] ?? ""),
+					decodeURIComponent(path[4] ?? ""),
+					await readJson(request),
+				),
+				200,
+				requestId,
+			);
 		}
 		if (key === "GET apps/test-plans") {
 			denied(ROLE_READ);

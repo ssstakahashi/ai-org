@@ -2,6 +2,10 @@
 
 `package.json` の `version` と同期する。git コミットのたびにこのファイルを更新する（規約: `.cursor/rules/version-changelog-on-commit.mdc`）。
 
+## 0.0.83 (2026-11-20)
+
+- App 要件にコメントを追加（`app_requirement_comments`、画面の一覧と投稿、API v1 の取得・投稿・対応状況）
+
 ## 0.0.82 (2026-11-19)
 
 - ネタ一覧に更新日時列を追加し、No. 順・更新時刻・SideBusiness の参入障壁・副業時収入で並び替え可能にした
@@ -28,6 +32,7 @@
 - UI を白・青基調に刷新（`globals.css`、見出しアクセントに JetBrains Mono）
 - `human-web-design` スキルを追加（脱・AIテンプレートのデザイン・コピー指針）
 - App 要件一覧でステータスをボタンから直接変更（`updateAppRequirementStatus`）
+
 
 ## 0.0.76 (2026-11-16)
 

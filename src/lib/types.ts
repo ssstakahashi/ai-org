@@ -262,6 +262,45 @@ export const APP_REQUIREMENT_STATUS_OPTIONS = [
 	"cancelled",
 ] as const satisfies readonly AppRequirementStatus[];
 
+/** App 要件へのコメント（1要件に複数可。本文は Markdown） */
+export type AppRequirementCommentStatus = "open" | "done";
+
+export type AppRequirementComment = {
+	id: string;
+	requirement_id: string;
+	employee_id: string | null;
+	author_name: string;
+	source: string;
+	body: string;
+	status: AppRequirementCommentStatus;
+	created_at: string;
+	updated_at: string;
+	employee_name: string | null;
+	employee_color: string | null;
+	employee_text_color: string | null;
+};
+
+export const APP_REQUIREMENT_COMMENT_STATUS_OPTIONS = [
+	"open",
+	"done",
+] as const satisfies readonly AppRequirementCommentStatus[];
+
+export const APP_REQUIREMENT_COMMENT_STATUS_LABEL: Record<
+	AppRequirementCommentStatus,
+	string
+> = {
+	open: "未対応",
+	done: "対応済",
+};
+
+export const APP_REQUIREMENT_COMMENT_STATUS_CLASS: Record<
+	AppRequirementCommentStatus,
+	string
+> = {
+	open: "status-draft",
+	done: "status-done",
+};
+
 export type AppTestResultOutcome =
 	| "pass"
 	| "fail"
