@@ -421,7 +421,7 @@ export function AppTestResultsManager({
 				<p className="panel-lede">
 					左の App を選び、テスト計画を Markdown
 					プレビューで確認・編集から保存し、テスト結果を時系列で追記します。
-					一覧では結果をボタンから直接変更できます。行をクリックすると結果の詳細が開き、フッターの編集から内容を変更できます。左の App
+					一覧では結果をボタンから直接変更できます。タイトルをクリックすると結果の詳細が開き、フッターの編集から内容を変更できます。左の App
 					一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する App
 					を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左のハンドルで
 					App の表示順を変更できます。
@@ -705,62 +705,46 @@ export function AppTestResultsManager({
 							) : null}
 
 							{filteredResults.length > 0 ? (
-								<div className="x-schedule-scroll">
-									<table className="x-schedule-table apps-sheet-table requirement-sheet-table">
-										<thead>
-											<tr>
-												<th>記録日時</th>
-												<th>タイトル</th>
-												<th>内容</th>
-												<th>結果</th>
-											</tr>
-										</thead>
-										<tbody>
-											{filteredResults.map((item) => (
-												<tr
-													key={item.id}
-													className="requirement-row"
-													onClick={() => openDetailDialog(item)}
-													onKeyDown={(event) => {
-														if (event.key === "Enter" || event.key === " ") {
-															event.preventDefault();
-															openDetailDialog(item);
-														}
-													}}
-													tabIndex={0}
-													aria-label={`${item.title} の詳細を開く`}
-												>
-													<td>
-														<div className="apps-sheet-cell">
-															{formatRecordedAt(item.recorded_at)}
-														</div>
-													</td>
-													<td>
-														<div className="apps-sheet-cell requirement-row-title">
-															{item.title}
-															{item.requirement_title ? (
-																<div className="requirement-linked-label">
-																	要件: {item.requirement_title}
-																</div>
-															) : null}
-														</div>
-													</td>
-													<td className="requirement-body-cell">
-														<div className="requirement-body-preview">
-															{item.body || "（本文なし）"}
-														</div>
-													</td>
-													<td>
-														<AppTestResultOutcomeButtons
-															result={item}
-															onUpdated={applyResultOutcomeUpdate}
-														/>
-													</td>
-												</tr>
-											))}
-										</tbody>
-									</table>
-								</div>
+								<ul className="requirement-item-list">
+									{filteredResults.map((item) => (
+										<li
+											key={item.id}
+											className="requirement-item app-test-result-item"
+										>
+											<div className="requirement-item-main">
+												<AppTestResultOutcomeButtons
+													result={item}
+													onUpdated={applyResultOutcomeUpdate}
+												/>
+												<div className="requirement-item-title-row">
+													<button
+														type="button"
+														className="requirement-item-title"
+														onClick={() => openDetailDialog(item)}
+														aria-label={`${item.title} の詳細を開く`}
+													>
+														{item.title}
+													</button>
+												</div>
+												{item.requirement_title ? (
+													<p className="requirement-linked-label">
+														要件: {item.requirement_title}
+													</p>
+												) : null}
+												<p className="requirement-item-times">
+													<time dateTime={item.recorded_at}>
+														記録 {formatRecordedAt(item.recorded_at)}
+													</time>
+												</p>
+												{item.body.trim() ? (
+													<p className="requirement-body-preview">
+														{item.body}
+													</p>
+												) : null}
+											</div>
+										</li>
+									))}
+								</ul>
 							) : null}
 						</div>
 					</div>

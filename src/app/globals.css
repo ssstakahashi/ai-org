@@ -1687,6 +1687,15 @@ a.logout-button:hover {
 	padding: 0.45rem 0.55rem 0.45rem 0;
 }
 
+.requirement-item.app-test-result-item {
+	padding-left: 0.55rem;
+}
+
+.requirement-item.app-test-result-item .requirement-body-preview {
+	width: 100%;
+	overflow-wrap: anywhere;
+}
+
 .requirement-item:hover {
 	background: color-mix(in srgb, var(--accent) 6%, white);
 }
