@@ -215,7 +215,7 @@
     {
       "no": "11",
       "app_group": "MIERU",
-      "name": "MIERU 会計管理",
+      "name": "MIERU 会計",
       "app_type": "App",
       "dev_policy": "優先",
       "dev_folder": "/Users/user/developer/10_MIERU/",
@@ -236,7 +236,7 @@
     {
       "no": "12",
       "app_group": "MIERU",
-      "name": "MIERU 会計管理 Mobile",
+      "name": "MIERU 会計 Mobile",
       "app_type": "App",
       "dev_policy": "優先",
       "dev_folder": "/Users/user/developer/10_MIERU/",
