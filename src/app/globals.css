@@ -1838,7 +1838,8 @@ a.logout-button:hover {
 	min-width: 0;
 }
 
-.requirement-item-test-form label {
+.requirement-item-test-form label,
+.requirement-item-test-form .requirement-comment-author {
 	display: flex;
 	flex-direction: column;
 	gap: 0.25rem;
@@ -1846,7 +1847,11 @@ a.logout-button:hover {
 }
 
 .requirement-comment-author {
-	max-width: 16rem;
+	width: 100%;
+}
+
+.requirement-comment-author .field-grid {
+	display: block;
 }
 
 .requirement-comment-body {
@@ -3296,14 +3301,15 @@ button.ghost {
 .requirement-app-count {
 	flex-shrink: 0;
 	min-width: 1.35rem;
-	padding: 0.1rem 0.4rem;
+	padding: 0.1rem 0.45rem;
 	border-radius: 999px;
 	border: 1px solid color-mix(in srgb, currentColor 20%, var(--line));
 	background: color-mix(in srgb, currentColor 8%, white);
-	font-size: 0.78rem;
+	font-size: 0.72rem;
 	font-weight: 600;
 	text-align: center;
 	line-height: 1.35;
+	white-space: nowrap;
 }
 
 .requirement-main {

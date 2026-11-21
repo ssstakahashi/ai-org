@@ -214,9 +214,23 @@ export function AppRequirementsManager({
 	const [filterOpen, setFilterOpen] = useState(false);
 
 	const requirementCounts = useMemo(() => {
-		const counts = new Map<string, number>();
+		const counts = new Map<
+			string,
+			{ total: number; done: number; open: number }
+		>();
 		for (const item of requirements) {
-			counts.set(item.app_name_id, (counts.get(item.app_name_id) ?? 0) + 1);
+			const current = counts.get(item.app_name_id) ?? {
+				total: 0,
+				done: 0,
+				open: 0,
+			};
+			current.total += 1;
+			if (item.status === "done") {
+				current.done += 1;
+			} else {
+				current.open += 1;
+			}
+			counts.set(item.app_name_id, current);
 		}
 		return counts;
 	}, [requirements]);
@@ -257,8 +271,8 @@ export function AppRequirementsManager({
 		const direction = appListSort === "count-desc" ? -1 : 1;
 		return [...orderedApps].sort((a, b) => {
 			const countDiff =
-				(requirementCounts.get(a.id) ?? 0) -
-				(requirementCounts.get(b.id) ?? 0);
+				(requirementCounts.get(a.id)?.total ?? 0) -
+				(requirementCounts.get(b.id)?.total ?? 0);
 			if (countDiff !== 0) return countDiff * direction;
 			return (indexById.get(a.id) ?? 0) - (indexById.get(b.id) ?? 0);
 		});
@@ -342,8 +356,12 @@ export function AppRequirementsManager({
 
 	const selectedApp = displayedApps.find((item) => item.id === selectedAppId);
 	const selectedCount = selectedAppId
-		? requirementCounts.get(selectedAppId) ?? 0
-		: 0;
+		? (requirementCounts.get(selectedAppId) ?? {
+				total: 0,
+				done: 0,
+				open: 0,
+			})
+		: { total: 0, done: 0, open: 0 };
 
 	function openCreateDialog() {
 		setCreateFormKey((value) => value + 1);
@@ -589,7 +607,10 @@ export function AppRequirementsManager({
 								)}
 							>
 								{formatMasterLabel(selectedApp.name, selectedApp.icon)}（
-								{selectedCount}件）
+								{selectedCount.total === 0
+									? "0件"
+									: `未完了 ${selectedCount.open} / 完了 ${selectedCount.done}`}
+								）
 							</span>
 						) : null}
 					</h2>
@@ -747,7 +768,11 @@ export function AppRequirementsManager({
 							>
 								{displayedApps.map((app) => {
 									const active = app.id === selectedAppId;
-									const count = requirementCounts.get(app.id) ?? 0;
+									const count = requirementCounts.get(app.id) ?? {
+										total: 0,
+										done: 0,
+										open: 0,
+									};
 									const appEntry = appEntryByAppNameId[app.id];
 									const devPolicy =
 										appEntry?.dev_policy.trim() ?? "";
@@ -808,7 +833,15 @@ export function AppRequirementsManager({
 													>
 														{formatMasterLabel(app.name, app.icon)}
 													</span>
-													<span className="requirement-app-count">{count}</span>
+													<span
+														className="requirement-app-count"
+														title={`未完了 ${count.open} / 完了 ${count.done}`}
+														aria-label={`未完了 ${count.open}件、完了 ${count.done}件`}
+													>
+														{count.total === 0
+															? "0"
+															: `未${count.open}・完${count.done}`}
+													</span>
 												</button>
 												{devPolicyMeta ? (
 													<span

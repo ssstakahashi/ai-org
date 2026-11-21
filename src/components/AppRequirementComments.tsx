@@ -151,23 +151,48 @@ export function AppRequirementComments({
 			)}
 			<form className="requirement-item-test-form" onSubmit={onSubmit}>
 				<input type="hidden" name="requirement_id" value={requirementId} />
-				<label className="requirement-comment-author">
+				<div className="requirement-comment-author">
 					<span>名前</span>
 					{employees.length === 0 ? (
 						<p className="field-hint">従業員を先に登録してください</p>
 					) : (
-						<select name="employee_id" required defaultValue="" aria-label="コメントの名前">
-							<option value="" disabled>
-								選択してください
-							</option>
-							{employees.map((employee) => (
-								<option key={employee.id} value={employee.id}>
-									{employee.name}
-								</option>
-							))}
-						</select>
+						<div className="field-grid">
+							<div className="choice-field full">
+								<div
+									className="choice-options"
+									role="radiogroup"
+									aria-label="コメントの名前"
+								>
+									{employees.map((employee) => {
+										const employeeStyle = employeeTintStyle(
+											employee.color,
+											employee.text_color,
+										);
+										return (
+											<label
+												key={employee.id}
+												className={
+													employeeStyle
+														? "choice-option employee-choice-option"
+														: "choice-option"
+												}
+												style={employeeStyle}
+											>
+												<input
+													type="radio"
+													name="employee_id"
+													value={employee.id}
+													required
+												/>
+												<span>{employee.name}</span>
+											</label>
+										);
+									})}
+								</div>
+							</div>
+						</div>
 					)}
-				</label>
+				</div>
 				<label className="requirement-comment-body">
 					<span>コメント</span>
 					<textarea

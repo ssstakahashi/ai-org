@@ -74,6 +74,7 @@ export function AppTestResultsManager({
 	const [selectedAppId, setSelectedAppId] = useState(appNames[0]?.id ?? "");
 	const [planBody, setPlanBody] = useState("");
 	const [planDirty, setPlanDirty] = useState(false);
+	const [editingPlan, setEditingPlan] = useState(false);
 	const [savingPlan, setSavingPlan] = useState(false);
 	const [draggingAppId, setDraggingAppId] = useState<string | null>(null);
 	const [dropTargetAppId, setDropTargetAppId] = useState<string | null>(null);
@@ -189,11 +190,13 @@ export function AppTestResultsManager({
 		if (!selectedAppId) {
 			setPlanBody("");
 			setPlanDirty(false);
+			setEditingPlan(false);
 			return;
 		}
 		const plan = planByAppId.get(selectedAppId);
 		setPlanBody(plan?.body ?? "");
 		setPlanDirty(false);
+		setEditingPlan(false);
 	}, [selectedAppId, planByAppId]);
 
 	const selectedApp = displayedApps.find((item) => item.id === selectedAppId);
@@ -278,6 +281,17 @@ export function AppTestResultsManager({
 		[closeEditDialog, router],
 	);
 
+	function startEditPlan() {
+		setEditingPlan(true);
+	}
+
+	function cancelEditPlan() {
+		const plan = selectedAppId ? planByAppId.get(selectedAppId) : undefined;
+		setPlanBody(plan?.body ?? "");
+		setPlanDirty(false);
+		setEditingPlan(false);
+	}
+
 	async function handleSavePlan() {
 		if (!selectedAppId || savingPlan) return;
 		setSavingPlan(true);
@@ -287,6 +301,7 @@ export function AppTestResultsManager({
 			formData.set("body", planBody);
 			await saveAppTestPlan(formData);
 			setPlanDirty(false);
+			setEditingPlan(false);
 			router.refresh();
 		} finally {
 			setSavingPlan(false);
@@ -404,7 +419,8 @@ export function AppTestResultsManager({
 					) : null}
 				</div>
 				<p className="panel-lede">
-					左の App を選び、テスト計画を Markdown 風に保存し、テスト結果を時系列で追記します。
+					左の App を選び、テスト計画を Markdown
+					プレビューで確認・編集から保存し、テスト結果を時系列で追記します。
 					一覧では結果をボタンから直接変更できます。行をクリックすると結果の詳細が開き、フッターの編集から内容を変更できます。左の App
 					一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する App
 					を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左のハンドルで
@@ -618,31 +634,58 @@ export function AppTestResultsManager({
 								<section className="app-test-plan-panel">
 									<div className="panel-head app-test-plan-head">
 										<h3>テスト計画</h3>
-										<button
-											type="button"
-											className="primary"
-											disabled={!planDirty || savingPlan}
-											onClick={() => void handleSavePlan()}
-										>
-											{savingPlan ? "保存中…" : "計画を保存"}
-										</button>
+										{editingPlan ? (
+											<div className="task-actions">
+												<button
+													type="button"
+													className="ghost"
+													disabled={savingPlan}
+													onClick={cancelEditPlan}
+												>
+													キャンセル
+												</button>
+												<button
+													type="button"
+													className="primary"
+													disabled={!planDirty || savingPlan}
+													onClick={() => void handleSavePlan()}
+												>
+													{savingPlan ? "保存中…" : "計画を保存"}
+												</button>
+											</div>
+										) : (
+											<button
+												type="button"
+												className="ghost"
+												onClick={startEditPlan}
+											>
+												編集
+											</button>
+										)}
 									</div>
 									<p className="panel-lede app-test-plan-lede">
-										対象画面・観点・前提条件などを記載します。保存後もいつでも更新できます。
+										対象画面・観点・前提条件などを記載します。本文は Markdown
+										プレビューで表示され、編集からいつでも更新できます。
 									</p>
-									<label className="full">
-										<span className="sr-only">テスト計画の本文</span>
-										<textarea
-											className="requirement-body-textarea app-test-plan-textarea"
-											value={planBody}
-											rows={10}
-											placeholder={`## テスト計画\n- 対象: …\n- 観点: …`}
-											onChange={(event) => {
-												setPlanBody(event.target.value);
-												setPlanDirty(true);
-											}}
-										/>
-									</label>
+									{editingPlan ? (
+										<label className="full">
+											<span className="sr-only">テスト計画の本文</span>
+											<textarea
+												className="requirement-body-textarea app-test-plan-textarea"
+												value={planBody}
+												rows={10}
+												placeholder={`## テスト計画\n- 対象: …\n- 観点: …`}
+												onChange={(event) => {
+													setPlanBody(event.target.value);
+													setPlanDirty(true);
+												}}
+											/>
+										</label>
+									) : planBody.trim() ? (
+										<MarkdownPreview markdown={planBody} />
+									) : (
+										<p className="notes">まだテスト計画はありません</p>
+									)}
 									{planByAppId.get(selectedAppId)?.updated_at ? (
 										<p className="app-test-plan-meta">
 											最終更新:{" "}
