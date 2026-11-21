@@ -16,11 +16,13 @@ import {
 	APP_REQUIREMENT_COMMENT_STATUS_OPTIONS,
 	type AppRequirementComment,
 	type AppRequirementCommentStatus,
+	type Employee,
 } from "@/lib/types";
 
 type Props = {
 	requirementId: string;
 	comments: AppRequirementComment[];
+	employees: Employee[];
 };
 
 function formatWhen(value: string) {
@@ -80,7 +82,11 @@ function CommentStatusSelect({ comment }: { comment: AppRequirementComment }) {
 	);
 }
 
-export function AppRequirementComments({ requirementId, comments }: Props) {
+export function AppRequirementComments({
+	requirementId,
+	comments,
+	employees,
+}: Props) {
 	const router = useRouter();
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState("");
@@ -145,11 +151,24 @@ export function AppRequirementComments({ requirementId, comments }: Props) {
 			)}
 			<form className="requirement-item-test-form" onSubmit={onSubmit}>
 				<input type="hidden" name="requirement_id" value={requirementId} />
-				<label>
+				<label className="requirement-comment-author">
 					<span>名前</span>
-					<input name="author_name" placeholder="空なら担当" />
+					{employees.length === 0 ? (
+						<p className="field-hint">従業員を先に登録してください</p>
+					) : (
+						<select name="employee_id" required defaultValue="" aria-label="コメントの名前">
+							<option value="" disabled>
+								選択してください
+							</option>
+							{employees.map((employee) => (
+								<option key={employee.id} value={employee.id}>
+									{employee.name}
+								</option>
+							))}
+						</select>
+					)}
 				</label>
-				<label>
+				<label className="requirement-comment-body">
 					<span>コメント</span>
 					<textarea
 						name="body"
@@ -161,7 +180,11 @@ export function AppRequirementComments({ requirementId, comments }: Props) {
 				</label>
 				{error ? <p className="requirement-item-test-error">{error}</p> : null}
 				<div className="requirement-item-test-actions">
-					<button type="submit" className="primary" disabled={saving}>
+					<button
+						type="submit"
+						className="primary"
+						disabled={saving || employees.length === 0}
+					>
 						書き込む
 					</button>
 				</div>

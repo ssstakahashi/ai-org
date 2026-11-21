@@ -48,6 +48,7 @@ import {
 	type AppRequirementComment,
 	type AppRequirementWithApp,
 	type AppTestResultWithApp,
+	type Employee,
 	type Tag,
 	type TaskStatus,
 } from "@/lib/types";
@@ -166,6 +167,7 @@ type Props = {
 	appNames: AppName[];
 	requirements: AppRequirementWithApp[];
 	comments: AppRequirementComment[];
+	employees: Employee[];
 	testResults: AppTestResultWithApp[];
 	tags: Tag[];
 	appEntryByAppNameId: Record<string, AppEntry>;
@@ -175,6 +177,7 @@ export function AppRequirementsManager({
 	appNames,
 	requirements,
 	comments,
+	employees,
 	testResults,
 	tags,
 	appEntryByAppNameId,
@@ -985,6 +988,7 @@ export function AppRequirementsManager({
 													<AppRequirementComments
 														requirementId={item.id}
 														comments={commentsByRequirementId.get(item.id) ?? []}
+														employees={employees}
 													/>
 												</div>
 											</li>

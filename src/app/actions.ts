@@ -679,9 +679,12 @@ export async function createAppRequirementComment(formData: FormData) {
 	const db = await getDb();
 	const requirementId = formText(formData, "requirement_id");
 	const body = String(formData.get("body") ?? "").trim();
-	const authorName = formText(formData, "author_name") || "担当";
+	const employeeId = formText(formData, "employee_id");
 	if (!requirementId) {
 		throw new Error("要件が必要です");
+	}
+	if (!employeeId) {
+		throw new Error("名前を選択してください");
 	}
 	if (!body) {
 		throw new Error("コメントは必須です");
@@ -689,7 +692,7 @@ export async function createAppRequirementComment(formData: FormData) {
 	try {
 		await insertAppRequirementComment(db, {
 			requirement_id: requirementId,
-			author_name: authorName,
+			employee_id: employeeId,
 			body,
 		});
 	} catch (error) {

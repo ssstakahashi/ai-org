@@ -4,6 +4,7 @@ import {
 	listAppRequirements,
 	listApps,
 	listAppTestResults,
+	listEmployees,
 	listTags,
 } from "@/app/actions";
 import { AppRequirementsManager } from "@/components/AppRequirementsManager";
@@ -23,14 +24,16 @@ function pickAppEntryForName(
 }
 
 export default async function AppRequirementsPage() {
-	const [appNames, requirements, apps, testResults, tags, comments] = await Promise.all([
-		listAppNames(),
-		listAppRequirements(),
-		listApps(),
-		listAppTestResults(),
-		listTags(),
-		listAppRequirementComments(),
-	]);
+	const [appNames, requirements, apps, testResults, tags, comments, employees] =
+		await Promise.all([
+			listAppNames(),
+			listAppRequirements(),
+			listApps(),
+			listAppTestResults(),
+			listTags(),
+			listAppRequirementComments(),
+			listEmployees(),
+		]);
 
 	const appEntryByAppNameId: Record<string, AppEntry> = {};
 	for (const appName of appNames) {
@@ -45,6 +48,7 @@ export default async function AppRequirementsPage() {
 			appNames={appNames}
 			requirements={requirements}
 			comments={comments}
+			employees={employees}
 			testResults={testResults}
 			tags={tags}
 			appEntryByAppNameId={appEntryByAppNameId}

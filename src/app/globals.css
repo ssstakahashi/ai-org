@@ -809,6 +809,8 @@ a.logout-button:hover {
 .task-link-section {
 	display: grid;
 	gap: 0.5rem;
+	width: 100%;
+	min-width: 0;
 }
 
 .task-link-heading {
@@ -1829,10 +1831,26 @@ a.logout-button:hover {
 	white-space: nowrap;
 }
 
+.requirement-item-test-form {
+	display: grid;
+	gap: 0.5rem;
+	width: 100%;
+	min-width: 0;
+}
+
 .requirement-item-test-form label {
 	display: flex;
 	flex-direction: column;
 	gap: 0.25rem;
+	min-width: 0;
+}
+
+.requirement-comment-author {
+	max-width: 16rem;
+}
+
+.requirement-comment-body {
+	width: 100%;
 }
 
 .requirement-item-test-actions {
