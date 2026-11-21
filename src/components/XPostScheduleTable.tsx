@@ -39,6 +39,8 @@ type Props = {
 };
 
 const STATUS_ORDER: TaskStatus[] = ["draft", "approved", "scheduled", "done", "failed"];
+const STATUS_FILTER_ALL = "all" as const;
+type StatusFilter = typeof STATUS_FILTER_ALL | TaskStatus;
 
 function formatWhen(value: string | null) {
 	if (!value) return "—";
@@ -198,9 +200,14 @@ function XPostStatusSelect({
 export function XPostScheduleTable({ posts, commentsByPostId = {} }: Props) {
 	const router = useRouter();
 	const [tab, setTab] = useState<XPostDestination>(X_POST_DESTINATION_DEFAULT);
+	const [statusFilter, setStatusFilter] = useState<StatusFilter>(STATUS_FILTER_ALL);
 	const destinationCounts = countByDestination(posts);
-	const visiblePosts = posts.filter((post) => post.destination === tab);
-	const counts = countByStatus(visiblePosts);
+	const postsInTab = posts.filter((post) => post.destination === tab);
+	const counts = countByStatus(postsInTab);
+	const visiblePosts =
+		statusFilter === STATUS_FILTER_ALL
+			? postsInTab
+			: postsInTab.filter((post) => post.status === statusFilter);
 	const createDialogRef = useRef<HTMLDialogElement>(null);
 	const detailDialogRef = useRef<HTMLDialogElement>(null);
 	const editDialogRef = useRef<HTMLDialogElement>(null);
@@ -303,12 +310,48 @@ export function XPostScheduleTable({ posts, commentsByPostId = {} }: Props) {
 					</li>
 				))}
 			</ul>
+			<div className="apps-filters">
+				<div className="apps-filter-row">
+					<p className="apps-filter-label">ステータス</p>
+					<div className="view-tabs" role="group" aria-label="ステータス">
+						<button
+							type="button"
+							className={
+								statusFilter === STATUS_FILTER_ALL ? "view-tab active" : "view-tab"
+							}
+							aria-pressed={statusFilter === STATUS_FILTER_ALL}
+							onClick={() => setStatusFilter(STATUS_FILTER_ALL)}
+						>
+							すべて（{postsInTab.length}）
+						</button>
+						{STATUS_ORDER.map((status) => {
+							const active = statusFilter === status;
+							return (
+								<button
+									key={status}
+									type="button"
+									className={active ? "view-tab active" : "view-tab"}
+									aria-pressed={active}
+									onClick={() => setStatusFilter(status)}
+								>
+									{X_POST_STATUS_LABEL[status]}（{counts[status]}）
+								</button>
+							);
+						})}
+					</div>
+				</div>
+			</div>
 			{actionMessage ? <p className="run-due-message">{actionMessage}</p> : null}
 
-			{visiblePosts.length === 0 ? (
+			{postsInTab.length === 0 ? (
 				<p className="empty">
 					{X_POST_DESTINATION_LABEL[tab]}
 					のX投稿の予定はまだありません。「新規登録」から追加してください。
+				</p>
+			) : visiblePosts.length === 0 && statusFilter !== STATUS_FILTER_ALL ? (
+				<p className="empty">
+					{X_POST_STATUS_LABEL[statusFilter]}
+					の投稿はありません。ステータスフィルターを変更してください。
 				</p>
 			) : (
 				<div className="x-schedule-scroll">
