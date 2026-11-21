@@ -10,6 +10,7 @@ import {
 	type DragEvent,
 	type FormEvent,
 } from "react";
+import { flushSync } from "react-dom";
 import {
 	createAppRequirement,
 	createAppTestResult,
@@ -28,6 +29,7 @@ import {
 	AppTestResultOutcomeField,
 } from "@/components/AppTestResultOutcomeField";
 import { AppRequirementComments } from "@/components/AppRequirementComments";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { StatusIcon } from "@/components/StatusIcon";
 import {
 	getAppRequirementsPrefs,
@@ -36,6 +38,7 @@ import {
 	type RequirementListSort,
 } from "@/lib/app-requirements-prefs";
 import {
+	APP_REQUIREMENT_STATUS_LABEL,
 	formatMasterLabel,
 	getDevPolicyMeta,
 	APP_TEST_RESULT_OUTCOME_LABEL,
@@ -46,6 +49,7 @@ import {
 	type AppRequirementWithApp,
 	type AppTestResultWithApp,
 	type Tag,
+	type TaskStatus,
 } from "@/lib/types";
 
 const REQUIREMENT_STATUS_CLASS: Record<AppRequirementStatus, string> = {
@@ -54,6 +58,14 @@ const REQUIREMENT_STATUS_CLASS: Record<AppRequirementStatus, string> = {
 	in_progress: "status-scheduled",
 	done: "status-done",
 	cancelled: "status-failed",
+};
+
+const REQUIREMENT_STATUS_ICON: Record<AppRequirementStatus, TaskStatus> = {
+	draft: "draft",
+	approved: "approved",
+	in_progress: "scheduled",
+	done: "done",
+	cancelled: "failed",
 };
 
 /** ステータス順: 未完了を上、完了・取消を下。同順位内は sort_order */
@@ -169,9 +181,11 @@ export function AppRequirementsManager({
 }: Props) {
 	const router = useRouter();
 	const createDialogRef = useRef<HTMLDialogElement>(null);
+	const detailDialogRef = useRef<HTMLDialogElement>(null);
 	const editDialogRef = useRef<HTMLDialogElement>(null);
 	const [createFormKey, setCreateFormKey] = useState(0);
 	const [editFormKey, setEditFormKey] = useState(0);
+	const [detailing, setDetailing] = useState<AppRequirementWithApp | null>(null);
 	const [editing, setEditing] = useState<AppRequirementWithApp | null>(null);
 	const [orderedApps, setOrderedApps] = useState(appNames);
 	const [selectedAppId, setSelectedAppId] = useState(
@@ -195,9 +209,6 @@ export function AppRequirementsManager({
 	);
 	const [prefsReady, setPrefsReady] = useState(false);
 	const [filterOpen, setFilterOpen] = useState(false);
-	const [expandedRequirementIds, setExpandedRequirementIds] = useState<
-		Set<string>
-	>(() => new Set());
 
 	const requirementCounts = useMemo(() => {
 		const counts = new Map<string, number>();
@@ -340,16 +351,37 @@ export function AppRequirementsManager({
 		createDialogRef.current?.close();
 	}
 
-	function openEditDialog(item: AppRequirementWithApp) {
-		setEditing(item);
-		setEditFormKey((value) => value + 1);
-		editDialogRef.current?.showModal();
-	}
+	const closeDetailDialog = useCallback(() => {
+		detailDialogRef.current?.close();
+		setDetailing(null);
+	}, []);
 
 	const closeEditDialog = useCallback(() => {
 		editDialogRef.current?.close();
 		setEditing(null);
 	}, []);
+
+	function openDetailDialog(item: AppRequirementWithApp) {
+		flushSync(() => {
+			setDetailing(item);
+		});
+		detailDialogRef.current?.showModal();
+	}
+
+	function openEditDialog(item: AppRequirementWithApp) {
+		flushSync(() => {
+			setEditing(item);
+			setEditFormKey((value) => value + 1);
+		});
+		editDialogRef.current?.showModal();
+	}
+
+	function openEditFromDetail() {
+		if (!detailing) return;
+		const item = detailing;
+		closeDetailDialog();
+		openEditDialog(item);
+	}
 
 	const handleCreate = useCallback(
 		async (formData: FormData) => {
@@ -490,18 +522,6 @@ export function AppRequirementsManager({
 		setDropTargetId(null);
 	}
 
-	function toggleRequirement(id: string) {
-		setExpandedRequirementIds((current) => {
-			const next = new Set(current);
-			if (next.has(id)) {
-				next.delete(id);
-			} else {
-				next.add(id);
-			}
-			return next;
-		});
-	}
-
 	function toggleAppDetail(appId: string) {
 		setExpandedAppDetailIds((current) => {
 			const next = new Set(current);
@@ -577,7 +597,8 @@ export function AppRequirementsManager({
 					) : null}
 				</div>
 				<p className="panel-lede">
-					左の App 一覧から選択して要件を編集します。タイトルをクリックすると編集ダイアログが開きます。一覧ではステータスをボタンで直接変更できます。記録日時を出し、完了したものは完了日時も出します。完了と判定された要件には、その場でテスト結果を記載できます。本文はタイトルの下で開閉できます。
+					左の App 一覧から選択して要件を編集します。タイトルをクリックすると詳細が開き、本文は
+					Markdown プレビューで表示されます。フッターの編集から内容を変更できます。一覧ではステータスをボタンで直接変更できます。記録日時を出し、完了したものは完了日時も出します。完了と判定された要件には、その場でテスト結果を記載できます。
 					ステータスが「承認済」の要件は Cursor Automation から export できます。要件一覧はデフォルトでステータス順（完了は下）に並びます。左の
 					App 一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する App
 					を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左のハンドルで
@@ -877,8 +898,6 @@ export function AppRequirementsManager({
 										const isDropTarget =
 											dropTargetId === item.id && draggingId !== item.id;
 										const isDone = item.status === "done";
-										const bodyExpanded = expandedRequirementIds.has(item.id);
-										const bodyId = `requirement-item-body-${item.id}`;
 										return (
 											<li
 												key={item.id}
@@ -923,24 +942,10 @@ export function AppRequirementsManager({
 														<button
 															type="button"
 															className="requirement-item-title"
-															onClick={() => openEditDialog(item)}
+															onClick={() => openDetailDialog(item)}
+															aria-label={`${item.title} の詳細を開く`}
 														>
 															{item.title}
-														</button>
-														<button
-															type="button"
-															className="requirement-app-accordion-toggle"
-															aria-expanded={bodyExpanded}
-															aria-controls={bodyId}
-															onClick={() => toggleRequirement(item.id)}
-														>
-															<span
-																className="requirement-app-accordion-chevron"
-																aria-hidden="true"
-															>
-																▶
-															</span>
-															<span>本文</span>
 														</button>
 													</div>
 													{item.tags.length > 0 ? (
@@ -981,11 +986,6 @@ export function AppRequirementsManager({
 														requirementId={item.id}
 														comments={commentsByRequirementId.get(item.id) ?? []}
 													/>
-													{bodyExpanded ? (
-														<div id={bodyId} className="requirement-item-panel">
-															{item.body || "（本文なし）"}
-														</div>
-													) : null}
 												</div>
 											</li>
 										);
@@ -1072,8 +1072,94 @@ export function AppRequirementsManager({
 			</dialog>
 
 			<dialog
+				ref={detailDialogRef}
+				className="task-dialog task-dialog-docked"
+				onClose={closeDetailDialog}
+				onClick={(event) => {
+					if (event.target === detailDialogRef.current) closeDetailDialog();
+				}}
+			>
+				<div className="task-dialog-panel task-dialog-panel-docked">
+					<div className="task-dialog-head">
+						<h2>要件の詳細</h2>
+						<button type="button" className="ghost" onClick={closeDetailDialog}>
+							閉じる
+						</button>
+					</div>
+					{detailing ? (
+						<>
+							<div className="task-detail task-dialog-scroll">
+								<div className="task-meta">
+									<span
+										className={[
+											"requirement-status-badge",
+											"status-option",
+											REQUIREMENT_STATUS_CLASS[detailing.status],
+										].join(" ")}
+									>
+										<StatusIcon
+											status={REQUIREMENT_STATUS_ICON[detailing.status]}
+										/>
+										<span>
+											{APP_REQUIREMENT_STATUS_LABEL[detailing.status]}
+										</span>
+									</span>
+									<span className="when">
+										記録 {formatRequirementTime(detailing.created_at)}
+									</span>
+									{detailing.completed_at ? (
+										<span className="when">
+											完了 {formatRequirementTime(detailing.completed_at)}
+										</span>
+									) : null}
+								</div>
+								<h3 className="task-detail-title">{detailing.title}</h3>
+								{detailing.tags.length > 0 ? (
+									<ul
+										className="requirement-item-tags"
+										aria-label="タグ"
+									>
+										{detailing.tags.map((tag) => (
+											<li
+												key={tag.id}
+												className="tag-chip"
+												style={masterTintStyle(tag.color, tag.text_color)}
+											>
+												{tag.name}
+											</li>
+										))}
+									</ul>
+								) : null}
+								{detailing.body.trim() ? (
+									<MarkdownPreview markdown={detailing.body} />
+								) : (
+									<p className="notes">本文はありません</p>
+								)}
+							</div>
+							<div className="task-actions task-dialog-footer task-detail-actions">
+								<div className="task-detail-actions-end">
+									<button
+										type="button"
+										className="task-detail-btn task-detail-btn-edit"
+										onClick={openEditFromDetail}
+									>
+										<StatusIcon
+											status="draft"
+											className="task-detail-btn-icon"
+										/>
+										<span>編集</span>
+									</button>
+								</div>
+							</div>
+						</>
+					) : null}
+				</div>
+			</dialog>
+
+			<dialog
 				ref={editDialogRef}
 				className="task-dialog task-dialog-docked"
+				onClose={closeEditDialog}
 				onClick={(event) => {
 					if (event.target === editDialogRef.current) closeEditDialog();
 				}}

@@ -22,6 +22,7 @@ import {
 	APP_TEST_OUTCOME_STYLE_CLASS,
 	AppTestResultOutcomeField,
 } from "@/components/AppTestResultOutcomeField";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { StatusIcon } from "@/components/StatusIcon";
 import type { AppListSort } from "@/lib/app-requirements-prefs";
 import {
@@ -816,7 +817,7 @@ export function AppTestResultsManager({
 								</div>
 								<h3 className="task-detail-title">{detailing.title}</h3>
 								{detailing.body ? (
-									<p className="body">{detailing.body}</p>
+									<MarkdownPreview markdown={detailing.body} />
 								) : (
 									<p className="notes">内容はありません</p>
 								)}
