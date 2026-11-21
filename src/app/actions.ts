@@ -907,6 +907,28 @@ export async function createAppTestResult(formData: FormData) {
 	revalidateAppsPage();
 }
 
+export async function updateAppTestResultOutcome(formData: FormData) {
+	const db = await getDb();
+	const id = formText(formData, "id");
+	const outcome = parseAppTestResultOutcome(formData.get("outcome"));
+
+	if (!id) {
+		throw new Error("id が必要です");
+	}
+
+	await db
+		.prepare(
+			`UPDATE app_test_results
+			 SET outcome = ?,
+			     updated_at = datetime('now')
+			 WHERE id = ?`,
+		)
+		.bind(outcome, id)
+		.run();
+
+	revalidateAppsPage();
+}
+
 export async function updateAppTestResult(formData: FormData) {
 	const db = await getDb();
 	const id = formText(formData, "id");

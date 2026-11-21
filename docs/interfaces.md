@@ -60,7 +60,7 @@ flowchart TD
 | `/apps/groups` | AppGroup マスタ | App サブタブ |
 | `/apps/types` | AppType マスタ | App サブタブ |
 | `/apps/requirements` | App 要件定義（App 選択後の要件は、一覧でステータスをボタンから直接変更、タイトル下にタグチップ（複数可）、記録日時、完了したものは完了日時。タイトルクリックで詳細ダイアログを開き、本文は Markdown プレビュー。フッターの編集から更新。追加・編集でタグを付与（既存マスタまたは新規作成）。各要件にコメント一覧と投稿欄があり、名前は従業員マスタから選択、コメント欄は横幅いっぱい。未対応／対応済を切り替えられる。完了と判定された要件には、その場でテスト結果を記載できる。デフォルトはステータス順・完了は下・表示順は localStorage 保存） | App サブタブ |
-| `/apps/test-results` | App テスト計画・テスト結果。左の App 一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込み可（並び・絞り込みは localStorage 保存。表示順のときは DnD）。結果行クリックで詳細ダイアログを開き、内容は Markdown プレビュー表示。フッターの編集から更新する。要件に紐づく結果はタイトルの下に要件名を出す | App サブタブ |
+| `/apps/test-results` | App テスト計画・テスト結果。左の App 一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込み可（並び・絞り込みは localStorage 保存。表示順のときは DnD）。一覧で結果（outcome）をボタンから直接変更できる。結果行クリックで詳細ダイアログを開き、内容は Markdown プレビュー表示。フッターの編集から更新する。要件に紐づく結果はタイトルの下に要件名を出す | App サブタブ |
 | `/employees` | AI従業員マスタ | トップ（組織） |
 | `/org-rules` | 組織ルール一覧 | トップ（組織） |
 | `/org-rules/authority` | 職務権限表 | 組織ルール サブタブ |
@@ -102,7 +102,7 @@ HTTP API（Route Handler・`/api/v1`）の正本は [api-rules.md](./api-rules.m
 | Google Tasks | 今すぐ同期 / 最終実行の取得 / OAuth 完了（全リスト取得、新規はリスト ai-org） |
 | Spark | シートから再取得 |
 | App names / groups / types / apps / crons / requirements | list / create / update / reorder / delete。要件コメントは list / create / 対応状況の更新。ボットは `/api/v1` の `apps/requirements/{id}/comments` |
-| App test plans / test results | 画面: list / save plan / create / update / delete。ボット: `/api/v1` の `apps/test-plans`・`apps/test-results` |
+| App test plans / test results | 画面: list / save plan / create / update / update outcome / delete。ボット: `/api/v1` の `apps/test-plans`・`apps/test-results` |
 | Blog | list / create / update / status / delete / コメント一覧・対応状況 / 投稿先シート同期 |
 | ネタ | list / CSV アップロード / 転用先（ブログ・X の媒体）の付与と解除 / タグの付与・解除・新規追加 |
 

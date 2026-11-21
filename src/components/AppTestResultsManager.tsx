@@ -22,6 +22,7 @@ import {
 	APP_TEST_OUTCOME_STYLE_CLASS,
 	AppTestResultOutcomeField,
 } from "@/components/AppTestResultOutcomeField";
+import { AppTestResultOutcomeButtons } from "@/components/AppTestResultOutcomeButtons";
 import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { StatusIcon } from "@/components/StatusIcon";
 import type { AppListSort } from "@/lib/app-requirements-prefs";
@@ -36,6 +37,7 @@ import {
 	formatMasterLabel,
 	type AppName,
 	type AppTestPlanWithApp,
+	type AppTestResultOutcome,
 	type AppTestResultWithApp,
 } from "@/lib/types";
 
@@ -218,6 +220,15 @@ export function AppTestResultsManager({
 		setEditing(null);
 	}, []);
 
+	function applyResultOutcomeUpdate(id: string, outcome: AppTestResultOutcome) {
+		setDetailing((current) =>
+			current?.id === id ? { ...current, outcome } : current,
+		);
+		setEditing((current) =>
+			current?.id === id ? { ...current, outcome } : current,
+		);
+	}
+
 	function openDetailDialog(item: AppTestResultWithApp) {
 		flushSync(() => {
 			setDetailing(item);
@@ -394,7 +405,7 @@ export function AppTestResultsManager({
 				</div>
 				<p className="panel-lede">
 					左の App を選び、テスト計画を Markdown 風に保存し、テスト結果を時系列で追記します。
-					行をクリックすると結果の詳細が開き、フッターの編集から内容を変更できます。左の App
+					一覧では結果をボタンから直接変更できます。行をクリックすると結果の詳細が開き、フッターの編集から内容を変更できます。左の App
 					一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する App
 					を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左のハンドルで
 					App の表示順を変更できます。
@@ -697,20 +708,10 @@ export function AppTestResultsManager({
 														</div>
 													</td>
 													<td>
-														<span
-															className={[
-																"requirement-status-badge",
-																"status-option",
-																APP_TEST_OUTCOME_STYLE_CLASS[item.outcome],
-															].join(" ")}
-														>
-															<StatusIcon
-																status={APP_TEST_OUTCOME_ICON[item.outcome]}
-															/>
-															<span>
-																{APP_TEST_RESULT_OUTCOME_LABEL[item.outcome]}
-															</span>
-														</span>
+														<AppTestResultOutcomeButtons
+															result={item}
+															onUpdated={applyResultOutcomeUpdate}
+														/>
 													</td>
 												</tr>
 											))}
