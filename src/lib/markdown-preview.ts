@@ -318,7 +318,38 @@ function consumeContinuations(lines: string[], start: number): { text: string; n
 	return { text: joinWrappedLines(chunks), next: index };
 }
 
-export function parseMarkdownPreview(markdown: string): BlockNode[] {
+export type ParseMarkdownPreviewOptions = {
+	/** 区切り行が無くても、列数が揃った `|` 行は表にする */
+	inferPipeTables?: boolean;
+};
+
+function pipeTableBlock(
+	tableLines: string[],
+	inferPipeTables: boolean,
+): Extract<BlockNode, { type: "table" }> | null {
+	if (tableLines.length >= 2 && isSeparatorRow(tableLines[1] ?? "")) {
+		return {
+			type: "table",
+			headers: splitCells(tableLines[0] ?? "").map(parseInline),
+			rows: tableLines.slice(2).map((row) => splitCells(row).map(parseInline)),
+		};
+	}
+	if (!inferPipeTables || tableLines.length < 2) return null;
+	const parsed = tableLines.map(splitCells);
+	const width = parsed[0]?.length ?? 0;
+	if (width < 2 || !parsed.every((row) => row.length === width)) return null;
+	const [headers, ...rows] = parsed;
+	return {
+		type: "table",
+		headers: (headers ?? []).map(parseInline),
+		rows: rows.map((row) => row.map(parseInline)),
+	};
+}
+
+export function parseMarkdownPreview(
+	markdown: string,
+	options?: ParseMarkdownPreviewOptions,
+): BlockNode[] {
 	const lines = markdown.replace(/\r\n/g, "\n").split("\n");
 	const blocks: BlockNode[] = [];
 	let index = 0;
@@ -383,12 +414,9 @@ export function parseMarkdownPreview(markdown: string): BlockNode[] {
 				tableLines.push((lines[index] ?? "").trim());
 				index += 1;
 			}
-			if (tableLines.length >= 2 && isSeparatorRow(tableLines[1] ?? "")) {
-				blocks.push({
-					type: "table",
-					headers: splitCells(tableLines[0] ?? "").map(parseInline),
-					rows: tableLines.slice(2).map((row) => splitCells(row).map(parseInline)),
-				});
+			const table = pipeTableBlock(tableLines, options?.inferPipeTables === true);
+			if (table) {
+				blocks.push(table);
 			} else {
 				for (const tableLine of tableLines) {
 					blocks.push({ type: "paragraph", children: parseInline(tableLine) });

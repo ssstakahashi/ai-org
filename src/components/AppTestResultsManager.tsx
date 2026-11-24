@@ -665,7 +665,7 @@ export function AppTestResultsManager({
 									</div>
 									<p className="panel-lede app-test-plan-lede">
 										対象画面・観点・前提条件などを記載します。本文は Markdown
-										プレビューで表示され、編集からいつでも更新できます。
+										プレビューで表示され、表組みは表として表示されます。編集からいつでも更新できます。
 									</p>
 									{editingPlan ? (
 										<label className="full">
@@ -674,7 +674,7 @@ export function AppTestResultsManager({
 												className="requirement-body-textarea app-test-plan-textarea"
 												value={planBody}
 												rows={10}
-												placeholder={`## テスト計画\n- 対象: …\n- 観点: …`}
+												placeholder={`## テスト計画\n| No. | 観点 | 手順 | 期待結果 |\n| --- | --- | --- | --- |\n| 1 | … | … | … |`}
 												onChange={(event) => {
 													setPlanBody(event.target.value);
 													setPlanDirty(true);
@@ -682,7 +682,11 @@ export function AppTestResultsManager({
 											/>
 										</label>
 									) : planBody.trim() ? (
-										<MarkdownPreview markdown={planBody} />
+										<MarkdownPreview
+											markdown={planBody}
+											className="app-test-plan-preview"
+											inferPipeTables
+										/>
 									) : (
 										<p className="notes">まだテスト計画はありません</p>
 									)}

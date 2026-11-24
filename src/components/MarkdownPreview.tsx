@@ -8,6 +8,8 @@ import {
 type Props = {
 	markdown: string;
 	className?: string;
+	/** 区切り行が無い Markdown 表も表にする（テスト計画向け） */
+	inferPipeTables?: boolean;
 };
 
 function Inline({ nodes }: { nodes: InlineNode[] }) {
@@ -160,8 +162,8 @@ function Block({ block }: { block: BlockNode }) {
 	}
 }
 
-export function MarkdownPreview({ markdown, className }: Props) {
-	const blocks = parseMarkdownPreview(markdown);
+export function MarkdownPreview({ markdown, className, inferPipeTables }: Props) {
+	const blocks = parseMarkdownPreview(markdown, { inferPipeTables });
 	const classes = ["markdown-preview", className].filter(Boolean).join(" ");
 
 	if (blocks.length === 0) {
