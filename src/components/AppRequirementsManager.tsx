@@ -630,6 +630,23 @@ export function AppRequirementsManager({
 		);
 	}
 
+	function handleRequirementStatusUpdated(
+		id: string,
+		status: AppRequirementStatus,
+	) {
+		applyRequirementStatusUpdate(id, status);
+		setDetailing((current) =>
+			current?.id === id ? { ...current, status } : current,
+		);
+	}
+
+	useEffect(() => {
+		if (!detailing) return;
+		const fresh = requirements.find((item) => item.id === detailing.id);
+		if (!fresh || fresh.updated_at === detailing.updated_at) return;
+		setDetailing(fresh);
+	}, [requirements, detailing]);
+
 	return (
 		<>
 			<section className="panel">
@@ -1010,7 +1027,7 @@ export function AppRequirementsManager({
 												<div className="requirement-item-main">
 													<AppRequirementStatusButtons
 														requirement={item}
-														onUpdated={applyRequirementStatusUpdate}
+														onUpdated={handleRequirementStatusUpdated}
 													/>
 													<div className="requirement-item-title-row">
 														<button
@@ -1173,21 +1190,11 @@ export function AppRequirementsManager({
 					{detailing ? (
 						<>
 							<div className="task-detail task-dialog-scroll">
+								<AppRequirementStatusButtons
+									requirement={detailing}
+									onUpdated={handleRequirementStatusUpdated}
+								/>
 								<div className="task-meta">
-									<span
-										className={[
-											"requirement-status-badge",
-											"status-option",
-											REQUIREMENT_STATUS_CLASS[detailing.status],
-										].join(" ")}
-									>
-										<StatusIcon
-											status={REQUIREMENT_STATUS_ICON[detailing.status]}
-										/>
-										<span>
-											{APP_REQUIREMENT_STATUS_LABEL[detailing.status]}
-										</span>
-									</span>
 									<span className="when">
 										記録 {formatRequirementTime(detailing.created_at)}
 									</span>
