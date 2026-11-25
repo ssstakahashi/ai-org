@@ -1867,6 +1867,19 @@ a.logout-button:hover {
 	width: 100%;
 }
 
+.requirement-comment-open {
+	align-self: flex-start;
+	padding: 0.22rem 0.7rem;
+	font-size: 0.78rem;
+	line-height: 1.3;
+}
+
+.requirement-comment-open.has-open {
+	border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
 .requirement-item-test-actions {
 	display: flex;
 	flex-wrap: wrap;

@@ -37,6 +37,7 @@ import {
 	type AppListSort,
 	type RequirementListSort,
 } from "@/lib/app-requirements-prefs";
+import { formatRequirementClipboard } from "@/lib/requirements-clipboard";
 import {
 	APP_REQUIREMENT_STATUS_LABEL,
 	formatMasterLabel,
@@ -190,6 +191,11 @@ export function AppRequirementsManager({
 	const [editFormKey, setEditFormKey] = useState(0);
 	const [detailing, setDetailing] = useState<AppRequirementWithApp | null>(null);
 	const [editing, setEditing] = useState<AppRequirementWithApp | null>(null);
+	const [copyFeedback, setCopyFeedback] = useState<{
+		id: string;
+		state: "done" | "error";
+	} | null>(null);
+	const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const [orderedApps, setOrderedApps] = useState(appNames);
 	const [selectedAppId, setSelectedAppId] = useState(
 		appNames[0]?.id ?? "",
@@ -362,6 +368,38 @@ export function AppRequirementsManager({
 				open: 0,
 			})
 		: { total: 0, done: 0, open: 0 };
+
+	useEffect(() => {
+		return () => {
+			if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+		};
+	}, []);
+
+	function markCopyState(id: string, next: "done" | "error") {
+		setCopyFeedback({ id, state: next });
+		if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+		copyResetTimerRef.current = setTimeout(() => setCopyFeedback(null), 2000);
+	}
+
+	function copyLabel(id: string) {
+		if (copyFeedback?.id !== id) return "内容をコピー";
+		return copyFeedback.state === "done" ? "コピーしました" : "コピーできませんでした";
+	}
+
+	async function copyRequirement(item: AppRequirementWithApp) {
+		const text = formatRequirementClipboard({
+			appName: item.app_name,
+			requirement: item,
+			comments: commentsByRequirementId.get(item.id) ?? [],
+			testResults: testResultsByRequirementId.get(item.id) ?? [],
+		});
+		try {
+			await writeClipboardText(text);
+			markCopyState(item.id, "done");
+		} catch {
+			markCopyState(item.id, "error");
+		}
+	}
 
 	function openCreateDialog() {
 		setCreateFormKey((value) => value + 1);
@@ -622,7 +660,7 @@ export function AppRequirementsManager({
 				</div>
 				<p className="panel-lede">
 					左の App 一覧から選択して要件を編集します。タイトルをクリックすると詳細が開き、本文は
-					Markdown プレビューで表示されます。フッターの編集から内容を変更できます。一覧ではステータスをボタンで直接変更できます。記録日時を出し、完了したものは完了日時も出します。完了と判定された要件には、その場でテスト結果を記載できます。
+					Markdown プレビューで表示されます。フッターの編集から内容を変更できます。各要件の「内容をコピー」で、その 1 件の本文・タグ・コメント・テスト結果を省略せずクリップボードへコピーできます。一覧ではステータスをボタンで直接変更できます。記録日時を出し、完了したものは完了日時も出します。完了と判定された要件には、その場でテスト結果を記載できます。
 					ステータスが「承認済」の要件は Cursor Automation から export できます。要件一覧はデフォルトでステータス順（完了は下）に並びます。左の
 					App 一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する App
 					を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左のハンドルで
@@ -1000,6 +1038,14 @@ export function AppRequirementsManager({
 															))}
 														</ul>
 													) : null}
+													<button
+														type="button"
+														className="requirement-comment-open"
+														aria-label={`${item.title} の内容をすべてコピー`}
+														onClick={() => void copyRequirement(item)}
+													>
+														{copyLabel(item.id)}
+													</button>
 													<p className="requirement-item-times">
 														<time dateTime={item.created_at}>
 															記録 {formatRequirementTime(item.created_at)}
@@ -1020,6 +1066,7 @@ export function AppRequirementsManager({
 													) : null}
 													<AppRequirementComments
 														requirementId={item.id}
+														requirementTitle={item.title}
 														comments={commentsByRequirementId.get(item.id) ?? []}
 														employees={employees}
 													/>
@@ -1174,6 +1221,15 @@ export function AppRequirementsManager({
 								)}
 							</div>
 							<div className="task-actions task-dialog-footer task-detail-actions">
+								<div className="task-detail-actions-start">
+									<button
+										type="button"
+										aria-label={`${detailing.title} の内容をすべてコピー`}
+										onClick={() => void copyRequirement(detailing)}
+									>
+										{copyLabel(detailing.id)}
+									</button>
+								</div>
 								<div className="task-detail-actions-end">
 									<button
 										type="button"
@@ -1493,6 +1549,33 @@ function IndeterminateCheckbox({
 			onChange={(event) => onChange(event.target.checked)}
 		/>
 	);
+}
+
+function writeClipboardTextFallback(text: string): void {
+	const area = document.createElement("textarea");
+	area.value = text;
+	area.setAttribute("readonly", "");
+	area.style.position = "fixed";
+	area.style.left = "-9999px";
+	document.body.appendChild(area);
+	area.select();
+	const copied = document.execCommand("copy");
+	document.body.removeChild(area);
+	if (!copied) {
+		throw new Error("copy failed");
+	}
+}
+
+async function writeClipboardText(text: string): Promise<void> {
+	if (navigator.clipboard?.writeText && window.isSecureContext) {
+		try {
+			await navigator.clipboard.writeText(text);
+			return;
+		} catch {
+			// ウィンドウが前面にないときは Clipboard API が拒否される
+		}
+	}
+	writeClipboardTextFallback(text);
 }
 
 function DeleteIcon() {
