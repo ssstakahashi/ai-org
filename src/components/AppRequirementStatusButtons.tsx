@@ -38,6 +38,7 @@ export function AppRequirementStatusButtons({ requirement, onUpdated }: Props) {
 	const router = useRouter();
 	const [pending, startTransition] = useTransition();
 	const [status, setStatus] = useState(requirement.status);
+	const [error, setError] = useState("");
 
 	useEffect(() => {
 		setStatus(requirement.status);
@@ -46,6 +47,7 @@ export function AppRequirementStatusButtons({ requirement, onUpdated }: Props) {
 	function handleSelect(next: AppRequirementStatus) {
 		if (next === status || pending) return;
 		const previous = status;
+		setError("");
 		setStatus(next);
 		onUpdated?.(requirement.id, next);
 		startTransition(async () => {
@@ -62,6 +64,7 @@ export function AppRequirementStatusButtons({ requirement, onUpdated }: Props) {
 				console.error(
 					error instanceof Error ? error.message : "ステータスの更新に失敗しました",
 				);
+				setError("ステータスを保存できませんでした。もう一度お試しください。");
 			}
 		});
 	}
@@ -94,6 +97,11 @@ export function AppRequirementStatusButtons({ requirement, onUpdated }: Props) {
 					);
 				})}
 			</div>
+			{error ? (
+				<p className="requirement-item-test-error" role="alert">
+					{error}
+				</p>
+			) : null}
 		</div>
 	);
 }

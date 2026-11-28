@@ -25,6 +25,7 @@ export function AppTestResultOutcomeButtons({ result, onUpdated }: Props) {
 	const router = useRouter();
 	const [pending, startTransition] = useTransition();
 	const [outcome, setOutcome] = useState(result.outcome);
+	const [error, setError] = useState("");
 
 	useEffect(() => {
 		setOutcome(result.outcome);
@@ -33,6 +34,7 @@ export function AppTestResultOutcomeButtons({ result, onUpdated }: Props) {
 	function handleSelect(next: AppTestResultOutcome) {
 		if (next === outcome || pending) return;
 		const previous = outcome;
+		setError("");
 		setOutcome(next);
 		onUpdated?.(result.id, next);
 		startTransition(async () => {
@@ -49,6 +51,7 @@ export function AppTestResultOutcomeButtons({ result, onUpdated }: Props) {
 				console.error(
 					error instanceof Error ? error.message : "結果の更新に失敗しました",
 				);
+				setError("結果を保存できませんでした。もう一度お試しください。");
 			}
 		});
 	}
@@ -85,6 +88,11 @@ export function AppTestResultOutcomeButtons({ result, onUpdated }: Props) {
 					);
 				})}
 			</div>
+			{error ? (
+				<p className="requirement-item-test-error" role="alert">
+					{error}
+				</p>
+			) : null}
 		</div>
 	);
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
 	useCallback,
@@ -34,6 +35,7 @@ import { masterTintStyle } from "@/lib/colors";
 import { formatInAppTz, toAppDateTimeLocal } from "@/lib/timezone";
 import {
 	APP_TEST_RESULT_OUTCOME_LABEL,
+	APP_TEST_RESULT_OUTCOME_OPTIONS,
 	formatMasterLabel,
 	type AppName,
 	type AppTestPlanWithApp,
@@ -55,6 +57,52 @@ function formatRecordedAt(value: string): string {
 		hour: "2-digit",
 		minute: "2-digit",
 	});
+}
+
+function requirementPageHref(result: AppTestResultWithApp): string | null {
+	if (!result.requirement_id) return null;
+	return `/apps/requirements?app=${encodeURIComponent(result.app_name_id)}&req=${encodeURIComponent(result.requirement_id)}`;
+}
+
+/** 一覧で途中で切れる長文に「詳細で全文」の目印を付ける */
+function ClampedBodyPreview({
+	text,
+	onOpenDetail,
+}: {
+	text: string;
+	onOpenDetail: () => void;
+}) {
+	const ref = useRef<HTMLParagraphElement>(null);
+	const [clamped, setClamped] = useState(false);
+
+	useEffect(() => {
+		const element = ref.current;
+		if (!element) return;
+		const measure = () => {
+			setClamped(element.scrollHeight > element.clientHeight + 1);
+		};
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(element);
+		return () => observer.disconnect();
+	}, [text]);
+
+	return (
+		<>
+			<p ref={ref} className="requirement-body-preview">
+				{text}
+			</p>
+			{clamped ? (
+				<button
+					type="button"
+					className="requirement-body-more"
+					onClick={onOpenDetail}
+				>
+					…詳細で全文を見る
+				</button>
+			) : null}
+		</>
+	);
 }
 
 export function AppTestResultsManager({
@@ -81,6 +129,9 @@ export function AppTestResultsManager({
 	const [reorderingApps, setReorderingApps] = useState(false);
 	const [appListSort, setAppListSort] = useState<AppListSort>("manual");
 	const [hiddenAppIds, setHiddenAppIds] = useState<Set<string>>(
+		() => new Set(),
+	);
+	const [outcomeFilter, setOutcomeFilter] = useState<Set<AppTestResultOutcome>>(
 		() => new Set(),
 	);
 	const [prefsReady, setPrefsReady] = useState(false);
@@ -154,12 +205,50 @@ export function AppTestResultsManager({
 		[displayedApps, testResults, selectedAppId],
 	);
 
+	const outcomeCounts = useMemo(() => {
+		const counts: Record<AppTestResultOutcome, number> = {
+			pass: 0,
+			fail: 0,
+			partial: 0,
+			blocked: 0,
+			skipped: 0,
+			info: 0,
+		};
+		for (const item of filteredResults) counts[item.outcome] += 1;
+		return counts;
+	}, [filteredResults]);
+
+	const displayedResults = useMemo(
+		() =>
+			outcomeFilter.size === 0
+				? filteredResults
+				: filteredResults.filter((item) => outcomeFilter.has(item.outcome)),
+		[filteredResults, outcomeFilter],
+	);
+
 	useEffect(() => {
 		const prefs = getAppTestResultsPrefs();
 		setAppListSort(prefs.sort);
-		setHiddenAppIds(new Set(prefs.hiddenAppIds));
+
+		// ?app= のリンクで開いたときは、その App を選ぶ
+		const linkedAppId =
+			new URLSearchParams(window.location.search).get("app") ?? "";
+		const hidden = new Set(prefs.hiddenAppIds);
+		if (linkedAppId) {
+			hidden.delete(linkedAppId);
+			setSelectedAppId(linkedAppId);
+		}
+		setHiddenAppIds(hidden);
 		setPrefsReady(true);
 	}, []);
+
+	useEffect(() => {
+		if (!prefsReady || !selectedAppId) return;
+		const url = new URL(window.location.href);
+		if (url.searchParams.get("app") === selectedAppId) return;
+		url.searchParams.set("app", selectedAppId);
+		window.history.replaceState(null, "", url);
+	}, [prefsReady, selectedAppId]);
 
 	useEffect(() => {
 		if (!prefsReady) return;
@@ -383,6 +472,19 @@ export function AppTestResultsManager({
 		});
 	}
 
+	function toggleOutcomeFilter(outcome: AppTestResultOutcome) {
+		setOutcomeFilter((current) => {
+			const next = new Set(current);
+			if (next.has(outcome)) next.delete(outcome);
+			else next.add(outcome);
+			return next;
+		});
+	}
+
+	function clearOutcomeFilter() {
+		setOutcomeFilter(new Set());
+	}
+
 	function showAllApps() {
 		setHiddenAppIds(new Set());
 	}
@@ -392,6 +494,7 @@ export function AppTestResultsManager({
 	}
 
 	const defaultRecordedAt = toAppDateTimeLocal(new Date());
+	const detailRequirementHref = detailing ? requirementPageHref(detailing) : null;
 
 	return (
 		<>
@@ -419,17 +522,16 @@ export function AppTestResultsManager({
 					) : null}
 				</div>
 				<p className="panel-lede">
-					左の App を選び、テスト計画を Markdown
-					プレビューで確認・編集から保存し、テスト結果を時系列で追記します。
-					一覧では結果をボタンから直接変更できます。タイトルをクリックすると結果の詳細が開き、フッターの編集から内容を変更できます。左の App
-					一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する App
-					を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左のハンドルで
-					App の表示順を変更できます。
+					左の App を選び、テスト計画の確認・編集と、テスト結果の記録ができます。結果は一覧のボタンで変更でき、タイトルをクリックすると詳細が開きます。並び順と絞り込みはこのブラウザに保存されます。
 				</p>
 
 				{orderedApps.length === 0 ? (
 					<p className="empty">
 						App マスタがありません。先に App タブで App を登録してください。
+					</p>
+				) : !prefsReady ? (
+					<p className="empty" aria-live="polite">
+						表示設定を読み込んでいます…
 					</p>
 				) : (
 					<div className="requirement-layout">
@@ -480,9 +582,6 @@ export function AppTestResultsManager({
 											</button>
 											<button type="button" onClick={hideAllApps}>
 												全解除
-											</button>
-											<button type="button" onClick={showAllApps}>
-												リセット
 											</button>
 										</div>
 										<ul className="requirement-app-filter-groups">
@@ -709,45 +808,103 @@ export function AppTestResultsManager({
 							) : null}
 
 							{filteredResults.length > 0 ? (
-								<ul className="requirement-item-list">
-									{filteredResults.map((item) => (
-										<li
-											key={item.id}
-											className="requirement-item app-test-result-item"
+								<div className="requirement-list-toolbar">
+									<div className="requirement-item-status requirement-list-status-filter">
+										<div
+											className="status-options requirement-item-status-options"
+											role="group"
+											aria-label="結果で絞り込み"
 										>
-											<div className="requirement-item-main">
-												<AppTestResultOutcomeButtons
-													result={item}
-													onUpdated={applyResultOutcomeUpdate}
-												/>
-												<div className="requirement-item-title-row">
+											{APP_TEST_RESULT_OUTCOME_OPTIONS.map((value) => {
+												const active = outcomeFilter.has(value);
+												return (
 													<button
+														key={value}
 														type="button"
-														className="requirement-item-title"
-														onClick={() => openDetailDialog(item)}
-														aria-label={`${item.title} の詳細を開く`}
+														className={`status-option ${APP_TEST_OUTCOME_STYLE_CLASS[value]}${
+															active ? " is-current" : ""
+														}`}
+														aria-pressed={active}
+														onClick={() => toggleOutcomeFilter(value)}
 													>
-														{item.title}
+														<StatusIcon status={APP_TEST_OUTCOME_ICON[value]} />
+														<span>
+															{APP_TEST_RESULT_OUTCOME_LABEL[value]}{" "}
+															{outcomeCounts[value]}
+														</span>
 													</button>
+												);
+											})}
+										</div>
+										{outcomeFilter.size > 0 ? (
+											<button type="button" onClick={clearOutcomeFilter}>
+												絞り込み解除
+											</button>
+										) : null}
+									</div>
+								</div>
+							) : null}
+
+							{filteredResults.length > 0 && displayedResults.length === 0 ? (
+								<p className="empty">
+									選んだ結果のテスト結果はありません。{" "}
+									<button type="button" onClick={clearOutcomeFilter}>
+										絞り込み解除
+									</button>
+								</p>
+							) : null}
+
+							{displayedResults.length > 0 ? (
+								<ul className="requirement-item-list">
+									{displayedResults.map((item) => {
+										const requirementHref = requirementPageHref(item);
+										return (
+											<li
+												key={item.id}
+												className="requirement-item app-test-result-item"
+											>
+												<div className="requirement-item-main">
+													<AppTestResultOutcomeButtons
+														result={item}
+														onUpdated={applyResultOutcomeUpdate}
+													/>
+													<div className="requirement-item-title-row">
+														<button
+															type="button"
+															className="requirement-item-title"
+															onClick={() => openDetailDialog(item)}
+															aria-label={`${item.title} の詳細を開く`}
+														>
+															{item.title}
+														</button>
+													</div>
+													{item.requirement_title ? (
+														<p className="requirement-linked-label">
+															要件:{" "}
+															{requirementHref ? (
+																<Link href={requirementHref}>
+																	{item.requirement_title}
+																</Link>
+															) : (
+																item.requirement_title
+															)}
+														</p>
+													) : null}
+													<p className="requirement-item-times">
+														<time dateTime={item.recorded_at}>
+															記録 {formatRecordedAt(item.recorded_at)}
+														</time>
+													</p>
+													{item.body.trim() ? (
+														<ClampedBodyPreview
+															text={item.body}
+															onOpenDetail={() => openDetailDialog(item)}
+														/>
+													) : null}
 												</div>
-												{item.requirement_title ? (
-													<p className="requirement-linked-label">
-														要件: {item.requirement_title}
-													</p>
-												) : null}
-												<p className="requirement-item-times">
-													<time dateTime={item.recorded_at}>
-														記録 {formatRecordedAt(item.recorded_at)}
-													</time>
-												</p>
-												{item.body.trim() ? (
-													<p className="requirement-body-preview">
-														{item.body}
-													</p>
-												) : null}
-											</div>
-										</li>
-									))}
+											</li>
+										);
+									})}
 								</ul>
 							) : null}
 						</div>
@@ -825,26 +982,25 @@ export function AppTestResultsManager({
 					{detailing ? (
 						<>
 							<div className="task-detail task-dialog-scroll">
+								<AppTestResultOutcomeButtons
+									result={detailing}
+									onUpdated={applyResultOutcomeUpdate}
+								/>
 								<div className="task-meta">
-									<span
-										className={[
-											"requirement-status-badge",
-											"status-option",
-											APP_TEST_OUTCOME_STYLE_CLASS[detailing.outcome],
-										].join(" ")}
-									>
-										<StatusIcon
-											status={APP_TEST_OUTCOME_ICON[detailing.outcome]}
-										/>
-										<span>
-											{APP_TEST_RESULT_OUTCOME_LABEL[detailing.outcome]}
-										</span>
-									</span>
 									<span className="when">
 										{formatRecordedAt(detailing.recorded_at)}
 									</span>
 									{detailing.requirement_title ? (
-										<span>要件: {detailing.requirement_title}</span>
+										<span>
+											要件:{" "}
+											{detailRequirementHref ? (
+												<Link href={detailRequirementHref}>
+													{detailing.requirement_title}
+												</Link>
+											) : (
+												detailing.requirement_title
+											)}
+										</span>
 									) : null}
 								</div>
 								<h3 className="task-detail-title">{detailing.title}</h3>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
 	useCallback,
@@ -33,6 +34,7 @@ import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { StatusIcon } from "@/components/StatusIcon";
 import {
 	getAppRequirementsPrefs,
+	isRequirementListSort,
 	saveAppRequirementsPrefs,
 	type AppListSort,
 	type RequirementListSort,
@@ -40,6 +42,7 @@ import {
 import { formatRequirementClipboard } from "@/lib/requirements-clipboard";
 import {
 	APP_REQUIREMENT_STATUS_LABEL,
+	APP_REQUIREMENT_STATUS_OPTIONS,
 	formatMasterLabel,
 	getDevPolicyMeta,
 	APP_TEST_RESULT_OUTCOME_LABEL,
@@ -107,11 +110,37 @@ function formatRequirementTime(value: string | null): string {
 	});
 }
 
+type RequirementCount = {
+	total: number;
+	/** 下書き・承認済・対応中（完了と取消は含めない） */
+	open: number;
+	done: number;
+	cancelled: number;
+};
+
+const EMPTY_REQUIREMENT_COUNT: RequirementCount = {
+	total: 0,
+	open: 0,
+	done: 0,
+	cancelled: 0,
+};
+
+function requirementUpdatedMs(item: AppRequirementWithApp): number {
+	return parseStoredUtc(item.updated_at)?.getTime() ?? 0;
+}
+
 function sortRequirementsForDisplay(
 	items: AppRequirementWithApp[],
 	mode: RequirementListSort,
 ): AppRequirementWithApp[] {
 	if (mode === "manual") return items;
+	if (mode === "updated") {
+		return [...items].sort((a, b) => {
+			const byUpdated = requirementUpdatedMs(b) - requirementUpdatedMs(a);
+			if (byUpdated !== 0) return byUpdated;
+			return a.sort_order - b.sort_order;
+		});
+	}
 	return [...items].sort((a, b) => {
 		const byStatus =
 			REQUIREMENT_STATUS_SORT_RANK[a.status] -
@@ -216,23 +245,26 @@ export function AppRequirementsManager({
 	const [hiddenAppIds, setHiddenAppIds] = useState<Set<string>>(
 		() => new Set(),
 	);
+	const [statusFilter, setStatusFilter] = useState<Set<AppRequirementStatus>>(
+		() => new Set(),
+	);
+	const [linkedRequirementId, setLinkedRequirementId] = useState<string | null>(
+		null,
+	);
 	const [prefsReady, setPrefsReady] = useState(false);
 	const [filterOpen, setFilterOpen] = useState(false);
 
 	const requirementCounts = useMemo(() => {
-		const counts = new Map<
-			string,
-			{ total: number; done: number; open: number }
-		>();
+		const counts = new Map<string, RequirementCount>();
 		for (const item of requirements) {
 			const current = counts.get(item.app_name_id) ?? {
-				total: 0,
-				done: 0,
-				open: 0,
+				...EMPTY_REQUIREMENT_COUNT,
 			};
 			current.total += 1;
 			if (item.status === "done") {
 				current.done += 1;
+			} else if (item.status === "cancelled") {
+				current.cancelled += 1;
 			} else {
 				current.open += 1;
 			}
@@ -266,8 +298,9 @@ export function AppRequirementsManager({
 	}, [comments]);
 
 	const canReorderApps = appListSort === "manual" && !reorderingApps;
+	// 状態で絞り込み中は一部の要件しか見えないため、並び替えの保存は行わない
 	const canReorderRequirements =
-		requirementListSort === "manual" && !reordering;
+		requirementListSort === "manual" && !reordering && statusFilter.size === 0;
 
 	const sortedApps = useMemo(() => {
 		if (appListSort === "manual") return orderedApps;
@@ -315,7 +348,18 @@ export function AppRequirementsManager({
 		const prefs = getAppRequirementsPrefs();
 		setAppListSort(prefs.sort);
 		setRequirementListSort(prefs.requirementListSort);
-		setHiddenAppIds(new Set(prefs.hiddenAppIds));
+		setStatusFilter(new Set(prefs.statusFilter));
+
+		// ?app= / ?req= のリンクで開いたときは、その App を選び、要件の詳細を開く
+		const params = new URLSearchParams(window.location.search);
+		const linkedAppId = params.get("app") ?? "";
+		const hidden = new Set(prefs.hiddenAppIds);
+		if (linkedAppId) {
+			hidden.delete(linkedAppId);
+			setSelectedAppId(linkedAppId);
+			setLinkedRequirementId(params.get("req"));
+		}
+		setHiddenAppIds(hidden);
 		setPrefsReady(true);
 	}, []);
 
@@ -326,10 +370,44 @@ export function AppRequirementsManager({
 				sort: appListSort,
 				requirementListSort,
 				hiddenAppIds: [...hiddenAppIds],
+				statusFilter: APP_REQUIREMENT_STATUS_OPTIONS.filter((status) =>
+					statusFilter.has(status),
+				),
 			},
 			orderedApps.map((app) => app.id),
 		);
-	}, [appListSort, requirementListSort, hiddenAppIds, orderedApps, prefsReady]);
+	}, [
+		appListSort,
+		requirementListSort,
+		hiddenAppIds,
+		statusFilter,
+		orderedApps,
+		prefsReady,
+	]);
+
+	useEffect(() => {
+		if (!prefsReady || !selectedAppId) return;
+		const url = new URL(window.location.href);
+		if (url.searchParams.get("app") === selectedAppId && !url.searchParams.has("req")) {
+			return;
+		}
+		url.searchParams.set("app", selectedAppId);
+		url.searchParams.delete("req");
+		window.history.replaceState(null, "", url);
+	}, [prefsReady, selectedAppId]);
+
+	useEffect(() => {
+		if (!linkedRequirementId) return;
+		const target = requirements.find((item) => item.id === linkedRequirementId);
+		setLinkedRequirementId(null);
+		if (target) setDetailing(target);
+	}, [linkedRequirementId, requirements]);
+
+	useEffect(() => {
+		if (!detailing || !prefsReady) return;
+		const dialog = detailDialogRef.current;
+		if (dialog && !dialog.open) dialog.showModal();
+	}, [detailing, prefsReady]);
 
 	useEffect(() => {
 		setOrderedApps(appNames);
@@ -355,19 +433,33 @@ export function AppRequirementsManager({
 		setOrderedItems(filteredFromProps);
 	}, [filteredFromProps]);
 
+	const selectedStatusCounts = useMemo(() => {
+		const counts: Record<AppRequirementStatus, number> = {
+			draft: 0,
+			approved: 0,
+			in_progress: 0,
+			done: 0,
+			cancelled: 0,
+		};
+		for (const item of orderedItems) counts[item.status] += 1;
+		return counts;
+	}, [orderedItems]);
+
 	const displayedRequirementItems = useMemo(
-		() => sortRequirementsForDisplay(orderedItems, requirementListSort),
-		[orderedItems, requirementListSort],
+		() =>
+			sortRequirementsForDisplay(
+				statusFilter.size === 0
+					? orderedItems
+					: orderedItems.filter((item) => statusFilter.has(item.status)),
+				requirementListSort,
+			),
+		[orderedItems, requirementListSort, statusFilter],
 	);
 
 	const selectedApp = displayedApps.find((item) => item.id === selectedAppId);
 	const selectedCount = selectedAppId
-		? (requirementCounts.get(selectedAppId) ?? {
-				total: 0,
-				done: 0,
-				open: 0,
-			})
-		: { total: 0, done: 0, open: 0 };
+		? (requirementCounts.get(selectedAppId) ?? EMPTY_REQUIREMENT_COUNT)
+		: EMPTY_REQUIREMENT_COUNT;
 
 	useEffect(() => {
 		return () => {
@@ -495,7 +587,8 @@ export function AppRequirementsManager({
 		if (
 			sourceId === targetId ||
 			reordering ||
-			requirementListSort !== "manual"
+			requirementListSort !== "manual" ||
+			statusFilter.size > 0
 		) {
 			return;
 		}
@@ -613,6 +706,19 @@ export function AppRequirementsManager({
 		});
 	}
 
+	function toggleStatusFilter(status: AppRequirementStatus) {
+		setStatusFilter((current) => {
+			const next = new Set(current);
+			if (next.has(status)) next.delete(status);
+			else next.add(status);
+			return next;
+		});
+	}
+
+	function clearStatusFilter() {
+		setStatusFilter(new Set());
+	}
+
 	function showAllApps() {
 		setHiddenAppIds(new Set());
 	}
@@ -664,7 +770,11 @@ export function AppRequirementsManager({
 								{formatMasterLabel(selectedApp.name, selectedApp.icon)}（
 								{selectedCount.total === 0
 									? "0件"
-									: `未完了 ${selectedCount.open} / 完了 ${selectedCount.done}`}
+									: `未完了 ${selectedCount.open} / 完了 ${selectedCount.done}${
+											selectedCount.cancelled > 0
+												? ` / 取消 ${selectedCount.cancelled}`
+												: ""
+										}`}
 								）
 							</span>
 						) : null}
@@ -676,17 +786,17 @@ export function AppRequirementsManager({
 					) : null}
 				</div>
 				<p className="panel-lede">
-					左の App 一覧から選択して要件を編集します。タイトルをクリックすると詳細が開き、本文は
-					Markdown プレビューで表示されます。フッターの編集から内容を変更できます。各要件の「内容をコピー」で、その 1 件の本文・タグ・コメント・テスト結果を省略せずクリップボードへコピーできます。一覧ではステータスをボタンで直接変更できます。記録日時を出し、完了したものは完了日時も出します。完了と判定された要件には、その場でテスト結果を記載できます。
-					ステータスが「承認済」の要件は Cursor Automation から export できます。要件一覧はデフォルトでステータス順（完了は下）に並びます。左の
-					App 一覧は表示順・件数が多い順・少ない順で並び替えでき、絞り込みで表示する App
-					を選べます。並び順と絞り込みはこのブラウザに保存されます。表示順のときは左のハンドルで
-					App の表示順、一覧のハンドルで要件の表示順を変更できます。
-				</p>
+				左の App を選んで要件を管理します。タイトルをクリックすると詳細が開き、ステータスは一覧のボタンで変更できます。「承認済」の要件は
+				Cursor Automation から export できます。並び順と絞り込みはこのブラウザに保存されます。
+			</p>
 
 				{orderedApps.length === 0 ? (
 					<p className="empty">
 						App マスタがありません。先に App タブで App を登録してください。
+					</p>
+				) : !prefsReady ? (
+					<p className="empty" aria-live="polite">
+						表示設定を読み込んでいます…
 					</p>
 				) : (
 					<div className="requirement-layout">
@@ -737,9 +847,6 @@ export function AppRequirementsManager({
 											</button>
 											<button type="button" onClick={hideAllApps}>
 												全解除
-											</button>
-											<button type="button" onClick={showAllApps}>
-												リセット
 											</button>
 										</div>
 										<ul className="requirement-app-filter-groups">
@@ -823,11 +930,8 @@ export function AppRequirementsManager({
 							>
 								{displayedApps.map((app) => {
 									const active = app.id === selectedAppId;
-									const count = requirementCounts.get(app.id) ?? {
-										total: 0,
-										done: 0,
-										open: 0,
-									};
+									const count =
+										requirementCounts.get(app.id) ?? EMPTY_REQUIREMENT_COUNT;
 									const appEntry = appEntryByAppNameId[app.id];
 									const devPolicy =
 										appEntry?.dev_policy.trim() ?? "";
@@ -890,8 +994,8 @@ export function AppRequirementsManager({
 													</span>
 													<span
 														className="requirement-app-count"
-														title={`未完了 ${count.open} / 完了 ${count.done}`}
-														aria-label={`未完了 ${count.open}件、完了 ${count.done}件`}
+														title={`未完了 ${count.open} / 完了 ${count.done} / 取消 ${count.cancelled}`}
+														aria-label={`未完了 ${count.open}件、完了 ${count.done}件、取消 ${count.cancelled}件`}
 													>
 														{count.total === 0
 															? "0"
@@ -961,25 +1065,70 @@ export function AppRequirementsManager({
 
 							{orderedItems.length > 0 ? (
 								<div className="requirement-list-toolbar">
+									<div className="requirement-item-status requirement-list-status-filter">
+										<div
+											className="status-options requirement-item-status-options"
+											role="group"
+											aria-label="ステータスで絞り込み"
+										>
+											{APP_REQUIREMENT_STATUS_OPTIONS.map((value) => {
+												const active = statusFilter.has(value);
+												return (
+													<button
+														key={value}
+														type="button"
+														className={`status-option ${REQUIREMENT_STATUS_CLASS[value]}${
+															active ? " is-current" : ""
+														}`}
+														aria-pressed={active}
+														onClick={() => toggleStatusFilter(value)}
+													>
+														<StatusIcon status={REQUIREMENT_STATUS_ICON[value]} />
+														<span>
+															{APP_REQUIREMENT_STATUS_LABEL[value]}{" "}
+															{selectedStatusCounts[value]}
+														</span>
+													</button>
+												);
+											})}
+										</div>
+										{statusFilter.size > 0 ? (
+											<button type="button" onClick={clearStatusFilter}>
+												絞り込み解除
+											</button>
+										) : null}
+									</div>
 									<label className="requirement-app-sort-field">
 										<span className="requirement-list-sort-label">要件の並び</span>
 										<select
 											className="requirement-app-sort"
 											value={requirementListSort}
 											aria-label="要件の並び替え"
-											onChange={(event) =>
-												setRequirementListSort(
-													event.target.value as RequirementListSort,
-												)
-											}
+											onChange={(event) => {
+												const value = event.target.value;
+												if (isRequirementListSort(value)) {
+													setRequirementListSort(value);
+												}
+											}}
 										>
 											<option value="status">
 												ステータス順（完了は下）
 											</option>
+											<option value="updated">更新が新しい順</option>
 											<option value="manual">表示順</option>
 										</select>
 									</label>
 								</div>
+							) : null}
+
+							{orderedItems.length > 0 &&
+							displayedRequirementItems.length === 0 ? (
+								<p className="empty">
+									選んだステータスの要件はありません。{" "}
+									<button type="button" onClick={clearStatusFilter}>
+										絞り込み解除
+									</button>
+								</p>
 							) : null}
 
 							{displayedRequirementItems.length > 0 ? (
@@ -1017,7 +1166,9 @@ export function AppRequirementsManager({
 													title={
 														canReorderRequirements
 															? "ドラッグして並び替え"
-															: "表示順に切り替えるとドラッグできます"
+															: statusFilter.size > 0
+																? "ステータスの絞り込みを解除するとドラッグできます"
+																: "表示順に切り替えるとドラッグできます"
 													}
 													onDragStart={(event) => onDragStart(event, item.id)}
 													onDragEnd={onDragEnd}
@@ -1070,6 +1221,11 @@ export function AppRequirementsManager({
 														{item.completed_at ? (
 															<time dateTime={item.completed_at}>
 																完了 {formatRequirementTime(item.completed_at)}
+															</time>
+														) : null}
+														{item.updated_at !== item.created_at ? (
+															<time dateTime={item.updated_at}>
+																更新 {formatRequirementTime(item.updated_at)}
 															</time>
 														) : null}
 													</p>
@@ -1203,6 +1359,11 @@ export function AppRequirementsManager({
 											完了 {formatRequirementTime(detailing.completed_at)}
 										</span>
 									) : null}
+									{detailing.updated_at !== detailing.created_at ? (
+										<span className="when">
+											更新 {formatRequirementTime(detailing.updated_at)}
+										</span>
+									) : null}
 								</div>
 								<h3 className="task-detail-title">{detailing.title}</h3>
 								{detailing.tags.length > 0 ? (
@@ -1226,6 +1387,10 @@ export function AppRequirementsManager({
 								) : (
 									<p className="notes">本文はありません</p>
 								)}
+								<RequirementDetailTestResults
+									requirement={detailing}
+									results={testResultsByRequirementId.get(detailing.id) ?? []}
+								/>
 							</div>
 							<div className="task-actions task-dialog-footer task-detail-actions">
 								<div className="task-detail-actions-start">
@@ -1439,6 +1604,65 @@ function RequirementAppDetailPanel({
 	);
 }
 
+function RequirementTestResultRows({
+	results,
+}: {
+	results: AppTestResultWithApp[];
+}) {
+	return (
+		<>
+			{results.map((result) => (
+				<div key={result.id} className="requirement-item-test">
+					<span
+						className={[
+							"status-badge",
+							"requirement-status-badge",
+							APP_TEST_OUTCOME_STYLE_CLASS[result.outcome],
+						].join(" ")}
+					>
+						<StatusIcon status={APP_TEST_OUTCOME_ICON[result.outcome]} />
+						<span>{APP_TEST_RESULT_OUTCOME_LABEL[result.outcome]}</span>
+					</span>
+					<time dateTime={result.recorded_at}>
+						{formatRequirementTime(result.recorded_at)}
+					</time>
+					{result.body ? (
+						<p className="requirement-item-test-body">{result.body}</p>
+					) : null}
+				</div>
+			))}
+		</>
+	);
+}
+
+function RequirementDetailTestResults({
+	requirement,
+	results,
+}: {
+	requirement: AppRequirementWithApp;
+	results: AppTestResultWithApp[];
+}) {
+	return (
+		<section className="requirement-detail-tests">
+			<h4>テスト結果（{results.length}件）</h4>
+			{results.length > 0 ? (
+				<>
+					<div className="requirement-item-tests">
+						<RequirementTestResultRows results={results} />
+					</div>
+					<Link
+						href={`/apps/test-results?app=${encodeURIComponent(requirement.app_name_id)}`}
+					>
+						テスト結果ページで開く
+					</Link>
+				</>
+			) : (
+				<p className="notes">この要件に紐づくテスト結果はまだありません</p>
+			)}
+		</section>
+	);
+}
+
 function RequirementTestResults({
 	requirement,
 	results,
@@ -1473,26 +1697,7 @@ function RequirementTestResults({
 
 	return (
 		<div className="requirement-item-tests">
-			{results.map((result) => (
-				<div key={result.id} className="requirement-item-test">
-					<span
-						className={[
-							"status-badge",
-							"requirement-status-badge",
-							APP_TEST_OUTCOME_STYLE_CLASS[result.outcome],
-						].join(" ")}
-					>
-						<StatusIcon status={APP_TEST_OUTCOME_ICON[result.outcome]} />
-						<span>{APP_TEST_RESULT_OUTCOME_LABEL[result.outcome]}</span>
-					</span>
-					<time dateTime={result.recorded_at}>
-						{formatRequirementTime(result.recorded_at)}
-					</time>
-					{result.body ? (
-						<p className="requirement-item-test-body">{result.body}</p>
-					) : null}
-				</div>
-			))}
+			<RequirementTestResultRows results={results} />
 			{open ? (
 				<form className="requirement-item-test-form" onSubmit={onSubmit}>
 					<input type="hidden" name="app_name_id" value={requirement.app_name_id} />

@@ -1,10 +1,15 @@
+import {
+	APP_REQUIREMENT_STATUS_OPTIONS,
+	type AppRequirementStatus,
+} from "@/lib/types";
+
 const STORAGE_KEY = "ai-org:app-requirements-prefs";
 
 export const APP_LIST_SORTS = ["manual", "count-desc", "count-asc"] as const;
 
 export type AppListSort = (typeof APP_LIST_SORTS)[number];
 
-export const REQUIREMENT_LIST_SORTS = ["status", "manual"] as const;
+export const REQUIREMENT_LIST_SORTS = ["status", "updated", "manual"] as const;
 
 export type RequirementListSort = (typeof REQUIREMENT_LIST_SORTS)[number];
 
@@ -12,38 +17,57 @@ export type AppRequirementsPrefs = {
 	sort: AppListSort;
 	requirementListSort: RequirementListSort;
 	hiddenAppIds: string[];
+	/** 表示する要件ステータス。空配列はすべて表示 */
+	statusFilter: AppRequirementStatus[];
 };
 
 export const DEFAULT_APP_REQUIREMENTS_PREFS: AppRequirementsPrefs = {
 	sort: "manual",
 	requirementListSort: "status",
 	hiddenAppIds: [],
+	statusFilter: [],
 };
 
 function isAppListSort(value: unknown): value is AppListSort {
 	return APP_LIST_SORTS.some((sort) => sort === value);
 }
 
-function isRequirementListSort(
+export function isRequirementListSort(
 	value: unknown,
 ): value is RequirementListSort {
 	return REQUIREMENT_LIST_SORTS.some((sort) => sort === value);
+}
+
+function isAppRequirementStatus(value: unknown): value is AppRequirementStatus {
+	return APP_REQUIREMENT_STATUS_OPTIONS.some((status) => status === value);
+}
+
+function uniqueStatuses(values: unknown[]): AppRequirementStatus[] {
+	return [...new Set(values.filter(isAppRequirementStatus))];
 }
 
 function uniqueIds(values: string[]): string[] {
 	return [...new Set(values.filter((id) => id.length > 0))];
 }
 
+function defaultPrefs(): AppRequirementsPrefs {
+	return {
+		...DEFAULT_APP_REQUIREMENTS_PREFS,
+		hiddenAppIds: [],
+		statusFilter: [],
+	};
+}
+
 export function getAppRequirementsPrefs(): AppRequirementsPrefs {
 	if (typeof window === "undefined") {
-		return { ...DEFAULT_APP_REQUIREMENTS_PREFS, hiddenAppIds: [] };
+		return defaultPrefs();
 	}
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
-		if (!raw) return { ...DEFAULT_APP_REQUIREMENTS_PREFS, hiddenAppIds: [] };
+		if (!raw) return defaultPrefs();
 		const parsed: unknown = JSON.parse(raw);
 		if (!parsed || typeof parsed !== "object") {
-			return { ...DEFAULT_APP_REQUIREMENTS_PREFS, hiddenAppIds: [] };
+			return defaultPrefs();
 		}
 		const record = parsed as Record<string, unknown>;
 		const sort = isAppListSort(record.sort)
@@ -59,9 +83,12 @@ export function getAppRequirementsPrefs(): AppRequirementsPrefs {
 					),
 				)
 			: [];
-		return { sort, requirementListSort, hiddenAppIds };
+		const statusFilter = Array.isArray(record.statusFilter)
+			? uniqueStatuses(record.statusFilter)
+			: [];
+		return { sort, requirementListSort, hiddenAppIds, statusFilter };
 	} catch {
-		return { ...DEFAULT_APP_REQUIREMENTS_PREFS, hiddenAppIds: [] };
+		return defaultPrefs();
 	}
 }
 
@@ -87,6 +114,7 @@ export function saveAppRequirementsPrefs(
 				sort,
 				requirementListSort,
 				hiddenAppIds,
+				statusFilter: uniqueStatuses(prefs.statusFilter),
 			} satisfies AppRequirementsPrefs),
 		);
 	} catch {
